@@ -7,7 +7,7 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:4302 \
     ASPNETCORE_ENVIRONMENT=DEVELOPMENT
 
 COPY . /app
-WORKDIR /app/Api
+WORKDIR /app/Gallery.Api
 
 RUN dotnet publish -c Release -o /app/dist
 
@@ -22,7 +22,7 @@ COPY --from=dev /app/dist /app
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://*:80
 EXPOSE 80
-CMD [ "dotnet", "Api.dll" ]
+CMD [ "dotnet", "Gallery.Api.dll" ]
 
 RUN apt-get update && \
 	apt-get install -y jq

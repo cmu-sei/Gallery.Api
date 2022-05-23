@@ -6,8 +6,8 @@ By default, api is available at localhost:4722, with the swagger page at localho
 
 # Database Migrations
 
-When the data model is changed, a new database migration must be created.  From the Api directory, run this command to create the new migration:
-    dotnet ef migrations add new_migration_name --project ../Api.Migrations.PostgreSQL/Api.Migrations.PostgreSQL.csproj
+When the data model is changed, a new database migration must be created.  From the Gallery.Api directory, run this command to create the new migration:
+    dotnet ef migrations add new_migration_name --project ../Gallery.Api.Migrations.PostgreSQL/Gallery.Api.Migrations.PostgreSQL.csproj
 
 
 # Permissions
