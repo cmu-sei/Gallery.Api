@@ -1,0 +1,38 @@
+{
+    "ApiResources": [
+        {
+        "Name": "gallery",
+        "DisplayName": "gallery",
+        "Enabled": true,
+        "Publish": true,
+        "Scopes": [ ]
+        }
+    ],
+    "Clients": [
+        {
+            "Name": "gallery.swagger",
+            "DisplayName": "gallery.swagger",
+            "Enabled": true,
+            "SeedFlags" : "AllowAccessTokensViaBrowser, EnableLocalLogin, AllowRememberConsent, AllowAccessTokensViaBrowser",
+            "SeedGrant": "implicit",
+            "SeedScopes": "openid gallery",
+            "Urls": [
+                { "Type": "RedirectUri", "Value": "http://localhost:4722/api/oauth2-redirect.html" },
+                { "Type": "CORSUri", "Value": "http://localhost:4722" }
+            ]
+        },
+        {
+            "Name": "gallery.ui",
+            "DisplayName": "gallery.ui",
+            "Enabled": true,
+            "SeedFlags" : "EnableLocalLogin, AllowRememberConsent, AllowAccessTokensViaBrowser, AlwaysIncludeUserClaimsInIdToken",
+            "SeedGrant": "implicit",
+            "SeedScopes": "openid profile gallery",
+            "Urls": [
+                { "Type": "RedirectUri", "Value": "http://localhost:4723/auth-callback" },
+                { "Type": "PostLogoutRedirectUri", "Value": "http://localhost:4723" },
+                { "Type": "RedirectUri", "Value": "http://localhost:4723/auth-callback-silent" }
+            ]
+        }
+    ]
+}
