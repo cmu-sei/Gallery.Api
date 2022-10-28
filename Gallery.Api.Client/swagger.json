@@ -1038,6 +1038,57 @@
         }
       }
     },
+    "/api/collections/mine": {
+      "get": {
+        "tags": [
+          "Collection"
+        ],
+        "summary": "Gets User's Collections",
+        "description": "Returns a list of Collections.",
+        "operationId": "getMyCollections",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Collection"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Collection"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Collection"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/collections/{id}": {
       "get": {
         "tags": [
@@ -1310,6 +1361,57 @@
         }
       }
     },
+    "/api/exhibits/mine": {
+      "get": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Get User's Exhibits",
+        "description": "Returns a list of Exhibits.",
+        "operationId": "getMyExhibits",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/collections/{collectionId}/exhibits": {
       "get": {
         "tags": [
@@ -1318,6 +1420,69 @@
         "summary": "Gets Exhibits for a Collection",
         "description": "Returns a list of Exhibits based on the collection ID",
         "operationId": "getCollectionExhibits",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "description": "The id of the Collection",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/{collectionId}/exhibits/mine": {
+      "get": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Gets User's Exhibits for a Collection",
+        "description": "Returns a list of Exhibits based on the user and collection ID",
+        "operationId": "getMyCollectionExhibits",
         "parameters": [
           {
             "name": "collectionId",
@@ -4677,6 +4842,9 @@
           "datePosted": {
             "type": "string",
             "format": "date-time"
+          },
+          "openInNewTab": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -7275,7 +7443,7 @@
             "authorizationUrl": "http://localhost:5000/connect/authorize",
             "tokenUrl": "http://localhost:5000/connect/token",
             "scopes": {
-              "openid profile email gallery": "public api access"
+              "gallery": "public api access"
             }
           }
         }
@@ -7285,7 +7453,7 @@
   "security": [
     {
       "oauth2": [
-        "openid profile email gallery"
+        "gallery"
       ]
     }
   ]

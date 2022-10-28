@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Carnegie Mellon University. All Rights Reserved. 
+Copyright 2022 Carnegie Mellon University. All Rights Reserved. 
  Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 */
 
@@ -18,7 +18,7 @@ Copyright 2021 Carnegie Mellon University. All Rights Reserved.
 #pragma warning disable 3016 // Disable "CS3016 Arrays as attribute arguments is not CLS-compliant"
 #pragma warning disable 8603 // Disable "CS8603 Possible null reference return"
 
-namespace Gallery.Gallery.Api.Client
+namespace Gallery.Api.Client
 {
     using System = global::System;
 
@@ -330,6 +330,21 @@ namespace Gallery.Gallery.Api.Client
         System.Threading.Tasks.Task<Collection> CreateCollectionAsync(Collection body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
+        /// Gets User's Collections
+        /// </summary>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Collection>> GetMyCollectionsAsync();
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Gets User's Collections
+        /// </summary>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Collection>> GetMyCollectionsAsync(System.Threading.CancellationToken cancellationToken);
+
+        /// <summary>
         /// Gets a specific Collection by id
         /// </summary>
         /// <param name="id">The id of the Collection</param>
@@ -415,6 +430,21 @@ namespace Gallery.Gallery.Api.Client
         System.Threading.Tasks.Task<Exhibit> CreateExhibitAsync(Exhibit body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
+        /// Get User's Exhibits
+        /// </summary>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetMyExhibitsAsync();
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Get User's Exhibits
+        /// </summary>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetMyExhibitsAsync(System.Threading.CancellationToken cancellationToken);
+
+        /// <summary>
         /// Gets Exhibits for a Collection
         /// </summary>
         /// <param name="collectionId">The id of the Collection</param>
@@ -430,6 +460,23 @@ namespace Gallery.Gallery.Api.Client
         /// <returns>Success</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
         System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetCollectionExhibitsAsync(System.Guid collectionId, System.Threading.CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Gets User's Exhibits for a Collection
+        /// </summary>
+        /// <param name="collectionId">The id of the Collection</param>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetMyCollectionExhibitsAsync(System.Guid collectionId);
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Gets User's Exhibits for a Collection
+        /// </summary>
+        /// <param name="collectionId">The id of the Collection</param>
+        /// <returns>Success</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetMyCollectionExhibitsAsync(System.Guid collectionId, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Gets a specific Exhibit by id
@@ -1487,6 +1534,9 @@ namespace Gallery.Gallery.Api.Client
 
         [System.Text.Json.Serialization.JsonPropertyName("datePosted")]
         public System.DateTimeOffset DatePosted { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("openInNewTab")]
+        public bool OpenInNewTab { get; set; }
 
     }
 
