@@ -23,7 +23,6 @@ namespace Gallery.Api.Services
     public interface IArticleCardService
     {
         Task<IEnumerable<ViewModels.ArticleCard>> GetAsync(CancellationToken ct);
-        Task<IEnumerable<ViewModels.ArticleCard>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.ArticleCard>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.ArticleCard>> GetByArticleAsync(Guid articleId, CancellationToken ct);
         Task<ViewModels.ArticleCard> GetAsync(Guid id, CancellationToken ct);
@@ -59,25 +58,14 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<ArticleCard>>(items);
         }
 
-        public async Task<IEnumerable<ViewModels.ArticleCard>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
-        {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            var items = await _context.ArticleCards
-                .Where(tc => tc.Card.CollectionId == collectionId)
-                .ToListAsync(ct);
-
-            return _mapper.Map<IEnumerable<ArticleCard>>(items);
-        }
-
         public async Task<IEnumerable<ViewModels.ArticleCard>> GetByCardAsync(Guid cardId, CancellationToken ct)
         {
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var items = await _context.ArticleCards
-                .Where(tc => tc.CardId == cardId)
+                .Where(ac => ac.CardId == cardId)
+                .Include(ac => ac.Article)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<ArticleCard>>(items);
@@ -89,7 +77,8 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             var items = await _context.ArticleCards
-                .Where(tc => tc.ArticleId == articleId)
+                .Where(ac => ac.ArticleId == articleId)
+                .Include(ac => ac.Card)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<ArticleCard>>(items);

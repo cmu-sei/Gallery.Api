@@ -184,6 +184,7 @@ namespace Gallery.Api
             services.AddMemoryCache();
 
             services.AddScoped<IArticleService, ArticleService>();
+            services.AddScoped<IArticleCardService, ArticleCardService>();
             services.AddScoped<ICardService, CardService>();
             services.AddScoped<ICollectionService, CollectionService>();
             services.AddScoped<IExhibitService, ExhibitService>();

@@ -3,6 +3,7 @@
 
 using Gallery.Api.Data.Enumerations;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -27,6 +28,7 @@ namespace Gallery.Api.Data.Models
         public string Url { get; set; }
         public DateTime DatePosted { get; set; }
         public bool OpenInNewTab { get; set; }
+        public ICollection<ArticleCardEntity> ArticleCards { get; set; } = new List<ArticleCardEntity>();
 
     }
 }

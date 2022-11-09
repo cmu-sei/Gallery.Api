@@ -46,25 +46,7 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets all ArticleCards for a collection
-        /// </summary>
-        /// <remarks>
-        /// Returns a list of all of the ArticleCards for the collection.
-        /// </remarks>
-        /// <param name="collectionId">The id of the Collection</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        [HttpGet("collections/{collectionId}/articlecards")]
-        [ProducesResponseType(typeof(IEnumerable<ArticleCard>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getCollectionArticleCards")]
-        public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
-        {
-            var list = await _articleCardService.GetByCollectionAsync(collectionId, ct);
-            return Ok(list);
-        }
-
-        /// <summary>
-        /// Gets all ArticleCards for an card
+        /// Gets all ArticleCards for a card
         /// </summary>
         /// <remarks>
         /// Returns a list of all of the ArticleCards for the card.
