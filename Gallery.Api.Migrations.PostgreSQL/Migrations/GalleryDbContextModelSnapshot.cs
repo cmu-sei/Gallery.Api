@@ -23,48 +23,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "uuid-ossp");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Gallery.Api.Data.Models.ArticleCardEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("ArticleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("article_id");
-
-                    b.Property<Guid>("CardId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("card_id");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_created");
-
-                    b.Property<DateTime?>("DateModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_modified");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("modified_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("CardId", "ArticleId")
-                        .IsUnique();
-
-                    b.ToTable("article_cards");
-                });
-
             modelBuilder.Entity("Gallery.Api.Data.Models.ArticleEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -143,7 +101,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("CollectionId");
 
-                    b.ToTable("articles");
+                    b.ToTable("articles", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.ArticleTagEntity", b =>
@@ -192,7 +150,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("TagId");
 
-                    b.ToTable("article_tags");
+                    b.ToTable("article_tags", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.CardEntity", b =>
@@ -243,7 +201,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("CollectionId");
 
-                    b.ToTable("cards");
+                    b.ToTable("cards", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.CollectionEntity", b =>
@@ -280,7 +238,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("collections");
+                    b.ToTable("collections", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitEntity", b =>
@@ -327,7 +285,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("CollectionId");
 
-                    b.ToTable("exhibits");
+                    b.ToTable("exhibits", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitTeamEntity", b =>
@@ -369,7 +327,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("ExhibitId", "TeamId")
                         .IsUnique();
 
-                    b.ToTable("exhibit_teams");
+                    b.ToTable("exhibit_teams", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.PermissionEntity", b =>
@@ -417,7 +375,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("Key", "Value")
                         .IsUnique();
 
-                    b.ToTable("permissions");
+                    b.ToTable("permissions", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TagEntity", b =>
@@ -450,7 +408,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("tags");
+                    b.ToTable("tags", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
@@ -492,7 +450,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("TeamId", "ArticleId")
                         .IsUnique();
 
-                    b.ToTable("team_article_entity");
+                    b.ToTable("team_article_entity", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamCardEntity", b =>
@@ -546,7 +504,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("TeamId", "CardId")
                         .IsUnique();
 
-                    b.ToTable("team_cards");
+                    b.ToTable("team_cards", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamEntity", b =>
@@ -589,7 +547,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("ExhibitEntityId");
 
-                    b.ToTable("teams");
+                    b.ToTable("teams", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamUserEntity", b =>
@@ -615,7 +573,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("UserId", "TeamId")
                         .IsUnique();
 
-                    b.ToTable("team_users");
+                    b.ToTable("team_users", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.UserArticleEntity", b =>
@@ -671,7 +629,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("ExhibitId", "UserId", "ArticleId")
                         .IsUnique();
 
-                    b.ToTable("user_articles");
+                    b.ToTable("user_articles", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.UserEntity", b =>
@@ -711,7 +669,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("Id")
                         .IsUnique();
 
-                    b.ToTable("users");
+                    b.ToTable("users", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.UserPermissionEntity", b =>
@@ -737,26 +695,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("UserId", "PermissionId")
                         .IsUnique();
 
-                    b.ToTable("user_permissions");
-                });
-
-            modelBuilder.Entity("Gallery.Api.Data.Models.ArticleCardEntity", b =>
-                {
-                    b.HasOne("Gallery.Api.Data.Models.ArticleEntity", "Article")
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Gallery.Api.Data.Models.CardEntity", "Card")
-                        .WithMany()
-                        .HasForeignKey("CardId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Article");
-
-                    b.Navigation("Card");
+                    b.ToTable("user_permissions", (string)null);
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.ArticleEntity", b =>

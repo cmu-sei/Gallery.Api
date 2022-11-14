@@ -11,8 +11,7 @@ namespace Gallery.Api.Infrastructure.Mappings
     {
         public ArticleProfile()
         {
-            CreateMap<ArticleEntity, Article>()
-                .ForMember(a => a.Cards, opt => opt.MapFrom(x => x.ArticleCards.Select(y => y.Card)));
+            CreateMap<ArticleEntity, Article>();
 
             CreateMap<Article, ArticleEntity>();
 
