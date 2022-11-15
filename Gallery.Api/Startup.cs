@@ -191,6 +191,7 @@ namespace Gallery.Api
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<ISteamfitterService, SteamfitterService>();
             services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamArticleService, TeamArticleService>();
             services.AddScoped<ITeamCardService, TeamCardService>();
             services.AddScoped<ITeamUserService, TeamUserService>();
             services.AddScoped<IUserService, UserService>();

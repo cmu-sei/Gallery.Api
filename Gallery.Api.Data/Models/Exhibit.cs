@@ -16,8 +16,8 @@ namespace Gallery.Api.Data.Models
         public int CurrentMove { get; set; }
         public int CurrentInject { get; set; }
         public Guid CollectionId { get; set; }
-        public Guid? ScenarioId { get; set; }
         public CollectionEntity Collection { get; set; }
+        public Guid? ScenarioId { get; set; }
         public ICollection<TeamEntity> Teams { get; set; } = new List<TeamEntity>();
     }
 }
