@@ -5,6 +5,8 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Gallery.Api.Data.Models
 {
@@ -16,5 +18,7 @@ namespace Gallery.Api.Data.Models
         public string Name { get; set; }
         public string ShortName { get; set; }
         public ICollection<TeamUserEntity> TeamUsers { get; set; } = new List<TeamUserEntity>();
+        public ICollection<TeamArticleEntity> TeamArticles { get; set; } = new List<TeamArticleEntity>();
     }
+
 }

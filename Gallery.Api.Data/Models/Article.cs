@@ -28,7 +28,8 @@ namespace Gallery.Api.Data.Models
         public string Url { get; set; }
         public DateTime DatePosted { get; set; }
         public bool OpenInNewTab { get; set; }
-        public ICollection<ArticleCardEntity> ArticleCards { get; set; } = new List<ArticleCardEntity>();
+        public ICollection<TeamArticleEntity> TeamArticles { get; set; } = new List<TeamArticleEntity>();
 
     }
+
 }

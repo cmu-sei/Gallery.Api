@@ -22,7 +22,7 @@ namespace Gallery.Api.ViewModels
         public string Url { get; set; }
         public DateTime DatePosted { get; set; }
         public bool OpenInNewTab { get; set; }
-        public ICollection<Card> Cards { get; set; } = new List<Card>();
+        public ICollection<Team> Teams { get; set; } = new List<Team>();
    }
 }
 
