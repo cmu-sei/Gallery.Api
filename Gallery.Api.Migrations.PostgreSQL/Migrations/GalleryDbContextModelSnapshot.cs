@@ -17,7 +17,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.1")
+                .HasAnnotation("ProductVersion", "3.1.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "uuid-ossp");
@@ -411,49 +411,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.ToTable("tags", (string)null);
                 });
 
-            modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("ArticleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("article_id");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_created");
-
-                    b.Property<DateTime?>("DateModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_modified");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("modified_by");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("team_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("TeamId", "ArticleId")
-                        .IsUnique();
-
-                    b.ToTable("team_article_entity", (string)null);
-                });
-
-            modelBuilder.Entity("Gallery.Api.Data.Models.TeamCardEntity", b =>
+             modelBuilder.Entity("Gallery.Api.Data.Models.TeamCardEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

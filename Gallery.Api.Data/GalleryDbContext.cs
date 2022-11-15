@@ -22,11 +22,9 @@ namespace Gallery.Api.Data
         public DbSet<UserPermissionEntity> UserPermissions { get; set; }
         public DbSet<ArticleEntity> Articles { get; set; }
         public DbSet<ArticleCardEntity> ArticleCards { get; set; }
-        public DbSet<ArticleTagEntity> ArticleTags { get; set; }
         public DbSet<CardEntity> Cards { get; set; }
         public DbSet<CollectionEntity> Collections { get; set; }
         public DbSet<ExhibitEntity> Exhibits { get; set; }
-        public DbSet<TagEntity> Tags { get; set; }
         public DbSet<TeamEntity> Teams { get; set; }
         public DbSet<TeamCardEntity> TeamCards { get; set; }
         public DbSet<TeamUserEntity> TeamUsers { get; set; }
