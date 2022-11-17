@@ -4,6 +4,8 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Gallery.Api.Data.Models
 {
@@ -29,4 +31,11 @@ namespace Gallery.Api.Data.Models
         public ArticleEntity Article { get; set; }
     }
 
+    public class TeamArticleConfiguration : IEntityTypeConfiguration<TeamArticleEntity>
+    {
+        public void Configure(EntityTypeBuilder<TeamArticleEntity> builder)
+        {
+            builder.HasIndex(x => new { x.ExhibitId, x.TeamId, x.ArticleId }).IsUnique();
+        }
+    }
 }
