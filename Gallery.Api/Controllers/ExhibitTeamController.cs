@@ -70,6 +70,24 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
+        /// Gets all ExhibitTeams for an exhibit
+        /// </summary>
+        /// <remarks>
+        /// Returns a list of all of the ExhibitTeams for the exhibit.
+        /// </remarks>
+        /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [HttpGet("exhibits/{exhibitId}/exhibitteams")]
+        [ProducesResponseType(typeof(IEnumerable<ExhibitTeam>), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "getExhibitExhibitTeams")]
+        public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
+        {
+            var list = await _exhibitTeamService.GetByExhibitAsync(exhibitId, ct);
+            return Ok(list);
+        }
+
+        /// <summary>
         /// Creates a new ExhibitTeam
         /// </summary>
         /// <remarks>

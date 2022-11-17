@@ -24,6 +24,7 @@ namespace Gallery.Api.Services
     {
         Task<IEnumerable<ViewModels.ExhibitTeam>> GetAsync(CancellationToken ct);
         Task<ViewModels.ExhibitTeam> GetAsync(Guid id, CancellationToken ct);
+        Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
@@ -64,6 +65,17 @@ namespace Gallery.Api.Services
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
 
             return _mapper.Map<ExhibitTeam>(item);
+        }
+
+        public async Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
+                throw new ForbiddenException();
+            var items = await _context.ExhibitTeams
+                .Where(et => et.ExhibitId == exhibitId)
+                .ToListAsync(ct);
+
+            return _mapper.Map<IEnumerable<ExhibitTeam>>(items);
         }
 
         public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct)
