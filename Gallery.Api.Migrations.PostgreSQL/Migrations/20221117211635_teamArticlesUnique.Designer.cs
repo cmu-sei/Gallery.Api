@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Carnegie Mellon University. All Rights Reserved. 
+ Copyright 2022 Carnegie Mellon University. All Rights Reserved. 
  Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 */
 
@@ -8,6 +8,7 @@ using System;
 using Gallery.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -16,9 +17,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 {
     [DbContext(typeof(GalleryDbContext))]
-    partial class GalleryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20221117211635_teamArticlesUnique")]
+    partial class teamArticlesUnique
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -107,55 +109,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("CollectionId");
 
                     b.ToTable("articles");
-                });
-
-            modelBuilder.Entity("Gallery.Api.Data.Models.ArticleTagEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("ArticleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("article_id");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_created");
-
-                    b.Property<DateTime?>("DateModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_modified");
-
-                    b.Property<int>("Inject")
-                        .HasColumnType("integer")
-                        .HasColumnName("inject");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("modified_by");
-
-                    b.Property<int>("Move")
-                        .HasColumnType("integer")
-                        .HasColumnName("move");
-
-                    b.Property<Guid>("TagId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tag_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("TagId");
-
-                    b.ToTable("article_tags");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.CardEntity", b =>
@@ -383,39 +336,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.ToTable("permissions");
                 });
 
-            modelBuilder.Entity("Gallery.Api.Data.Models.TagEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_created");
-
-                    b.Property<DateTime?>("DateModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_modified");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("modified_by");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("tags");
-                });
-
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -440,6 +360,10 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("date_modified");
 
+                    b.Property<Guid>("ExhibitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exhibit_id");
+
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("modified_by");
@@ -452,10 +376,12 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
                     b.HasIndex("ArticleId");
 
-                    b.HasIndex("TeamId", "ArticleId")
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("ExhibitId", "TeamId", "ArticleId")
                         .IsUnique();
 
-                    b.ToTable("team_article_entity");
+                    b.ToTable("team_articles");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamCardEntity", b =>
@@ -720,25 +646,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("Collection");
                 });
 
-            modelBuilder.Entity("Gallery.Api.Data.Models.ArticleTagEntity", b =>
-                {
-                    b.HasOne("Gallery.Api.Data.Models.ArticleEntity", "Article")
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Gallery.Api.Data.Models.TagEntity", "Tag")
-                        .WithMany()
-                        .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Article");
-
-                    b.Navigation("Tag");
-                });
-
             modelBuilder.Entity("Gallery.Api.Data.Models.CardEntity", b =>
                 {
                     b.HasOne("Gallery.Api.Data.Models.CollectionEntity", "Collection")
@@ -783,18 +690,26 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
                 {
                     b.HasOne("Gallery.Api.Data.Models.ArticleEntity", "Article")
-                        .WithMany()
+                        .WithMany("TeamArticles")
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Gallery.Api.Data.Models.TeamEntity", "Team")
+                    b.HasOne("Gallery.Api.Data.Models.ExhibitEntity", "Exhibit")
                         .WithMany()
+                        .HasForeignKey("ExhibitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.TeamEntity", "Team")
+                        .WithMany("TeamArticles")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Article");
+
+                    b.Navigation("Exhibit");
 
                     b.Navigation("Team");
                 });
@@ -890,6 +805,11 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.ArticleEntity", b =>
+                {
+                    b.Navigation("TeamArticles");
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitEntity", b =>
                 {
                     b.Navigation("Teams");
@@ -902,6 +822,8 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamEntity", b =>
                 {
+                    b.Navigation("TeamArticles");
+
                     b.Navigation("TeamUsers");
                 });
 

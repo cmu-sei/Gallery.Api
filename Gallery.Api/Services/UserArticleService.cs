@@ -278,47 +278,43 @@ namespace Gallery.Api.Services
             var currentMove = exhibit.CurrentMove;
             var currentInject = exhibit.CurrentInject;
             var actualTime = DateTime.UtcNow;
-            var teamList = await _context.ExhibitTeams
-                .Include(et => et.Team)
+            var teamArticleList = await _context.TeamArticles
+                .Include(ta => ta.Team)
                 .ThenInclude(t => t.TeamUsers)
-                .Where(et => et.ExhibitId == exhibit.Id)
-                .Select(et => et.Team)
+                .Where(ta => ta.ExhibitId == exhibit.Id &&
+                    (ta.Article.Move < currentMove || (ta.Article.Move == currentMove && ta.Article.Inject <= currentInject))
+                )
+                .AsSplitQuery()
                 .ToListAsync(ct);
-            foreach (var team in teamList)
+            var newUserArticles = new List<UserArticleEntity>();
+            foreach (var teamArticle in teamArticleList)
             {
-                var cardIdList = await _context.TeamCards
-                    .Where(tc => tc.TeamId == team.Id && tc.Card.CollectionId == exhibit.CollectionId)
-                    .Select(tc => tc.CardId)
-                    .ToListAsync(ct);
-                var validArticleIdList = await _context.Articles
-                    .Where(a => cardIdList.Contains((Guid)a.CardId) && (a.Move < currentMove || (a.Move == currentMove && a.Inject <= currentInject)))
-                    .Select(a => a.Id)
-                    .ToListAsync(ct);
-                foreach (var articleId in validArticleIdList)
+                foreach (var teamUser in teamArticle.Team.TeamUsers)
                 {
-                    foreach (var teamUser in team.TeamUsers)
+                    var alreadyExists = await _context.UserArticles.AnyAsync(ua =>
+                        ua.ExhibitId == exhibit.Id &&
+                        ua.ArticleId == teamArticle.ArticleId &&
+                        ua.UserId == teamUser.UserId);
+                    var alreadyAdded = newUserArticles.Any(ua => 
+                        ua.ExhibitId == exhibit.Id &&
+                        ua.ArticleId == teamArticle.ArticleId &&
+                        ua.UserId == teamUser.UserId);
+                    if (!alreadyExists && !alreadyAdded)
                     {
-                        var alreadyExists = _context.UserArticles.Any(ua =>
-                                ua.ExhibitId == exhibit.Id &&
-                                ua.ArticleId == articleId &&
-                                ua.UserId == teamUser.UserId
-                            );
-                        if (!alreadyExists)
-                        {
-                            var newUserArticle = new UserArticleEntity() {
-                                Id = Guid.NewGuid(),
-                                ArticleId = articleId,
-                                ExhibitId = exhibit.Id,
-                                UserId = teamUser.UserId,
-                                ActualDatePosted = actualTime,
-                                IsRead = false
-                            };
-                            await _context.UserArticles.AddAsync(newUserArticle, ct);
-                        }
+                        var newUserArticle = new UserArticleEntity() {
+                            Id = Guid.NewGuid(),
+                            ArticleId = teamArticle.ArticleId,
+                            ExhibitId = exhibit.Id,
+                            UserId = teamUser.UserId,
+                            ActualDatePosted = actualTime,
+                            IsRead = false
+                        };
+                        newUserArticles.Add(newUserArticle);
                     }
                 }
 
             }
+            await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
             await _context.SaveChangesAsync(ct);
 
             return true;
@@ -329,42 +325,44 @@ namespace Gallery.Api.Services
             var currentMove = exhibit.CurrentMove;
             var currentInject = exhibit.CurrentInject;
             var actualTime = DateTime.UtcNow;
-            var exhibitTeamIdList = await _context.ExhibitTeams
-                .Where(et => et.ExhibitId == exhibit.Id)
-                .Select(et => et.TeamId)
-                .ToListAsync(ct);
             var userTeamIdList = await _context.TeamUsers
                 .Where(tu => tu.UserId == userId)
                 .Select(tu => tu.TeamId)
                 .ToListAsync(ct);
-            var teamId = (await _context.Teams
-                .FirstOrDefaultAsync(t => exhibitTeamIdList.Contains(t.Id) && userTeamIdList.Contains(t.Id)))
-                .Id;
-            var cardIdList = await _context.TeamCards
-                .Where(tc => tc.TeamId == teamId && tc.Card.CollectionId == exhibit.CollectionId)
-                .Select(tc => tc.CardId)
+            var teamArticleList = await _context.TeamArticles
+                .Include(ta => ta.Team)
+                .ThenInclude(t => t.TeamUsers)
+                .Where(ta => ta.ExhibitId == exhibit.Id &&
+                    (ta.Article.Move < currentMove || (ta.Article.Move == currentMove && ta.Article.Inject <= currentInject)) &&
+                    userTeamIdList.Contains(ta.TeamId)
+                )
+                .AsSplitQuery()
                 .ToListAsync(ct);
-            var validArticleIdList = await _context.Articles
-                .Where(a => cardIdList.Contains((Guid)a.CardId) && (a.Move < currentMove || (a.Move == currentMove && a.Inject <= currentInject)))
-                .Select(a => a.Id)
-                .ToListAsync(ct);
-            var existingArticleIdList = await _context.UserArticles
-                .Where(ua => ua.UserId == userId && validArticleIdList.Contains(ua.ArticleId))
-                .Select(ua => ua.ArticleId)
-                .ToListAsync(ct);
-            var neededArticleIdList = validArticleIdList.Where(id => !existingArticleIdList.Contains(id));
-            foreach (var articleId in neededArticleIdList)
+            var newUserArticles = new List<UserArticleEntity>();
+            foreach (var teamArticle in teamArticleList)
             {
-                var newUserArticle = new UserArticleEntity() {
-                    Id = Guid.NewGuid(),
-                    ArticleId = articleId,
-                    ExhibitId = exhibit.Id,
-                    UserId = userId,
-                    ActualDatePosted = actualTime,
-                    IsRead = false
-                };
-                await _context.UserArticles.AddAsync(newUserArticle, ct);
+                var alreadyExists = await _context.UserArticles.AnyAsync(ua =>
+                    ua.ExhibitId == exhibit.Id &&
+                    ua.ArticleId == teamArticle.ArticleId &&
+                    ua.UserId == userId);
+                var alreadyAdded = newUserArticles.Any(ua => 
+                    ua.ExhibitId == exhibit.Id &&
+                    ua.ArticleId == teamArticle.ArticleId &&
+                    ua.UserId == userId);
+                if (!alreadyExists && !alreadyAdded)
+                {
+                    var newUserArticle = new UserArticleEntity() {
+                        Id = Guid.NewGuid(),
+                        ArticleId = teamArticle.ArticleId,
+                        ExhibitId = exhibit.Id,
+                        UserId = userId,
+                        ActualDatePosted = actualTime,
+                        IsRead = false
+                    };
+                    newUserArticles.Add(newUserArticle);
+                }
             }
+            await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
             await _context.SaveChangesAsync(ct);
 
             return true;

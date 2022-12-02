@@ -210,11 +210,11 @@ namespace Gallery.Api.Infrastructure.Extensions
             {
                 var dbExhibitTeams = context.ExhibitTeams.ToList();
 
-                foreach (ExhibitTeamEntity exhibitTeams in options.ExhibitTeams)
+                foreach (ExhibitTeamEntity exhibitTeam in options.ExhibitTeams)
                 {
-                    if (!dbExhibitTeams.Where(x => x.Id == exhibitTeams.Id).Any())
+                    if (!dbExhibitTeams.Where(x => x.ExhibitId == exhibitTeam.ExhibitId && x.TeamId == exhibitTeam.TeamId).Any())
                     {
-                        context.ExhibitTeams.Add(exhibitTeams);
+                        context.ExhibitTeams.Add(exhibitTeam);
                     }
                 }
                 context.SaveChanges();

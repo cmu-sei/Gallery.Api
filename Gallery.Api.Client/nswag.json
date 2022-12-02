@@ -33,8 +33,8 @@
       "clientClassAccessModifier": "public",
       "typeAccessModifier": "public",
       "generateContractsOutput": true,
-      "contractsNamespace": "Gallery.Gallery.Api.Client",
-      "contractsOutputFilePath": "Gallery.Gallery.Api.Contracts.cs",
+      "contractsNamespace": "Gallery.Api.Client",
+      "contractsOutputFilePath": "Gallery.Api.Contracts.cs",
       "parameterDateTimeFormat": "s",
       "parameterDateFormat": "yyyy-MM-dd",
       "generateUpdateJsonSerializerSettingsMethod": true,
@@ -56,7 +56,7 @@
       "wrapResponseMethods": [],
       "generateResponseClasses": true,
       "responseClass": "SwaggerResponse",
-      "namespace": "Gallery.Gallery.Api.Client",
+      "namespace": "Gallery.Api.Client",
       "requiredPropertiesMustBeDefined": true,
       "dateType": "System.DateTimeOffset",
       "jsonConverters": null,
@@ -93,7 +93,7 @@
       "enumNameGeneratorType": null,
       "serviceHost": null,
       "serviceSchemes": null,
-      "output": "Gallery.Gallery.Api.Client.cs",
+      "output": "Gallery.Api.Client.cs",
       "newLineBehavior": "Auto"
     }
   }

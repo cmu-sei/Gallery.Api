@@ -125,6 +125,7 @@ namespace Gallery.Api.Services
             article.ModifiedBy = null;
             var articleEntity = _mapper.Map<ArticleEntity>(article);
             articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
+            articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
 
             _context.Articles.Add(articleEntity);
             await _context.SaveChangesAsync(ct);

@@ -3,21 +3,16 @@
 
 using Gallery.Api.Data.Models;
 using Gallery.Api.ViewModels;
-using System.Linq;
 
 namespace Gallery.Api.Infrastructure.Mappings
 {
-    public class ArticleProfile : AutoMapper.Profile
+    public class TeamArticleProfile : AutoMapper.Profile
     {
-        public ArticleProfile()
+        public TeamArticleProfile()
         {
-            CreateMap<ArticleEntity, Article>();
+            CreateMap<TeamArticleEntity, TeamArticle>();
 
-            CreateMap<Article, ArticleEntity>();
-
-            CreateMap<ArticleEntity, ArticleEntity>()
-                .ForMember(e => e.Id, opt => opt.Ignore());
-
+            CreateMap<TeamArticle, TeamArticleEntity>();
         }
     }
 }

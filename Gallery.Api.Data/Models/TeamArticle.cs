@@ -13,8 +13,9 @@ namespace Gallery.Api.Data.Models
     {
         public TeamArticleEntity() {}
 
-        public TeamArticleEntity(Guid teamId, Guid articleId)
+        public TeamArticleEntity(Guid exhibitId, Guid teamId, Guid articleId)
         {
+            ExhibitId = exhibitId;
             TeamId = teamId;
             ArticleId = articleId;
         }
@@ -22,6 +23,8 @@ namespace Gallery.Api.Data.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
+        public Guid ExhibitId { get; set; }
+        public ExhibitEntity Exhibit { get; set; }
         public Guid TeamId { get; set; }
         public TeamEntity Team { get; set; }
         public Guid ArticleId { get; set; }
@@ -32,7 +35,7 @@ namespace Gallery.Api.Data.Models
     {
         public void Configure(EntityTypeBuilder<TeamArticleEntity> builder)
         {
-            builder.HasIndex(x => new { x.TeamId, x.ArticleId }).IsUnique();
+            builder.HasIndex(x => new { x.ExhibitId, x.TeamId, x.ArticleId }).IsUnique();
         }
     }
 }

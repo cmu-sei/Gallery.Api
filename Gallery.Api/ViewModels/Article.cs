@@ -2,6 +2,7 @@
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using Gallery.Api.Data.Enumerations;
 
 namespace Gallery.Api.ViewModels
@@ -21,6 +22,7 @@ namespace Gallery.Api.ViewModels
         public string Url { get; set; }
         public DateTime DatePosted { get; set; }
         public bool OpenInNewTab { get; set; }
+        public ICollection<Team> Teams { get; set; } = new List<Team>();
    }
 }
 
