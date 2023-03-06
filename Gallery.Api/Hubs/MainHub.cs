@@ -48,14 +48,14 @@ namespace Gallery.Api.Hubs
                 groupIdList.Add(systemAdminPermissionId.ToString());
             }
             // add this user's exhibits
-            var exhibitIdList = await _context.ExhibitTeams
+            var exhibitIdList = await _context.Teams
                 .Join(
                     _context.TeamUsers,
-                    et => et.TeamId,
+                    t => t.Id,
                     tu => tu.TeamId,
-                    (et, tu) => new
+                    (t, tu) => new
                     {
-                        ExhibitId = et.ExhibitId,
+                        ExhibitId = t.ExhibitId,
                         UserId = tu.UserId
                     }
                 )

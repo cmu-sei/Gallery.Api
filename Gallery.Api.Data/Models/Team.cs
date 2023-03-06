@@ -17,8 +17,17 @@ namespace Gallery.Api.Data.Models
         public Guid Id { get; set; }
         public string Name { get; set; }
         public string ShortName { get; set; }
+        public Guid? ExhibitId { get; set; }
+        public virtual ExhibitEntity Exhibit { get; set; }
         public ICollection<TeamUserEntity> TeamUsers { get; set; } = new List<TeamUserEntity>();
         public ICollection<TeamArticleEntity> TeamArticles { get; set; } = new List<TeamArticleEntity>();
     }
 
+    public class TeamConfiguration : IEntityTypeConfiguration<TeamEntity>
+    {
+        public void Configure(EntityTypeBuilder<TeamEntity> builder)
+        {
+            builder.HasIndex(e => e.Id).IsUnique();
+        }
+    }
 }

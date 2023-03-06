@@ -116,9 +116,9 @@ namespace Gallery.Api.Services
 
             var exhibit = await _context.Exhibits.FindAsync(exhibitId);
             var userId = _user.GetId();
-            var teamId = (await _context.ExhibitTeams
-                .Where(et => et.ExhibitId == exhibitId && et.Team.TeamUsers.Any(tu => tu.UserId == userId))
-                .FirstAsync()).TeamId;
+            var teamId = (await _context.Teams
+                .Where(t => t.ExhibitId == exhibitId && t.TeamUsers.Any(tu => tu.UserId == userId))
+                .FirstAsync()).Id;
             var cards = await _context.TeamCards
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
                 .Include(tc => tc.Card)

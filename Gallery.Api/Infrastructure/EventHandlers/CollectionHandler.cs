@@ -46,12 +46,12 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
             groupIds.Add(systemAdminPermissionId);
             // add this collection's users
-            var exhibitIdList = _db.Exhibits
+            var exhibitIdList = (IQueryable<Guid?>)_db.Exhibits
                 .Where(e => e.CollectionId == collectionEntity.Id)
                 .Select(e => e.Id);
-            var teamIdList = _db.ExhibitTeams
-                .Where(et => exhibitIdList.Contains(et.ExhibitId))
-                .Select(et => et.TeamId);
+            var teamIdList = _db.Teams
+                .Where(t => exhibitIdList.Contains(t.ExhibitId))
+                .Select(t => t.Id);
             var userIdList = await _db.TeamUsers
                 .Where(tu => teamIdList.Contains(tu.TeamId))
                 .Select(tu => tu.UserId)

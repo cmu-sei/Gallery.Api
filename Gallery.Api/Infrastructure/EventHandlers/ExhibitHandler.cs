@@ -57,10 +57,10 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
         protected async Task<List<UnreadArticles>> GetExhibitUnreadArticles(ExhibitEntity exhibitEntity, CancellationToken cancellationToken)
         {
-            var userIds = await _db.ExhibitTeams
+            var userIds = await _db.Teams
                 .Join(
                     _db.TeamUsers,
-                    et => et.TeamId,
+                    t => t.Id,
                     tu => tu.TeamId,
                     (et, tu) => new
                     {

@@ -172,9 +172,9 @@ namespace Gallery.Api.Services
                 .Where(ua => ua.ArticleId == userArticleEntity.ArticleId && ua.ExhibitId == userArticleEntity.ExhibitId)
                 .Select(ua => ua.UserId)
                 .ToListAsync(ct);
-            var exhibitTeamIdList = await _context.ExhibitTeams
-                .Where(et => et.ExhibitId == shareDetails.ExhibitId)
-                .Select(et => et.TeamId)
+            var exhibitTeamIdList = await _context.Teams
+                .Where(t => t.ExhibitId == shareDetails.ExhibitId)
+                .Select(t => t.Id)
                 .ToListAsync(ct);
             var ccTeamId = (await _context.TeamUsers
                 .FirstOrDefaultAsync(tu => tu.UserId == _user.GetId() && exhibitTeamIdList.Contains(tu.TeamId))).TeamId;

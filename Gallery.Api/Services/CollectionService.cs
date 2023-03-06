@@ -65,8 +65,8 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             var userId = _user.GetId();
-            IQueryable<CollectionEntity> collections = _context.ExhibitTeams
-                .Where(et => et.Team.TeamUsers.Any(tu => tu.UserId == userId))
+            IQueryable<CollectionEntity> collections = _context.Teams
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId))
                 .Select(et => et.Exhibit.Collection)
                 .OrderBy(c => c.Name);
 
