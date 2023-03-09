@@ -59,7 +59,7 @@ namespace Gallery.Api.Hubs
                         UserId = tu.UserId
                     }
                 )
-                .Where(n => n.UserId == userIdString)
+                .Where(n => n.UserId == userIdString && n.ExhibitId != null)
                 .Select(n => n.ExhibitId.ToString())
                 .ToListAsync();
             if (exhibitIdList.Any())
