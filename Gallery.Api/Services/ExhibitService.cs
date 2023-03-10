@@ -72,8 +72,9 @@ namespace Gallery.Api.Services
 
             var userId = _user.GetId();
             var exhibits = await _context.Teams
-                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId))
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.ExhibitId != null)
                 .Select(et => et.Exhibit)
+                .Distinct()
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<Exhibit>>(exhibits);

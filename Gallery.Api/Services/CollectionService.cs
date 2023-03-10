@@ -66,8 +66,9 @@ namespace Gallery.Api.Services
 
             var userId = _user.GetId();
             IQueryable<CollectionEntity> collections = _context.Teams
-                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId))
-                .Select(et => et.Exhibit.Collection)
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId != null)
+                .Select(t => t.Exhibit.Collection)
+                .Distinct()
                 .OrderBy(c => c.Name);
 
             return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());
