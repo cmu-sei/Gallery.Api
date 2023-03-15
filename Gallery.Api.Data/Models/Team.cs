@@ -27,7 +27,13 @@ namespace Gallery.Api.Data.Models
     {
         public void Configure(EntityTypeBuilder<TeamEntity> builder)
         {
-            builder.HasIndex(e => e.Id).IsUnique();
+            builder
+                .HasIndex(e => e.Id).IsUnique();
+            builder
+                .HasOne(d => d.Exhibit)
+                .WithMany(d => d.Teams)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
+
 }
