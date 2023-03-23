@@ -65,9 +65,10 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             var userId = _user.GetId();
-            IQueryable<CollectionEntity> collections = _context.ExhibitTeams
-                .Where(et => et.Team.TeamUsers.Any(tu => tu.UserId == userId))
-                .Select(et => et.Exhibit.Collection)
+            IQueryable<CollectionEntity> collections = _context.Teams
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId != null)
+                .Select(t => t.Exhibit.Collection)
+                .Distinct()
                 .OrderBy(c => c.Name);
 
             return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());

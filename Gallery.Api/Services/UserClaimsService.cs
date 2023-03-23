@@ -172,8 +172,8 @@ namespace Gallery.Api.Services
             foreach (var team in teamList)
             {
                 teamIdList.Add(team.Id.ToString());
-                var teamExhibitIdList = await _context.ExhibitTeams
-                    .Where(x => x.TeamId == team.Id)
+                var teamExhibitIdList = await _context.Teams
+                    .Where(x => x.Id == team.Id)
                     .Select(x => x.ExhibitId)
                     .ToListAsync();
                 foreach (var id in teamExhibitIdList)

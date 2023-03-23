@@ -100,6 +100,16 @@ namespace Gallery.Api.Services
         {
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
+            var exhibitId = await _context.Teams
+                .Where(t => t.Id == teamUser.TeamId)
+                .Select(t => t.ExhibitId)
+                .FirstOrDefaultAsync(ct);
+            var alreadyOnExhibitTeam = await _context.TeamUsers
+                .Where(tu => tu.Team.ExhibitId == exhibitId && tu.UserId == teamUser.UserId)
+                .Select(tu => tu.Team)
+                .FirstOrDefaultAsync(ct);
+            if (alreadyOnExhibitTeam != null)
+                throw new ArgumentException($"The selected user ({teamUser.UserId}) is already on team {alreadyOnExhibitTeam.Name}");
 
             teamUser.DateCreated = DateTime.UtcNow;
             teamUser.CreatedBy = _user.GetId();

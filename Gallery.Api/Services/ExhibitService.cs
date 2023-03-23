@@ -71,9 +71,10 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             var userId = _user.GetId();
-            var exhibits = await _context.ExhibitTeams
-                .Where(et => et.Team.TeamUsers.Any(tu => tu.UserId == userId))
+            var exhibits = await _context.Teams
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.ExhibitId != null)
                 .Select(et => et.Exhibit)
+                .Distinct()
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
@@ -107,9 +108,9 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             var userId = _user.GetId();
-            IQueryable<ExhibitEntity> exhibits = _context.ExhibitTeams
-                .Where(et => et.Team.TeamUsers.Any(tu => tu.UserId == userId) && et.Exhibit.CollectionId == collectionId)
-                .Select(et => et.Exhibit)
+            IQueryable<ExhibitEntity> exhibits = _context.Teams
+                .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId == collectionId)
+                .Select(t => t.Exhibit)
                 .OrderByDescending(a => a.DateCreated);
 
             return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());

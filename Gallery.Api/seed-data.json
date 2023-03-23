@@ -19,7 +19,8 @@
     {
       "Id": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1",
       "Name": "DefaultTeam",
-      "ShortName": "Default"
+      "ShortName": "Default",
+      "ExhibitId": "deff55dc-2231-4aff-bd4a-fd79fb587285"
     }
   ],
   "TeamUsers": [
@@ -91,13 +92,6 @@
       "CurrentInject": 0,
       "CollectionId": "e3a41f39-0feb-4eaf-bc1c-6b020b0e934b",
       "SenerioId": ""
-    }
-  ],
-  "ExhibitTeams": [
-    {
-      "Id": "53e15a03-5399-479d-9a15-648caf2106c7",
-      "ExhibitId": "deff55dc-2231-4aff-bd4a-fd79fb587285",
-      "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1"
     }
   ]
 }

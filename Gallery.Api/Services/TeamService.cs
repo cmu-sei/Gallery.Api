@@ -115,12 +115,10 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
                 throw new ForbiddenException();
 
-            var items = await _context.ExhibitTeams
-                .Include(et => et.Team)
-                .ThenInclude(t => t.TeamUsers)
+            var items = await _context.Teams
+                .Include(t => t.TeamUsers)
                 .ThenInclude(tu => tu.User)
-                .Where(w => w.ExhibitId == exhibitId)
-                .Select(w => w.Team)
+                .Where(t => t.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<Team>>(items);

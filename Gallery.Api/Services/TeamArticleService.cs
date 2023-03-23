@@ -64,7 +64,7 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
             var collectionId = (await _context.Exhibits.FirstOrDefaultAsync(e => e.Id == exhibitId, ct)).CollectionId;
-            var teamIds = await _context.ExhibitTeams.Where(et => et.ExhibitId == exhibitId).Select(et => et.TeamId).ToListAsync(ct);
+            var teamIds = await _context.Teams.Where(t => t.ExhibitId == exhibitId).Select(t => t.Id).ToListAsync(ct);
             var items = await _context.TeamArticles
                 .Where(ta => ta.Article.CollectionId == collectionId && teamIds.Contains(ta.TeamId))
                 .ToListAsync(ct);

@@ -56,6 +56,7 @@ namespace Gallery.Api.Infrastructure.Extensions
                         if (File.Exists(seedFile)) {
                             SeedDataOptions seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(File.ReadAllText(seedFile));
                             ProcessSeedDataOptions(seedDataOptions, ctx);
+                            MoveExhibitTeamsToIndividualTeams(ctx);
                         }
                     }
 
@@ -206,20 +207,70 @@ namespace Gallery.Api.Infrastructure.Extensions
                 }
                 context.SaveChanges();
             }
-            if (options.ExhibitTeams != null && options.ExhibitTeams.Any())
-            {
-                var dbExhibitTeams = context.ExhibitTeams.ToList();
 
-                foreach (ExhibitTeamEntity exhibitTeam in options.ExhibitTeams)
+        }
+
+        private static void MoveExhibitTeamsToIndividualTeams(GalleryDbContext context)
+        {
+            // this ONLY gets run ONCE!
+            // check to see if this has already been done
+            var isAlreadyDone = context.Teams.Any(t => t.ExhibitId != null);
+            if (isAlreadyDone) return;
+
+            var exhibitTeams = context.ExhibitTeams.ToList();
+            // create unique teams for each exhibit team record
+            foreach (var et in exhibitTeams)
+            {
+                var newTeamId = Guid.NewGuid();
+                var newTeam = new TeamEntity()
                 {
-                    if (!dbExhibitTeams.Where(x => x.ExhibitId == exhibitTeam.ExhibitId && x.TeamId == exhibitTeam.TeamId).Any())
+                    Id = newTeamId,
+                    Name = et.Team.Name,
+                    ShortName = et.Team.ShortName,
+                    ExhibitId = et.ExhibitId,
+                    DateCreated = et.DateCreated,
+                    DateModified = et.DateModified,
+                    CreatedBy = et.CreatedBy,
+                    ModifiedBy = et.ModifiedBy
+                };
+                context.Teams.Add(newTeam);
+                context.SaveChanges();
+                // create team users for the new team
+                foreach (var tu in et.Team.TeamUsers)
+                {
+                    var newTeamUser = new TeamUserEntity()
                     {
-                        context.ExhibitTeams.Add(exhibitTeam);
-                    }
+                        Id = Guid.NewGuid(),
+                        TeamId = newTeamId,
+                        UserId = tu.UserId
+                    };
+                    context.TeamUsers.Add(newTeamUser);
+                }
+                // substitute the new team ID in place of the old team ID
+                // replace in TeamArticles, because TeamArticles are already by Exhibit
+                var teamArticles = context.TeamArticles.Where(a => a.ExhibitId == et.ExhibitId && a.TeamId == et.TeamId);
+                foreach (var action in teamArticles)
+                {
+                    action.TeamId = newTeamId;
+                }
+                // add new TeamCards for the newly created teams, because TeamCards were not already by Exhibit
+                var collectionId = et.Exhibit.CollectionId;
+                var teamCards = context.TeamCards.Where(a => a.Card.CollectionId == collectionId && a.TeamId == et.TeamId);
+                foreach (var teamCard in teamCards)
+                {
+                    var newTeamCard = new TeamCardEntity()
+                    {
+                        Id = Guid.NewGuid(),
+                        Move = teamCard.Move,
+                        Inject = teamCard.Inject,
+                        IsShownOnWall = teamCard.IsShownOnWall,
+                        TeamId = newTeamId,
+                        CardId = teamCard.CardId
+                    };
+                    context.TeamCards.Add(newTeamCard);
                 }
                 context.SaveChanges();
             }
-
         }
 
         private static string DbProvider(IConfiguration config)

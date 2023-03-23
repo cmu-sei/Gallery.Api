@@ -23,7 +23,7 @@ namespace Gallery.Api.Services
     public interface ITeamCardService
     {
         Task<IEnumerable<ViewModels.TeamCard>> GetAsync(CancellationToken ct);
-        Task<IEnumerable<ViewModels.TeamCard>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByTeamAsync(Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct);
@@ -59,13 +59,13 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<TeamCard>>(items);
         }
 
-        public async Task<IEnumerable<ViewModels.TeamCard>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var items = await _context.TeamCards
-                .Where(tc => tc.Card.CollectionId == collectionId)
+                .Where(tc => tc.Team.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<TeamCard>>(items);
