@@ -64,7 +64,7 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets all TeamCards for an card
+        /// Gets all TeamCards for a card
         /// </summary>
         /// <remarks>
         /// Returns a list of all of the TeamCards for the card.
@@ -82,20 +82,20 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets all TeamCards for an team
+        /// Gets all TeamCards for an exhibit for the current user
         /// </summary>
         /// <remarks>
-        /// Returns a list of all of the TeamCards for the team.
+        /// Returns a list of all of the TeamCards for the exhibit for the current user.
         /// </remarks>
-        /// <param name="teamId">The id of the TeamCard</param>
+        /// <param name="exhibitId">The id of the TeamCard</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("teams/{teamId}/teamcards")]
+        [HttpGet("exhibits/{exhibitId}/teamcards/mine")]
         [ProducesResponseType(typeof(IEnumerable<TeamCard>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getTeamTeamCards")]
-        public async Task<IActionResult> GetByTeam(Guid teamId, CancellationToken ct)
+        [SwaggerOperation(OperationId = "getMyExhibitTeamCards")]
+        public async Task<IActionResult> GetMineByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            var list = await _teamCardService.GetByTeamAsync(teamId, ct);
+            var list = await _teamCardService.GetMineByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
 

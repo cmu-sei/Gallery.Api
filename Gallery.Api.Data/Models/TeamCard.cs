@@ -15,6 +15,7 @@ namespace Gallery.Api.Data.Models
             Move = 0;
             Inject = 0;
             IsShownOnWall = true;
+            CanPostArticles = false;
         }
 
         public TeamCardEntity(Guid teamId, Guid cardId)
@@ -24,6 +25,7 @@ namespace Gallery.Api.Data.Models
             Move = 0;
             Inject = 0;
             IsShownOnWall = true;
+            CanPostArticles = false;
         }
 
         [Key]
@@ -32,6 +34,7 @@ namespace Gallery.Api.Data.Models
         public int Move { get; set; }
         public int Inject { get; set; }
         public bool IsShownOnWall { get; set; }
+        public bool CanPostArticles { get; set; }
         public Guid TeamId { get; set; }
         public TeamEntity Team { get; set; }
         public Guid CardId { get; set; }

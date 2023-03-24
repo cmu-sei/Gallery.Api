@@ -13,6 +13,7 @@ namespace Gallery.Api.ViewModels
             Move = 0;
             Inject = 0;
             IsShownOnWall = true;
+            CanPostArticles = false;
         }
 
         public TeamCard(Guid cardId, Guid teamId)
@@ -22,6 +23,7 @@ namespace Gallery.Api.ViewModels
             Move = 0;
             Inject = 0;
             IsShownOnWall = true;
+            CanPostArticles = false;
         }
 
         [Key]
@@ -30,6 +32,7 @@ namespace Gallery.Api.ViewModels
         public int Move { get; set; }
         public int Inject { get; set; }
         public bool IsShownOnWall { get; set; }
+        public bool CanPostArticles { get; set; }
         public Guid TeamId { get; set; }
         public Guid CardId { get; set; }
     }
