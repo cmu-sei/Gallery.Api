@@ -169,11 +169,25 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new CanIncrementIncidentRequirement())).Succeeded)
-                throw new ForbiddenException();
+            if (article.ExhibitId == null)
+            {
+                // must be a content developer to update an article in a collection
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                // members of the same team can edit user posted articles
+                var userId = _user.GetId();
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                var canPostArticles = await _context.TeamCards
+                    .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
+                if (!canPostArticles)
+                    throw new ForbiddenException();
+            }
 
             var articleToUpdate = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (articleToUpdate == null)
                 throw new EntityNotFoundException<Article>();
 
@@ -193,13 +207,27 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var articleToDelete = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (articleToDelete == null)
                 throw new EntityNotFoundException<Article>();
+
+            if (articleToDelete.ExhibitId == null)
+            {
+                // must be a content developer to update an article in a collection
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                // members of the same team can delete user posted articles
+                var userId = _user.GetId();
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == articleToDelete.ExhibitId)).TeamId;
+                var canPostArticles = await _context.TeamCards
+                    .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == articleToDelete.CardId && tc.CanPostArticles, ct);
+                if (!canPostArticles)
+                    throw new ForbiddenException();
+            }
 
             _context.Articles.Remove(articleToDelete);
             await _context.SaveChangesAsync(ct);
