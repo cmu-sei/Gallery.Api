@@ -28,23 +28,6 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets Articles
-        /// </summary>
-        /// <remarks>
-        /// Returns a list of Articles.
-        /// </remarks>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        [HttpGet("articles")]
-        [ProducesResponseType(typeof(IEnumerable<Article>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getArticles")]
-        public async Task<IActionResult> Get(CancellationToken ct)
-        {
-            var list = await _articleService.GetAsync(ct);
-            return Ok(list);
-        }
-
-        /// <summary>
         /// Gets Articles for a Card
         /// </summary>
         /// <remarks>
