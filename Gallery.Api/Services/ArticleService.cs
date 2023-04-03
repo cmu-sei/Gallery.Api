@@ -202,6 +202,24 @@ namespace Gallery.Api.Services
 
             article = await GetAsync(articleToUpdate.Id, ct);
 
+            // update UserArticles, if this is a user article for an Exhibit
+            if (article.ExhibitId != null)
+            {
+                // modify the associated UserArticles
+                var userArticles = await _context.UserArticles
+                    .Where(ua => ua.ArticleId == article.Id && ua.ExhibitId == article.ExhibitId)
+                    .ToListAsync(ct);
+                if (userArticles.Count() > 0)
+                {
+                    foreach (var userArticle in userArticles)
+                    {
+                        userArticle.ModifiedBy = article.ModifiedBy;
+                        userArticle.DateModified = article.DateModified;
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+            }
+
             return article;
         }
 
@@ -227,6 +245,37 @@ namespace Gallery.Api.Services
                     .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == articleToDelete.CardId && tc.CanPostArticles, ct);
                 if (!canPostArticles)
                     throw new ForbiddenException();
+            }
+
+            // delete UserArticles, if this is a user article for an Exhibit
+            // if we don't do this, the database will delete them via cascade,
+            // however that will not trigger the needed signalR messages for the UserArticles
+            if (articleToDelete.ExhibitId != null)
+            {
+                // delete the associated TeamArticles
+                var teamArticles = await _context.TeamArticles
+                    .Where(ta => ta.ArticleId == articleToDelete.Id && ta.ExhibitId == articleToDelete.ExhibitId)
+                    .ToListAsync(ct);
+                if (teamArticles.Count() > 0)
+                {
+                    foreach (var teamArticle in teamArticles)
+                    {
+                        _context.TeamArticles.Remove(teamArticle);
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+                // delete the associated UserArticles
+                var userArticles = await _context.UserArticles
+                    .Where(ua => ua.ArticleId == articleToDelete.Id && ua.ExhibitId == articleToDelete.ExhibitId)
+                    .ToListAsync(ct);
+                if (userArticles.Count() > 0)
+                {
+                    foreach (var userArticle in userArticles)
+                    {
+                        _context.UserArticles.Remove(userArticle);
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
             }
 
             _context.Articles.Remove(articleToDelete);
