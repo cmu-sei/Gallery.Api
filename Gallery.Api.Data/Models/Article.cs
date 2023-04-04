@@ -18,6 +18,8 @@ namespace Gallery.Api.Data.Models
         public string Description { get; set; }
         public Guid CollectionId { get; set; }
         public CollectionEntity Collection { get; set; }
+        public Guid? ExhibitId { get; set; }
+        public CardEntity Exhibit { get; set; }
         public Guid? CardId { get; set; }
         public CardEntity Card { get; set; }
         public int Move { get; set; }

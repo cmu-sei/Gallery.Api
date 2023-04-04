@@ -22,9 +22,7 @@ namespace Gallery.Api.Services
 {
     public interface ITeamArticleService
     {
-        Task<IEnumerable<ViewModels.TeamArticle>> GetAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.TeamArticle>> GetByArticleAsync(Guid articleId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamArticle>> GetByTeamAsync(Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamArticle> GetAsync(Guid id, CancellationToken ct);
         Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticle teamArticle, CancellationToken ct);
@@ -39,46 +37,28 @@ namespace Gallery.Api.Services
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
+        private readonly IUserArticleService _userArticleService;
 
-        public TeamArticleService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user, IMapper mapper)
+        public TeamArticleService(
+            GalleryDbContext context,
+            IAuthorizationService authorizationService,
+            IPrincipal user,
+            IMapper mapper,
+            IUserArticleService userArticleService)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
-        }
-
-        public async Task<IEnumerable<ViewModels.TeamArticle>> GetAsync(CancellationToken ct)
-        {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            var items = await _context.TeamArticles
-                .ToListAsync(ct);
-
-            return _mapper.Map<IEnumerable<TeamArticle>>(items);
+            _userArticleService = userArticleService;
         }
 
         public async Task<IEnumerable<ViewModels.TeamArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
                 throw new ForbiddenException();
-            var collectionId = (await _context.Exhibits.FirstOrDefaultAsync(e => e.Id == exhibitId, ct)).CollectionId;
-            var teamIds = await _context.Teams.Where(t => t.ExhibitId == exhibitId).Select(t => t.Id).ToListAsync(ct);
             var items = await _context.TeamArticles
-                .Where(ta => ta.Article.CollectionId == collectionId && teamIds.Contains(ta.TeamId))
-                .ToListAsync(ct);
-
-            return _mapper.Map<IEnumerable<TeamArticle>>(items);
-        }
-
-        public async Task<IEnumerable<ViewModels.TeamArticle>> GetByArticleAsync(Guid articleId, CancellationToken ct)
-        {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            var items = await _context.TeamArticles
-                .Where(tc => tc.ArticleId == articleId)
+                .Where(ta => ta.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<TeamArticle>>(items);
@@ -98,11 +78,16 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamArticle> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.TeamArticles
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+            {
+                throw new EntityNotFoundException<TeamArticle>($"TeamArticle {id} was not found.");
+            }
+
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(item.TeamId))).Succeeded &&
+                !(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                throw new ForbiddenException();
 
             return _mapper.Map<TeamArticle>(item);
         }
@@ -121,13 +106,15 @@ namespace Gallery.Api.Services
 
             _context.TeamArticles.Add(teamArticleEntity);
             await _context.SaveChangesAsync(ct);
+            // update required UserArticles
+            await _userArticleService.LoadUserArticlesAsync(teamArticleEntity.Id, ct);
 
             return await GetAsync(teamArticleEntity.Id, ct);
         }
 
         public async Task<ViewModels.TeamArticle> UpdateAsync(Guid id, ViewModels.TeamArticle teamArticle, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new CanIncrementIncidentRequirement())).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var teamArticleToUpdate = await _context.TeamArticles.SingleOrDefaultAsync(v => v.Id == id, ct);

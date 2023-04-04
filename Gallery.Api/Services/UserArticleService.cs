@@ -33,6 +33,7 @@ namespace Gallery.Api.Services
         Task<ViewModels.UserArticle> SetIsReadAsync(Guid id, bool isRead, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> LoadUserArticlesAsync(ExhibitEntity exhibit, CancellationToken ct);
+        Task<bool> LoadUserArticlesAsync(Guid teamArticleId, CancellationToken ct);
     }
 
     public class UserArticleService : IUserArticleService
@@ -108,37 +109,18 @@ namespace Gallery.Api.Services
 
         public async Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct)
         {
-            return await GetUnreadCountAsync(exhibitId, _user.GetId(), ct);
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
+                throw new ForbiddenException();
+
+            return await GetUnreadArticlesAsync(exhibitId, _user.GetId(), ct);
         }
 
         public async Task<UnreadArticles> GetUnreadCountAsync(Guid exhibitId, Guid userId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded &&
-                !(((await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded) && userId == _user.GetId()))
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
-            var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
-            if (exhibit == null)
-                throw new EntityNotFoundException<ExhibitEntity>("Exhibit " + exhibitId + " was not found.");
-
-            await LoadUserArticlesAsync(exhibit, userId, ct);
-            var count =  await _context.UserArticles
-                .Where(ua =>
-                    ua.UserId == userId &&
-                    ua.ExhibitId == exhibitId &&
-                    (
-                        (ua.Article.Move < exhibit.CurrentMove) ||
-                        (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
-                    ) &&
-                    !ua.IsRead
-                )
-                .CountAsync();
-
-            return new UnreadArticles(){
-                ExhibitId = exhibitId,
-                UserId = userId,
-                Count = count.ToString()
-            };
+            return await GetUnreadArticlesAsync(exhibitId, userId, ct);
         }
 
         public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct)
@@ -165,8 +147,10 @@ namespace Gallery.Api.Services
                 .SingleOrDefaultAsync(ua => ua.Id == id, ct);
             if (userArticleEntity == null)
                 throw new EntityNotFoundException<UserArticle>();
+
             if (_user.GetId() != userArticleEntity.UserId)
                 throw new ForbiddenException();
+
             var sharedUserArticle = _mapper.Map<UserArticle>(userArticleEntity);
             var existingUserIdList = await _context.UserArticles
                 .Where(ua => ua.ArticleId == userArticleEntity.ArticleId && ua.ExhibitId == userArticleEntity.ExhibitId)
@@ -179,7 +163,8 @@ namespace Gallery.Api.Services
             var ccTeamId = (await _context.TeamUsers
                 .FirstOrDefaultAsync(tu => tu.UserId == _user.GetId() && exhibitTeamIdList.Contains(tu.TeamId))).TeamId;
             var teamUsers = _context.TeamUsers
-                .Where(tu => shareDetails.ToTeamIdList.Contains(tu.TeamId) && exhibitTeamIdList.Contains(tu.TeamId));
+                .Where(tu => shareDetails.ToTeamIdList.Contains(tu.TeamId))
+                .Distinct();
             if (await teamUsers.AnyAsync(ct))
             {
                 var addUserIds = teamUsers
@@ -286,20 +271,11 @@ namespace Gallery.Api.Services
                 )
                 .AsSplitQuery()
                 .ToListAsync(ct);
-            var newUserArticles = new List<UserArticleEntity>();
             foreach (var teamArticle in teamArticleList)
             {
                 foreach (var teamUser in teamArticle.Team.TeamUsers)
                 {
-                    var alreadyExists = await _context.UserArticles.AnyAsync(ua =>
-                        ua.ExhibitId == exhibit.Id &&
-                        ua.ArticleId == teamArticle.ArticleId &&
-                        ua.UserId == teamUser.UserId);
-                    var alreadyAdded = newUserArticles.Any(ua => 
-                        ua.ExhibitId == exhibit.Id &&
-                        ua.ArticleId == teamArticle.ArticleId &&
-                        ua.UserId == teamUser.UserId);
-                    if (!alreadyExists && !alreadyAdded)
+                    try
                     {
                         var newUserArticle = new UserArticleEntity() {
                             Id = Guid.NewGuid(),
@@ -309,13 +285,59 @@ namespace Gallery.Api.Services
                             ActualDatePosted = actualTime,
                             IsRead = false
                         };
-                        newUserArticles.Add(newUserArticle);
+                        await _context.UserArticles.AddAsync(newUserArticle, ct);
+                        await _context.SaveChangesAsync(ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.InnerException == null 
+                            || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
+                        {
+                            throw ex;
+                        }
                     }
                 }
 
             }
-            await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
-            await _context.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        public async Task<bool> LoadUserArticlesAsync(Guid teamArticleId, CancellationToken ct)
+        {
+            var teamArticle = await _context.TeamArticles
+                .Include(ta => ta.Team)
+                .ThenInclude(t => t.TeamUsers)
+                .SingleOrDefaultAsync(ta => ta.Id == teamArticleId);
+            var exhibit = await _context.Exhibits
+                .SingleOrDefaultAsync(e => e.Id == teamArticle.ExhibitId, ct);
+            var currentMove = exhibit.CurrentMove;
+            var currentInject = exhibit.CurrentInject;
+            var actualTime = DateTime.UtcNow;
+            foreach (var teamUser in teamArticle.Team.TeamUsers)
+            {
+                try
+                {
+                    var newUserArticle = new UserArticleEntity() {
+                        Id = Guid.NewGuid(),
+                        ArticleId = teamArticle.ArticleId,
+                        ExhibitId = exhibit.Id,
+                        UserId = teamUser.UserId,
+                        ActualDatePosted = actualTime,
+                        IsRead = false
+                    };
+                    await _context.UserArticles.AddAsync(newUserArticle, ct);
+                    await _context.SaveChangesAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.InnerException == null 
+                        || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
+                    {
+                        throw ex;
+                    }
+                }
+            }
 
             return true;
         }
@@ -325,16 +347,16 @@ namespace Gallery.Api.Services
             var currentMove = exhibit.CurrentMove;
             var currentInject = exhibit.CurrentInject;
             var actualTime = DateTime.UtcNow;
-            var userTeamIdList = await _context.TeamUsers
-                .Where(tu => tu.UserId == userId)
+            var teamId = await _context.TeamUsers
+                .Where(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibit.Id)
                 .Select(tu => tu.TeamId)
-                .ToListAsync(ct);
+                .SingleOrDefaultAsync(ct);
             var teamArticleList = await _context.TeamArticles
                 .Include(ta => ta.Team)
                 .ThenInclude(t => t.TeamUsers)
                 .Where(ta => ta.ExhibitId == exhibit.Id &&
                     (ta.Article.Move < currentMove || (ta.Article.Move == currentMove && ta.Article.Inject <= currentInject)) &&
-                    userTeamIdList.Contains(ta.TeamId)
+                    ta.TeamId == teamId
                 )
                 .AsSplitQuery()
                 .ToListAsync(ct);
@@ -427,6 +449,33 @@ namespace Gallery.Api.Services
             }
 
             return "ok";
+        }
+
+        private async Task<UnreadArticles> GetUnreadArticlesAsync(Guid exhibitId, Guid userId, CancellationToken ct)
+        {
+            var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
+            if (exhibit == null)
+                throw new EntityNotFoundException<ExhibitEntity>("Exhibit " + exhibitId + " was not found.");
+
+            await LoadUserArticlesAsync(exhibit, userId, ct);
+            var count =  await _context.UserArticles
+                .Where(ua =>
+                    ua.UserId == userId &&
+                    ua.ExhibitId == exhibitId &&
+                    (
+                        (ua.Article.Move < exhibit.CurrentMove) ||
+                        (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                    ) &&
+                    !ua.IsRead
+                )
+                .CountAsync();
+
+            return new UnreadArticles(){
+                ExhibitId = exhibitId,
+                UserId = userId,
+                Count = count.ToString()
+            };
+
         }
 
     }

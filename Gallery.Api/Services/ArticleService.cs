@@ -1,6 +1,11 @@
 // Copyright 2022 Carnegie Mellon University. All Rights Reserved.
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
+/*
+    Articles have an optional CardID and an optional ExhibitId
+    The optional CardId associates an article to a Card, so that the article is sorted by that Card and contributes to that Card's status
+    The optional ExhibitId inicates a user created an Article during an active Exhibit.   That Article is only used by that Exhibit.
+*/
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +27,6 @@ namespace Gallery.Api.Services
 {
     public interface IArticleService
     {
-        Task<IEnumerable<ViewModels.Article>> GetAsync(CancellationToken ct);
         Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.Article>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Article>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
@@ -38,27 +42,20 @@ namespace Gallery.Api.Services
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
+        private readonly IUserArticleService _userArticleService;
 
         public ArticleService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
-            IMapper mapper)
+            IMapper mapper,
+            IUserArticleService userArticleService)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
-        }
-
-        public async Task<IEnumerable<ViewModels.Article>> GetAsync(CancellationToken ct)
-        {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            IQueryable<ArticleEntity> articles = _context.Articles;
-
-            return _mapper.Map<IEnumerable<Article>>(await articles.ToListAsync());
+            _userArticleService = userArticleService;
         }
 
         public async Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct)
@@ -77,7 +74,7 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             IQueryable<ArticleEntity> articles = _context.Articles
-                .Where(a => a.CardId == cardId)
+                .Where(a => a.CardId == cardId && a.ExhibitId == null)
                 .OrderBy(a => a.Move)
                 .ThenBy(a => a.Inject);
 
@@ -90,7 +87,7 @@ namespace Gallery.Api.Services
                 throw new ForbiddenException();
 
             IQueryable<ArticleEntity> articles = _context.Articles
-                .Where(a => a.CollectionId == collectionId)
+                .Where(a => a.CollectionId == collectionId && a.ExhibitId == null)
                 .OrderBy(a => a.Move)
                 .ThenBy(a => a.Inject);
 
@@ -105,6 +102,7 @@ namespace Gallery.Api.Services
             var exhibit = (await _context.Exhibits.FirstAsync(e => e.Id == exhibitId));
             IQueryable<ArticleEntity> articles = _context.Articles
                 .Where(a => a.CollectionId == exhibit.CollectionId
+                     && (a.ExhibitId == null || a.ExhibitId == exhibitId)
                     && (a.Move < exhibit.CurrentMove
                         || (a.Move == exhibit.CurrentMove && a.Inject <= exhibit.CurrentInject))
                 )
@@ -116,8 +114,22 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.Article article, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
+            if (article.ExhibitId == null)
+            {
+                // must be a content developer to add an article to a collection
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                var userId = _user.GetId();
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                var canPostArticles = await _context.TeamCards
+                    .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
+                if (!canPostArticles)
+                    throw new ForbiddenException();
+            }
 
             article.DateCreated = DateTime.UtcNow;
             article.CreatedBy = _user.GetId();
@@ -131,16 +143,51 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
             article = await GetAsync(articleEntity.Id, ct);
 
+            // add ArticleTeams and UserArticles, if this is a user article for an Exhibit
+            if (article.ExhibitId != null)
+            {
+                // ArticleTeams
+                var teamCards = await _context.TeamCards
+                    .Where(tc => tc.CardId == article.CardId && tc.Team.ExhibitId == article.ExhibitId)
+                    .ToListAsync(ct);
+                foreach (var teamCard in teamCards)
+                {
+                    var teamArticle = new TeamArticleEntity() {
+                        TeamId = teamCard.TeamId,
+                        ArticleId = article.Id,
+                        ExhibitId = (Guid)article.ExhibitId
+                    };
+                    _context.TeamArticles.Add(teamArticle);
+                    await _context.SaveChangesAsync(ct);
+                    // UserArticles
+                    await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
+                }
+            }
+
             return article;
         }
 
         public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new CanIncrementIncidentRequirement())).Succeeded)
-                throw new ForbiddenException();
+            if (article.ExhibitId == null)
+            {
+                // must be a content developer to update an article in a collection
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                // members of the same team can edit user posted articles
+                var userId = _user.GetId();
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                var canPostArticles = await _context.TeamCards
+                    .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
+                if (!canPostArticles)
+                    throw new ForbiddenException();
+            }
 
             var articleToUpdate = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (articleToUpdate == null)
                 throw new EntityNotFoundException<Article>();
 
@@ -155,18 +202,81 @@ namespace Gallery.Api.Services
 
             article = await GetAsync(articleToUpdate.Id, ct);
 
+            // update UserArticles, if this is a user article for an Exhibit
+            if (article.ExhibitId != null)
+            {
+                // modify the associated UserArticles
+                var userArticles = await _context.UserArticles
+                    .Where(ua => ua.ArticleId == article.Id && ua.ExhibitId == article.ExhibitId)
+                    .ToListAsync(ct);
+                if (userArticles.Count() > 0)
+                {
+                    foreach (var userArticle in userArticles)
+                    {
+                        userArticle.ModifiedBy = article.ModifiedBy;
+                        userArticle.DateModified = article.DateModified;
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+            }
+
             return article;
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var articleToDelete = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (articleToDelete == null)
                 throw new EntityNotFoundException<Article>();
+
+            if (articleToDelete.ExhibitId == null)
+            {
+                // must be a content developer to update an article in a collection
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                // members of the same team can delete user posted articles
+                var userId = _user.GetId();
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == articleToDelete.ExhibitId)).TeamId;
+                var canPostArticles = await _context.TeamCards
+                    .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == articleToDelete.CardId && tc.CanPostArticles, ct);
+                if (!canPostArticles)
+                    throw new ForbiddenException();
+            }
+
+            // delete UserArticles, if this is a user article for an Exhibit
+            // if we don't do this, the database will delete them via cascade,
+            // however that will not trigger the needed signalR messages for the UserArticles
+            if (articleToDelete.ExhibitId != null)
+            {
+                // delete the associated TeamArticles
+                var teamArticles = await _context.TeamArticles
+                    .Where(ta => ta.ArticleId == articleToDelete.Id && ta.ExhibitId == articleToDelete.ExhibitId)
+                    .ToListAsync(ct);
+                if (teamArticles.Count() > 0)
+                {
+                    foreach (var teamArticle in teamArticles)
+                    {
+                        _context.TeamArticles.Remove(teamArticle);
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+                // delete the associated UserArticles
+                var userArticles = await _context.UserArticles
+                    .Where(ua => ua.ArticleId == articleToDelete.Id && ua.ExhibitId == articleToDelete.ExhibitId)
+                    .ToListAsync(ct);
+                if (userArticles.Count() > 0)
+                {
+                    foreach (var userArticle in userArticles)
+                    {
+                        _context.UserArticles.Remove(userArticle);
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+            }
 
             _context.Articles.Remove(articleToDelete);
             await _context.SaveChangesAsync(ct);

@@ -28,24 +28,6 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets all TeamArticles in the system
-        /// </summary>
-        /// <remarks>
-        /// Returns a list of all of the TeamArticles in the system.
-        /// <para />
-        /// Only accessible to a SuperArticle
-        /// </remarks>
-        /// <returns></returns>
-        [HttpGet("teamarticles")]
-        [ProducesResponseType(typeof(IEnumerable<TeamArticle>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getTeamArticles")]
-        public async Task<IActionResult> Get(CancellationToken ct)
-        {
-            var list = await _teamArticleService.GetAsync(ct);
-            return Ok(list);
-        }
-
-        /// <summary>
         /// Gets all TeamArticles for a exhibit
         /// </summary>
         /// <remarks>
@@ -64,25 +46,7 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets all TeamArticles for an article
-        /// </summary>
-        /// <remarks>
-        /// Returns a list of all of the TeamArticles for the article.
-        /// </remarks>
-        /// <param name="articleId">The id of the TeamArticle</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        [HttpGet("articles/{articleId}/teamarticles")]
-        [ProducesResponseType(typeof(IEnumerable<TeamArticle>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getArticleTeamArticles")]
-        public async Task<IActionResult> GetByArticle(Guid articleId, CancellationToken ct)
-        {
-            var list = await _teamArticleService.GetByArticleAsync(articleId, ct);
-            return Ok(list);
-        }
-
-        /// <summary>
-        /// Gets all TeamArticles for an team
+        /// Gets all TeamArticles for a team
         /// </summary>
         /// <remarks>
         /// Returns a list of all of the TeamArticles for the team.

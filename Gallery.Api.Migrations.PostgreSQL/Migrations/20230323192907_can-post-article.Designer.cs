@@ -8,6 +8,7 @@ using System;
 using Gallery.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -16,9 +17,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 {
     [DbContext(typeof(GalleryDbContext))]
-    partial class GalleryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230323192907_can-post-article")]
+    partial class canpostarticle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,10 +66,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<Guid?>("ExhibitId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("exhibit_id");
-
                     b.Property<int>("Inject")
                         .HasColumnType("integer")
                         .HasColumnName("inject");
@@ -109,8 +107,6 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.HasIndex("CardId");
 
                     b.HasIndex("CollectionId");
-
-                    b.HasIndex("ExhibitId");
 
                     b.ToTable("articles");
                 });
@@ -652,15 +648,9 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Gallery.Api.Data.Models.CardEntity", "Exhibit")
-                        .WithMany()
-                        .HasForeignKey("ExhibitId");
-
                     b.Navigation("Card");
 
                     b.Navigation("Collection");
-
-                    b.Navigation("Exhibit");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.CardEntity", b =>

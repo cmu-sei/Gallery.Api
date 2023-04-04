@@ -13,6 +13,7 @@ namespace Gallery.Api.ViewModels
         public string Name { get; set; }
         public string Description { get; set; }
         public Guid CollectionId { get; set; }
+        public Guid? ExhibitId { get; set; }
         public Guid? CardId { get; set; }
         public int Move { get; set; }
         public int Inject { get; set; }

@@ -45,12 +45,23 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             string[] modifiedProperties,
             CancellationToken cancellationToken)
         {
-            var userArticle = _mapper.Map<ViewModels.UserArticle>(userArticleEntity);
-            var tasks = new List<Task>();
-            // Main Hub task
-            tasks.Add(_mainHub.Clients.Group(userArticleEntity.UserId.ToString()).SendAsync(method, userArticle, modifiedProperties, cancellationToken));
+            // make sure that user should be updated with this UserArticle
+            // based on the exhibit current move and inject
+            userArticleEntity = await _db.UserArticles
+                .Include(ua => ua.Article)
+                .SingleOrDefaultAsync(ua => ua.Id == userArticleEntity.Id);
+            var exhibit = await _db.Exhibits
+                .SingleOrDefaultAsync(e => e.Id == userArticleEntity.Article.ExhibitId);
+            if (userArticleEntity.Article.Move < exhibit.CurrentMove ||
+                (userArticleEntity.Article.Move == exhibit.CurrentMove && userArticleEntity.Article.Inject <= exhibit.CurrentInject))
+            {
+                var userArticle = _mapper.Map<ViewModels.UserArticle>(userArticleEntity);
+                var tasks = new List<Task>();
+                // Main Hub task
+                tasks.Add(_mainHub.Clients.Group(userArticleEntity.UserId.ToString()).SendAsync(method, userArticle, modifiedProperties, cancellationToken));
 
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
+            }
         }
 
         protected async Task HandleUnreadCount(
@@ -58,7 +69,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var tasks = new List<Task>();
-            var unreadArticles = await _UserArticleService.GetUnreadCountAsync(userArticleEntity.ExhibitId, userArticleEntity.UserId, cancellationToken);
+            var unreadArticles = await _UserArticleService.GetMyUnreadCountAsync(userArticleEntity.ExhibitId, cancellationToken);
             // Cite Hub task
             tasks.Add(_citeHub.Clients.Group(userArticleEntity.UserId.ToString() + CiteHubMethods.GroupNameSuffix).SendAsync(CiteHubMethods.UnreadCountUpdated, unreadArticles, null, cancellationToken));
 
