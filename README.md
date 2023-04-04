@@ -18,21 +18,11 @@ Then remove the migration
 
 SystemAdmin permission required for:
     * User admin
-    * Evaluation create/delete
+    * Collection and Exhibit create/delete
 
 Content Developer permission required for:
-    * ScoringModel create/update/delete
-    * Evaluation update
+    * Collection and Exhibit create/delete
 
-CanIncrementIncident required for:
-    * Evaluation update
-
-CanSubmit permission required for:
-    * Submission update for a team
-
-CanModify permission required for:
-    * Setting SubmissionOption value for a team
-
-Authenticated user has permission to:
-    * Create a Submission
+Authenticated User
+    * No access to Admin pages
 

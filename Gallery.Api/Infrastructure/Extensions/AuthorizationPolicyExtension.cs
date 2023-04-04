@@ -22,10 +22,6 @@ namespace Gallery.Api.Infrastructure.Extensions
             });
             services.AddSingleton<IAuthorizationHandler, FullRightsHandler>();
             services.AddSingleton<IAuthorizationHandler, ContentDeveloperHandler>();
-            services.AddSingleton<IAuthorizationHandler, OperatorHandler>();
-            services.AddSingleton<IAuthorizationHandler, CanIncrementIncidentHandler>();
-            services.AddSingleton<IAuthorizationHandler, CanSubmitHandler>();
-            services.AddSingleton<IAuthorizationHandler, CanModifyHandler>();
             services.AddSingleton<IAuthorizationHandler, BaseUserHandler>();
             services.AddSingleton<IAuthorizationHandler, ExhibitUserHandler>();
             services.AddSingleton<IAuthorizationHandler, TeamUserHandler>();
