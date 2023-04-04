@@ -150,7 +150,7 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new CanIncrementIncidentRequirement())).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var cardToUpdate = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);

@@ -105,7 +105,7 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new CanIncrementIncidentRequirement())).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var collectionToUpdate = await _context.Collections.SingleOrDefaultAsync(v => v.Id == id, ct);

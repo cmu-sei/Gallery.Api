@@ -7,11 +7,7 @@ namespace Gallery.Api.Infrastructure.Authorization
     {
         SystemAdmin,
         ContentDeveloper,
-        Operator,
         BaseUser,
-        CanIncrementIncident,
-        CanModify,
-        CanSubmit,
         ExhibitUser,
         TeamUser
     }
