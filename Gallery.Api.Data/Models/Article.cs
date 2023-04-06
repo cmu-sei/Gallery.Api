@@ -15,6 +15,7 @@ namespace Gallery.Api.Data.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
         public string Name { get; set; }
+        public string Summary { get; set; }
         public string Description { get; set; }
         public Guid CollectionId { get; set; }
         public CollectionEntity Collection { get; set; }
