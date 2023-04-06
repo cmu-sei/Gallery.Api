@@ -11,6 +11,7 @@ namespace Gallery.Api.ViewModels
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
+        public string Summary { get; set; }
         public string Description { get; set; }
         public Guid CollectionId { get; set; }
         public Guid? ExhibitId { get; set; }
