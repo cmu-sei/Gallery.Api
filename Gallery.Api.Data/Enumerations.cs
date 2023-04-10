@@ -19,7 +19,8 @@ namespace Gallery.Api.Data.Enumerations
         Email = 30,
         Phone = 40,
         Intel = 50,
-        Reporting = 60
+        Reporting = 60,
+        Orders = 70
     }
 
 }
