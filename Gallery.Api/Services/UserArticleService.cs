@@ -185,6 +185,13 @@ namespace Gallery.Api.Services
                         sharedUserArticle.ModifiedBy = null;
                         var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
                         _context.UserArticles.Add(sharedArticleEntity);
+
+                        // create and send xapi statement
+                        var verb = "shared";
+                        var teamUser =  _context.TeamUsers.Where(t => t.UserId == sharedUserArticle.UserId).First();
+                        var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
+                        await _xApiService.CreateAsync(verb, article.Name, sharedUserArticle.ExhibitId, teamUser.TeamId, ct);
+
                     }
                     await _context.SaveChangesAsync(ct);
                 }
