@@ -89,7 +89,7 @@ namespace Gallery.Api.Services
             _verb.id = new Uri ("http://adlnet.gov/expapi/verbs/" + verb);
             _verb.display.Add("en-US", verb);
 
-            _activity.id = "http://localhost:4723/?evaluation=" + evaluationId;
+            _activity.id = "http://localhost:4723/?exhibit=" + evaluationId;
             _activity.definition = new TinCan.ActivityDefinition();
             _activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
             _activity.definition.moreInfo = new Uri("http://gallery.local");
@@ -128,7 +128,7 @@ namespace Gallery.Api.Services
             if (lrsStatementResponse.success)
             {
                 // List of statements available
-                Console.WriteLine("LRS saved statment from xAPI Service");
+                Console.WriteLine("LRS saved statesment from xAPI Service");
             } else {
                 Console.WriteLine("ERROR FROM LRS VIA XAPI SERVICE: " + lrsStatementResponse.errMsg);
                 return false;
