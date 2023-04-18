@@ -45,6 +45,7 @@ namespace Gallery.Api.Services
         private readonly ClientOptions _clientOptions;
         private readonly ISteamfitterService _steamfitterService;
         private readonly ILogger<UserArticleService> _logger;
+        private readonly IXApiService _xApiService;
 
         public UserArticleService(
             GalleryDbContext context,
@@ -53,6 +54,7 @@ namespace Gallery.Api.Services
             IMapper mapper,
             ClientOptions clientOptions,
             ISteamfitterService steamfitterService,
+            IXApiService xApiService,
             ILogger<UserArticleService> logger)
         {
             _context = context;
@@ -62,6 +64,7 @@ namespace Gallery.Api.Services
             _clientOptions = clientOptions;
             _steamfitterService = steamfitterService;
             _logger = logger;
+            _xApiService = xApiService;
         }
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -239,6 +242,14 @@ namespace Gallery.Api.Services
 
             await _context.SaveChangesAsync(ct);
 
+            // create and send xapi statement
+            var verb = "read";
+            if (!isRead) {
+                verb = "unread";
+            }
+            var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticleEntity.UserId).First();
+            await _xApiService.CreateAsync(verb, userArticleEntity.Article.Name, userArticleEntity.ExhibitId, teamUser.TeamId, ct);
+
             return _mapper.Map<UserArticle>(userArticleEntity);
         }
 
@@ -290,7 +301,7 @@ namespace Gallery.Api.Services
                     }
                     catch (Exception ex)
                     {
-                        if (ex.InnerException == null 
+                        if (ex.InnerException == null
                             || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
                         {
                             throw ex;
@@ -331,7 +342,7 @@ namespace Gallery.Api.Services
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException == null 
+                    if (ex.InnerException == null
                         || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
                     {
                         throw ex;
@@ -367,7 +378,7 @@ namespace Gallery.Api.Services
                     ua.ExhibitId == exhibit.Id &&
                     ua.ArticleId == teamArticle.ArticleId &&
                     ua.UserId == userId);
-                var alreadyAdded = newUserArticles.Any(ua => 
+                var alreadyAdded = newUserArticles.Any(ua =>
                     ua.ExhibitId == exhibit.Id &&
                     ua.ArticleId == teamArticle.ArticleId &&
                     ua.UserId == userId);
