@@ -43,12 +43,14 @@ namespace Gallery.Api.Services
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
+        private readonly IXApiService _xApiService;
 
         public ArticleService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
             IMapper mapper,
+            IXApiService xApiService,
             IUserArticleService userArticleService)
         {
             _context = context;
@@ -56,6 +58,7 @@ namespace Gallery.Api.Services
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
             _userArticleService = userArticleService;
+            _xApiService = xApiService;
         }
 
         public async Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct)
@@ -161,6 +164,11 @@ namespace Gallery.Api.Services
                     await _context.SaveChangesAsync(ct);
                     // UserArticles
                     await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
+
+                    // create and send xapi statement
+                    var verb = "created"; // could be initialized
+                    await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
+
                 }
             }
 
@@ -215,6 +223,11 @@ namespace Gallery.Api.Services
                     {
                         userArticle.ModifiedBy = article.ModifiedBy;
                         userArticle.DateModified = article.DateModified;
+                        // create and send xapi statement
+                        var verb = "updated"; // could be initialized
+                        var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticle.UserId).First();
+                        await _xApiService.CreateAsync(verb, article.Name, userArticle.ExhibitId, teamUser.TeamId, ct);
+
                     }
                     await _context.SaveChangesAsync(ct);
                 }
