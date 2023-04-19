@@ -21,7 +21,7 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> CreateAsync(Uri verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct);
+        Task<Boolean> CreateAsync(Uri verb, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Guid teamId, CancellationToken ct);
     }
 
     public class XApiService : IXApiService
@@ -31,11 +31,8 @@ namespace Gallery.Api.Services
         private readonly IAuthorizationService _authorizationService;
         private readonly XApiOptions _xApiOptions;
         private readonly RemoteLRS _lrs;
-        private readonly Verb _verb;
-        private readonly AgentAccount _account;
-        private readonly Activity _activity;
         private readonly Agent _agent;
-        private readonly Statement _statement;
+        private readonly AgentAccount _account;
         private readonly Context _xApiContext;
         public XApiService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, XApiOptions xApiOptions)
         {
@@ -65,18 +62,11 @@ namespace Gallery.Api.Services
                 _agent.name = _context.Users.Find(_user.GetId()).Name;
                 _agent.account = _account;
 
-                // Initalilze Verb and Activity
-                _verb = new TinCan.Verb();
-                _verb.display = new LanguageMap();
-                _activity = new TinCan.Activity();
-
                 // Initialize the Context
                 _xApiContext = new Context();
                 _xApiContext.platform = "Gallery";
                 _xApiContext.language = "en-US";
 
-                // Initalize Statement
-                _statement = new TinCan.Statement();
             }
         }
 
@@ -85,7 +75,7 @@ namespace Gallery.Api.Services
             return _xApiOptions.Username != null;
         }
 
-        public async Task<Boolean> CreateAsync(Uri verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct)
+        public async Task<Boolean> CreateAsync(Uri verbUri, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Guid teamId, CancellationToken ct)
         {
             if (!IsConfigured())
             {
@@ -95,18 +85,22 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
 
-            _verb.id = verb;
-            _verb.display.Add("en-US", _verb.id.Segments.Last());
+            var verb = new Verb();
+            verb.id = verbUri;
+            verb.display = new LanguageMap();
+            verb.display.Add("en-US", verb.id.Segments.Last());
 
-            _activity.id = _xApiOptions.SiteUrl + "/api/exhibit/" + exhibitId;
-            _activity.definition = new TinCan.ActivityDefinition();
-            _activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
-            _activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?exhibit=?" + exhibitId);
-            _activity.definition.name = new LanguageMap();
-            _activity.definition.name.Add("en-US", description);
-            _activity.definition.description = new LanguageMap();
-            _activity.definition.description.Add("en-US", description);
+            var activity = new Activity();
+            activity.id = _xApiOptions.SiteUrl + "/api/article/" + activityData["id"];
+            activity.definition = new TinCan.ActivityDefinition();
+            activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
+            activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?article=?" + activityData["id"]);
+            activity.definition.name = new LanguageMap();
+            activity.definition.name.Add("en-US", activityData["name"]);
+            activity.definition.description = new LanguageMap();
+            activity.definition.description.Add("en-US", activityData["description"]);
 
+            var context = _xApiContext;
 
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
@@ -123,19 +117,41 @@ namespace Gallery.Api.Services
                 group.member = new List<Agent> {_agent};
                 //group.member.Add(_agent);
 
-                _xApiContext.team = group;
+                context.team = group;
+
             }
+
+            var parent = new Activity();
+            parent.id = _xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"];
+            parent.definition = new ActivityDefinition();
+            parent.definition.name = new LanguageMap();
+            parent.definition.name.Add("en-US", parentData["name"]);
+            parent.definition.description = new LanguageMap();
+            parent.definition.description.Add("en-US", parentData["description"]);
+            parent.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
+            parent.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"]);
+
+            var contextActivities = new ContextActivities();
+            contextActivities.parent = new List<Activity>();
+            contextActivities.parent.Add(parent);
+            context.contextActivities = contextActivities;
+
+
+            //var extensions = new Extensions();
             //context.extensions = new TinCan.Extensions();
-            //var ext = new TinCan.Extensions();
-            //context.extensions.
 
+            var statement = new Statement();
+            statement.actor = _agent;
+            statement.verb = verb;
+            statement.target = activity;
+            statement.context = context;
 
-            _statement.actor = _agent;
-            _statement.verb = _verb;
-            _statement.target = _activity;
-            _statement.context = _xApiContext;
+            // TODO pass in separately
+            var result = new Result();
+            result.response = activityData["description"];
+            statement.result = result;
 
-            TinCan.LRSResponses.StatementLRSResponse lrsStatementResponse = _lrs.SaveStatement(_statement);
+            TinCan.LRSResponses.StatementLRSResponse lrsStatementResponse = _lrs.SaveStatement(statement);
             if (lrsStatementResponse.success)
             {
                 // List of statements available

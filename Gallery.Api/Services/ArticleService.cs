@@ -164,13 +164,15 @@ namespace Gallery.Api.Services
                     await _context.SaveChangesAsync(ct);
                     // UserArticles
                     await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
-
+/*
                     if (_xApiService.IsConfigured())
                     {
                         // create and send xapi statement
                         var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created"); // could be initialized
                         await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
+
                     }
+*/
                 }
             }
 
@@ -225,13 +227,31 @@ namespace Gallery.Api.Services
                     {
                         userArticle.ModifiedBy = article.ModifiedBy;
                         userArticle.DateModified = article.DateModified;
-                        // create and send xapi statement
-                        var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/edited"); // could be initialized
-                        var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticle.UserId).First();
-                        await _xApiService.CreateAsync(verb, article.Name, userArticle.ExhibitId, teamUser.TeamId, ct);
-
                     }
                     await _context.SaveChangesAsync(ct);
+                }
+
+                if (_xApiService.IsConfigured())
+                {
+                    // create and send xapi statement
+                    var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/edited");
+                    // need to determine the users team for this particular card
+                    var teamId = (await _context.TeamUsers
+                        .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+
+                    var activity = new Dictionary<String,String>();
+                    activity.Add("id", article.Id.ToString());
+                    activity.Add("name", article.Name);
+                    activity.Add("description", article.Description);
+
+                    var parent = new Dictionary<String,String>();
+                    var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
+                    // TODO determine if we should log exhibit as registration
+                    parent.Add("id", article.ExhibitId.ToString());
+                    parent.Add("name", collection.Name);
+                    parent.Add("description", collection.Name);
+
+                    await _xApiService.CreateAsync(verb, activity, parent, teamId, ct);
                 }
             }
 

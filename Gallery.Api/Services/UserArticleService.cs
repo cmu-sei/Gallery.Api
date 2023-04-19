@@ -185,7 +185,7 @@ namespace Gallery.Api.Services
                         sharedUserArticle.ModifiedBy = null;
                         var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
                         _context.UserArticles.Add(sharedArticleEntity);
-
+/*
                         if (_xApiService.IsConfigured())
                         {
                             // create and send xapi statement
@@ -194,6 +194,7 @@ namespace Gallery.Api.Services
                             var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
                             await _xApiService.CreateAsync(verb, article.Name, sharedUserArticle.ExhibitId, teamUser.TeamId, ct);
                         }
+                        */
                     }
                     await _context.SaveChangesAsync(ct);
                 }
@@ -250,6 +251,7 @@ namespace Gallery.Api.Services
             userArticleEntity.IsRead = isRead;
 
             await _context.SaveChangesAsync(ct);
+            /*
             if (_xApiService.IsConfigured())
             {
                 // create and send xapi statement
@@ -260,6 +262,7 @@ namespace Gallery.Api.Services
                 var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticleEntity.UserId).First();
                 await _xApiService.CreateAsync(verb, userArticleEntity.Article.Name, userArticleEntity.ExhibitId, teamUser.TeamId, ct);
             }
+            */
             return _mapper.Map<UserArticle>(userArticleEntity);
         }
 
