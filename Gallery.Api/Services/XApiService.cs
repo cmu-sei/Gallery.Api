@@ -25,6 +25,7 @@ namespace Gallery.Api.Services
 {
     public interface IXApiService
     {
+        Boolean IsConfigured();
         Task<Boolean> CreateAsync(String verb, String description, Guid evaluationId, Guid team, CancellationToken ct);
     }
 
@@ -52,33 +53,43 @@ namespace Gallery.Api.Services
             _mapper = mapper;
             _xApiOptions = xApiOptions;
 
-            // configure LRS
-            _lrs = new TinCan.RemoteLRS(_xApiOptions.Endpoint, _xApiOptions.Username, _xApiOptions.Password);
+            if (IsConfigured()) {
+                // configure LRS
+                _lrs = new TinCan.RemoteLRS(_xApiOptions.Endpoint, _xApiOptions.Username, _xApiOptions.Password);
 
-            // configure Agent
-            _account = new TinCan.AgentAccount();
-            _account.homePage = new Uri(_xApiOptions.HomePage);
-            _agent = new TinCan.Agent();
+                // configure Agent
+                _account = new TinCan.AgentAccount();
+                _account.homePage = new Uri(_xApiOptions.HomePage);
+                _agent = new TinCan.Agent();
 
-            // Initalilze Verb and Activity
-            _verb = new TinCan.Verb();
-            _verb.display = new LanguageMap();
-            _activity = new TinCan.Activity();
+                // Initalilze Verb and Activity
+                _verb = new TinCan.Verb();
+                _verb.display = new LanguageMap();
+                _activity = new TinCan.Activity();
 
-            // Initialize the Context
-            _xApiContext = new Context();
-            _xApiContext.platform = "Gallery";
-            _xApiContext.language = "en-US";
+                // Initialize the Context
+                _xApiContext = new Context();
+                _xApiContext.platform = "Gallery";
+                _xApiContext.language = "en-US";
 
-            // Initalize Statement
-            _statement = new TinCan.Statement();
-
+                // Initalize Statement
+                _statement = new TinCan.Statement();
+            }
         }
 
+        public Boolean IsConfigured()
+        {
+            return _xApiOptions.Username != null;
+        }
 
         public async Task<Boolean> CreateAsync(String verb, String description, Guid evaluationId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
+            if (!IsConfigured())
+            {
+                return false;
+            };
+
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
 
             var user = _context.Users.Find(_user.GetId());

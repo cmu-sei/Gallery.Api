@@ -165,10 +165,12 @@ namespace Gallery.Api.Services
                     // UserArticles
                     await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
 
-                    // create and send xapi statement
-                    var verb = "created"; // could be initialized
-                    await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
-
+                    if (_xApiService.IsConfigured())
+                    {
+                        // create and send xapi statement
+                        var verb = "created"; // could be initialized
+                        await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
+                    }
                 }
             }
 

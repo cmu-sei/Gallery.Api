@@ -186,12 +186,14 @@ namespace Gallery.Api.Services
                         var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
                         _context.UserArticles.Add(sharedArticleEntity);
 
-                        // create and send xapi statement
-                        var verb = "shared";
-                        var teamUser =  _context.TeamUsers.Where(t => t.UserId == sharedUserArticle.UserId).First();
-                        var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
-                        await _xApiService.CreateAsync(verb, article.Name, sharedUserArticle.ExhibitId, teamUser.TeamId, ct);
-
+                        if (_xApiService.IsConfigured())
+                        {
+                            // create and send xapi statement
+                            var verb = "shared";
+                            var teamUser =  _context.TeamUsers.Where(t => t.UserId == sharedUserArticle.UserId).First();
+                            var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
+                            await _xApiService.CreateAsync(verb, article.Name, sharedUserArticle.ExhibitId, teamUser.TeamId, ct);
+                        }
                     }
                     await _context.SaveChangesAsync(ct);
                 }
@@ -248,15 +250,16 @@ namespace Gallery.Api.Services
             userArticleEntity.IsRead = isRead;
 
             await _context.SaveChangesAsync(ct);
-
-            // create and send xapi statement
-            var verb = "read";
-            if (!isRead) {
-                verb = "unread";
+            if (_xApiService.IsConfigured())
+            {
+                // create and send xapi statement
+                var verb = "read";
+                if (!isRead) {
+                    verb = "unread";
+                }
+                var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticleEntity.UserId).First();
+                await _xApiService.CreateAsync(verb, userArticleEntity.Article.Name, userArticleEntity.ExhibitId, teamUser.TeamId, ct);
             }
-            var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticleEntity.UserId).First();
-            await _xApiService.CreateAsync(verb, userArticleEntity.Article.Name, userArticleEntity.ExhibitId, teamUser.TeamId, ct);
-
             return _mapper.Map<UserArticle>(userArticleEntity);
         }
 
