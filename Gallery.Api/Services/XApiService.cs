@@ -8,17 +8,12 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
-using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Options;
-using Gallery.Api.ViewModels;
 using TinCan;
 
 namespace Gallery.Api.Services
@@ -26,7 +21,7 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> CreateAsync(String verb, String description, Guid evaluationId, Guid team, CancellationToken ct);
+        Task<Boolean> CreateAsync(String verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct);
     }
 
     public class XApiService : IXApiService
@@ -34,8 +29,6 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IUserClaimsService _userClaimsService;
-        private readonly IMapper _mapper;
         private readonly XApiOptions _xApiOptions;
         private readonly RemoteLRS _lrs;
         private readonly Verb _verb;
@@ -44,23 +37,33 @@ namespace Gallery.Api.Services
         private readonly Agent _agent;
         private readonly Statement _statement;
         private readonly Context _xApiContext;
-        public XApiService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, IUserClaimsService userClaimsService, IMapper mapper, XApiOptions xApiOptions)
+        public XApiService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, XApiOptions xApiOptions)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
             _authorizationService = authorizationService;
-            _userClaimsService = userClaimsService;
-            _mapper = mapper;
             _xApiOptions = xApiOptions;
 
             if (IsConfigured()) {
                 // configure LRS
                 _lrs = new TinCan.RemoteLRS(_xApiOptions.Endpoint, _xApiOptions.Username, _xApiOptions.Password);
 
-                // configure Agent
+                // configure AgentAccount
                 _account = new TinCan.AgentAccount();
-                _account.homePage = new Uri(_xApiOptions.HomePage);
+                _account.name = _user.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+                var iss = _user.Identities.First().Claims.First(c => c.Type == "iss")?.Value;
+                if (_xApiOptions.IssuerUrl != "") {
+                    _account.homePage = new Uri(_xApiOptions.IssuerUrl);
+                } else if (iss.Contains("http")) {
+                    _account.homePage = new Uri(iss);
+                } else if (_xApiOptions.IssuerUrl == "") {
+                    _account.homePage = new Uri("http://" + iss);
+                }
+
+                // configure Agent
                 _agent = new TinCan.Agent();
+                _agent.name = _context.Users.Find(_user.GetId()).Name;
+                _agent.account = _account;
 
                 // Initalilze Verb and Activity
                 _verb = new TinCan.Verb();
@@ -82,7 +85,7 @@ namespace Gallery.Api.Services
             return _xApiOptions.Username != null;
         }
 
-        public async Task<Boolean> CreateAsync(String verb, String description, Guid evaluationId, Guid teamId, CancellationToken ct)
+        public async Task<Boolean> CreateAsync(String verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct)
         {
             if (!IsConfigured())
             {
@@ -92,18 +95,13 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
 
-            var user = _context.Users.Find(_user.GetId());
-            _account.name = user.Name;
-            _account.homePage = new Uri(_xApiOptions.HomePage);
-            _agent.account = _account;
-
             _verb.id = new Uri ("http://adlnet.gov/expapi/verbs/" + verb);
             _verb.display.Add("en-US", verb);
 
-            _activity.id = "http://localhost:4723/?exhibit=" + evaluationId;
+            _activity.id = _xApiOptions.SiteUrl + "/api/exhibit/" + exhibitId;
             _activity.definition = new TinCan.ActivityDefinition();
             _activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
-            _activity.definition.moreInfo = new Uri("http://gallery.local");
+            _activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?exhibit=?" + exhibitId);
             _activity.definition.name = new LanguageMap();
             _activity.definition.name.Add("en-US", description);
             _activity.definition.description = new LanguageMap();
@@ -113,11 +111,13 @@ namespace Gallery.Api.Services
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
                 var group = new TinCan.Group();
-                group.mbox = "mailto:" + team.ShortName + "@example.com";
                 group.name = team.ShortName;
-
+                if (_xApiOptions.EmailDomain != "") {
+                    // this is being set but not logged inside the lrs
+                    group.mbox = "mailto:" + team.ShortName + "@" + _xApiOptions.EmailDomain;
+                }
                 group.account = new AgentAccount();
-                group.account.homePage = new Uri(_xApiOptions.HomePage);
+                group.account.homePage = new Uri(_xApiOptions.SiteUrl);
                 group.account.name = team.ShortName;
                 //group.account.name = teamId.ToString();
                 group.member = new List<Agent> {_agent};
