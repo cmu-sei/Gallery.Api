@@ -168,7 +168,7 @@ namespace Gallery.Api.Services
                     if (_xApiService.IsConfigured())
                     {
                         // create and send xapi statement
-                        var verb = "created"; // could be initialized
+                        var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created"); // could be initialized
                         await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
                     }
                 }
@@ -226,7 +226,7 @@ namespace Gallery.Api.Services
                         userArticle.ModifiedBy = article.ModifiedBy;
                         userArticle.DateModified = article.DateModified;
                         // create and send xapi statement
-                        var verb = "updated"; // could be initialized
+                        var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/edited"); // could be initialized
                         var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticle.UserId).First();
                         await _xApiService.CreateAsync(verb, article.Name, userArticle.ExhibitId, teamUser.TeamId, ct);
 

@@ -189,7 +189,7 @@ namespace Gallery.Api.Services
                         if (_xApiService.IsConfigured())
                         {
                             // create and send xapi statement
-                            var verb = "shared";
+                            var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
                             var teamUser =  _context.TeamUsers.Where(t => t.UserId == sharedUserArticle.UserId).First();
                             var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
                             await _xApiService.CreateAsync(verb, article.Name, sharedUserArticle.ExhibitId, teamUser.TeamId, ct);
@@ -253,9 +253,9 @@ namespace Gallery.Api.Services
             if (_xApiService.IsConfigured())
             {
                 // create and send xapi statement
-                var verb = "read";
+                var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/read");
                 if (!isRead) {
-                    verb = "unread";
+                    verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/reset");
                 }
                 var teamUser =  _context.TeamUsers.Where(t => t.UserId == userArticleEntity.UserId).First();
                 await _xApiService.CreateAsync(verb, userArticleEntity.Article.Name, userArticleEntity.ExhibitId, teamUser.TeamId, ct);

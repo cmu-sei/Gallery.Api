@@ -21,7 +21,7 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> CreateAsync(String verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct);
+        Task<Boolean> CreateAsync(Uri verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct);
     }
 
     public class XApiService : IXApiService
@@ -85,7 +85,7 @@ namespace Gallery.Api.Services
             return _xApiOptions.Username != null;
         }
 
-        public async Task<Boolean> CreateAsync(String verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct)
+        public async Task<Boolean> CreateAsync(Uri verb, String description, Guid exhibitId, Guid teamId, CancellationToken ct)
         {
             if (!IsConfigured())
             {
@@ -95,8 +95,8 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
                 throw new ForbiddenException();
 
-            _verb.id = new Uri ("http://adlnet.gov/expapi/verbs/" + verb);
-            _verb.display.Add("en-US", verb);
+            _verb.id = verb;
+            _verb.display.Add("en-US", _verb.id.Segments.Last());
 
             _activity.id = _xApiOptions.SiteUrl + "/api/exhibit/" + exhibitId;
             _activity.definition = new TinCan.ActivityDefinition();
