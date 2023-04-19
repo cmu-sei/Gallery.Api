@@ -249,9 +249,15 @@ namespace Gallery.Api.Services
                     // TODO determine if we should log exhibit as registration
                     parent.Add("id", article.ExhibitId.ToString());
                     parent.Add("name", collection.Name);
-                    parent.Add("description", collection.Name);
+                    parent.Add("description", collection.Description);
 
-                    await _xApiService.CreateAsync(verb, activity, parent, teamId, ct);
+                    var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                    var other = new Dictionary<String,String>();
+                    other.Add("id", card.Id.ToString());
+                    other.Add("name", card.Name);
+                    other.Add("description", card.Description);
+
+                    await _xApiService.CreateAsync(verb, activity, parent, other, teamId, ct);
                 }
             }
 

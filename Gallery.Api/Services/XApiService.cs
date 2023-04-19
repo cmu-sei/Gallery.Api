@@ -21,7 +21,7 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> CreateAsync(Uri verb, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Guid teamId, CancellationToken ct);
+        Task<Boolean> CreateAsync(Uri verb, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Dictionary<String,String> otherData, Guid teamId, CancellationToken ct);
     }
 
     public class XApiService : IXApiService
@@ -75,7 +75,7 @@ namespace Gallery.Api.Services
             return _xApiOptions.Username != null;
         }
 
-        public async Task<Boolean> CreateAsync(Uri verbUri, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Guid teamId, CancellationToken ct)
+        public async Task<Boolean> CreateAsync(Uri verbUri, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Dictionary<String,String> otherData, Guid teamId, CancellationToken ct)
         {
             if (!IsConfigured())
             {
@@ -91,9 +91,11 @@ namespace Gallery.Api.Services
             verb.display.Add("en-US", verb.id.Segments.Last());
 
             var activity = new Activity();
+            // need to get the term "article" form somewhere
             activity.id = _xApiOptions.SiteUrl + "/api/article/" + activityData["id"];
             activity.definition = new TinCan.ActivityDefinition();
             activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
+            // need to get the term "article" form somewhere
             activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?article=?" + activityData["id"]);
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
@@ -112,6 +114,10 @@ namespace Gallery.Api.Services
                 }
                 group.account = new AgentAccount();
                 group.account.homePage = new Uri(_xApiOptions.SiteUrl);
+                if (_xApiOptions.SiteUrl != "") {
+                    group.account.homePage = new Uri(_xApiOptions.SiteUrl);
+                }
+
                 group.account.name = team.ShortName;
                 //group.account.name = teamId.ToString();
                 group.member = new List<Agent> {_agent};
@@ -122,6 +128,7 @@ namespace Gallery.Api.Services
             }
 
             var parent = new Activity();
+            // need to get the term "exhibit" form somewhere
             parent.id = _xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"];
             parent.definition = new ActivityDefinition();
             parent.definition.name = new LanguageMap();
@@ -129,6 +136,7 @@ namespace Gallery.Api.Services
             parent.definition.description = new LanguageMap();
             parent.definition.description.Add("en-US", parentData["description"]);
             parent.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
+            // need to get the term "exhibit" form somewhere
             parent.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"]);
 
             var contextActivities = new ContextActivities();
@@ -136,6 +144,11 @@ namespace Gallery.Api.Services
             contextActivities.parent.Add(parent);
             context.contextActivities = contextActivities;
 
+            // need to get the term "card" form somewhere
+            var other = new TinCan.Activity();
+            other.id = _xApiOptions.SiteUrl + "/?card=" + otherData["id"];
+            context.contextActivities.other = new List<Activity>();
+            context.contextActivities.other.Add(other);
 
             //var extensions = new Extensions();
             //context.extensions = new TinCan.Extensions();
