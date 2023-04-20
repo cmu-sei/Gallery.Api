@@ -164,15 +164,42 @@ namespace Gallery.Api.Services
                     await _context.SaveChangesAsync(ct);
                     // UserArticles
                     await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
-/*
-                    if (_xApiService.IsConfigured())
-                    {
-                        // create and send xapi statement
-                        var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created"); // could be initialized
-                        await _xApiService.CreateAsync(verb, article.Name, teamArticle.ExhibitId, teamCard.TeamId, ct);
+                }
+                if (_xApiService.IsConfigured())
+                {
+                    // create and send xapi statement
+                    var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created");
+                    // need to determine the users team for this particular card
+                    var teamId = (await _context.TeamUsers
+                        .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
 
-                    }
-*/
+                    var activity = new Dictionary<String,String>();
+                    activity.Add("id", article.Id.ToString());
+                    activity.Add("name", "Article");
+                    activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
+                    activity.Add("type", "article");
+                    activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+                    activity.Add("result", article.Summary);
+
+                    var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
+                    var parent = new Dictionary<String,String>();
+                    parent.Add("id", article.ExhibitId.ToString());
+                    parent.Add("name", "Exhibit");
+                    parent.Add("description", "An exhibit is the runtime collection of cards and articles.");
+                    parent.Add("type", "exhibit");
+                    parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+
+                    var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                    var other = new Dictionary<String,String>();
+                    other.Add("id", card.Id.ToString());
+                    other.Add("name", "Card");
+                    other.Add("description", "A card is an organized set of related articles.");
+                    other.Add("type", "card");
+                    other.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+
+                    // TODO determine if we should log exhibit as registration
+                    await _xApiService.CreateAsync(verb, activity, parent, other, teamId, ct);
+
                 }
             }
 
@@ -241,22 +268,29 @@ namespace Gallery.Api.Services
 
                     var activity = new Dictionary<String,String>();
                     activity.Add("id", article.Id.ToString());
-                    activity.Add("name", article.Name);
-                    activity.Add("description", article.Description);
+                    activity.Add("name", "Article");
+                    activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
+                    activity.Add("type", "article");
+                    activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+                    activity.Add("result", article.Summary);
 
-                    var parent = new Dictionary<String,String>();
                     var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
-                    // TODO determine if we should log exhibit as registration
+                    var parent = new Dictionary<String,String>();
                     parent.Add("id", article.ExhibitId.ToString());
-                    parent.Add("name", collection.Name);
-                    parent.Add("description", collection.Description);
+                    parent.Add("name", "Exhibit");
+                    parent.Add("description", "An exhibit is the runtime collection of cards and articles.");
+                    parent.Add("type", "exhibit");
+                    parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
 
                     var card = _context.Cards.Where(c => c.Id == article.CardId).First();
                     var other = new Dictionary<String,String>();
                     other.Add("id", card.Id.ToString());
-                    other.Add("name", card.Name);
-                    other.Add("description", card.Description);
+                    other.Add("name", "Card");
+                    other.Add("description", "A card is an organized set of related articles.");
+                    other.Add("type", "card");
+                    other.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
 
+                    // TODO determine if we should log exhibit as registration
                     await _xApiService.CreateAsync(verb, activity, parent, other, teamId, ct);
                 }
             }

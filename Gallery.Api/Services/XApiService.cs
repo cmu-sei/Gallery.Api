@@ -92,11 +92,11 @@ namespace Gallery.Api.Services
 
             var activity = new Activity();
             // need to get the term "article" form somewhere
-            activity.id = _xApiOptions.SiteUrl + "/api/article/" + activityData["id"];
+            activity.id = _xApiOptions.SiteUrl + "/api/" + activityData["type"] + "/" + activityData["id"];
             activity.definition = new TinCan.ActivityDefinition();
-            activity.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
+            activity.definition.type = new Uri(activityData["activityType"]);
             // need to get the term "article" form somewhere
-            activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?article=?" + activityData["id"]);
+            activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + activityData["type"] + "=?" + activityData["id"]);
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
             activity.definition.description = new LanguageMap();
@@ -107,7 +107,7 @@ namespace Gallery.Api.Services
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
                 var group = new TinCan.Group();
-                group.name = team.ShortName;
+                group.name = team.Id.ToString();
                 if (_xApiOptions.EmailDomain != "") {
                     // this is being set but not logged inside the lrs
                     group.mbox = "mailto:" + team.ShortName + "@" + _xApiOptions.EmailDomain;
@@ -119,34 +119,37 @@ namespace Gallery.Api.Services
                 }
 
                 group.account.name = team.ShortName;
-                //group.account.name = teamId.ToString();
-                group.member = new List<Agent> {_agent};
-                //group.member.Add(_agent);
+                group.member = new List<Agent> {};
+                group.member.Add(_agent);
 
                 context.team = group;
 
             }
 
             var parent = new Activity();
-            // need to get the term "exhibit" form somewhere
-            parent.id = _xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"];
+            parent.id = _xApiOptions.SiteUrl + "/?" + parentData["type"] + "=" + parentData["id"];
             parent.definition = new ActivityDefinition();
             parent.definition.name = new LanguageMap();
             parent.definition.name.Add("en-US", parentData["name"]);
             parent.definition.description = new LanguageMap();
             parent.definition.description.Add("en-US", parentData["description"]);
-            parent.definition.type = new Uri("http://adlnet.gov/expapi/activities/simulation");
-            // need to get the term "exhibit" form somewhere
-            parent.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?exhibit=" + parentData["id"]);
+            parent.definition.type = new Uri(parentData["activityType"]);
+            parent.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + parentData["type"] + "=" + parentData["id"]);
 
             var contextActivities = new ContextActivities();
             contextActivities.parent = new List<Activity>();
             contextActivities.parent.Add(parent);
             context.contextActivities = contextActivities;
 
-            // need to get the term "card" form somewhere
             var other = new TinCan.Activity();
-            other.id = _xApiOptions.SiteUrl + "/?card=" + otherData["id"];
+            other.id = _xApiOptions.SiteUrl + "/?" + otherData["type"] + "=" + otherData["id"];
+            other.definition = new ActivityDefinition();
+            other.definition.name = new LanguageMap();
+            other.definition.name.Add("en-US", otherData["name"]);
+            other.definition.description = new LanguageMap();
+            other.definition.description.Add("en-US", otherData["description"]);
+            other.definition.type = new Uri(otherData["activityType"]);
+            other.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + otherData["type"] + "=" + otherData["id"]);
             context.contextActivities.other = new List<Activity>();
             context.contextActivities.other.Add(other);
 
@@ -161,7 +164,7 @@ namespace Gallery.Api.Services
 
             // TODO pass in separately
             var result = new Result();
-            result.response = activityData["description"];
+            result.response = activityData["result"];
             statement.result = result;
 
             TinCan.LRSResponses.StatementLRSResponse lrsStatementResponse = _lrs.SaveStatement(statement);
