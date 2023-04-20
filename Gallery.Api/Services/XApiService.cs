@@ -91,12 +91,14 @@ namespace Gallery.Api.Services
             verb.display.Add("en-US", verb.id.Segments.Last());
 
             var activity = new Activity();
-            // need to get the term "article" form somewhere
-            activity.id = _xApiOptions.SiteUrl + "/api/" + activityData["type"] + "/" + activityData["id"];
+            activity.id = _xApiOptions.ApiUrl + activityData["type"] + "/" + activityData["id"];
             activity.definition = new TinCan.ActivityDefinition();
             activity.definition.type = new Uri(activityData["activityType"]);
-            // need to get the term "article" form somewhere
-            activity.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + activityData["type"] + "=?" + activityData["id"]);
+            if (activityData["moreInfo"] != "") {
+                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + activityData["moreInfo"]);
+            } else {
+                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + activityData["type"] + "=?" + activityData["id"]);
+            }
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
             activity.definition.description = new LanguageMap();
@@ -113,9 +115,9 @@ namespace Gallery.Api.Services
                     group.mbox = "mailto:" + team.ShortName + "@" + _xApiOptions.EmailDomain;
                 }
                 group.account = new AgentAccount();
-                group.account.homePage = new Uri(_xApiOptions.SiteUrl);
-                if (_xApiOptions.SiteUrl != "") {
-                    group.account.homePage = new Uri(_xApiOptions.SiteUrl);
+                group.account.homePage = new Uri(_xApiOptions.UiUrl);
+                if (_xApiOptions.UiUrl != "") {
+                    group.account.homePage = new Uri(_xApiOptions.UiUrl);
                 }
 
                 group.account.name = team.ShortName;
@@ -127,14 +129,18 @@ namespace Gallery.Api.Services
             }
 
             var parent = new Activity();
-            parent.id = _xApiOptions.SiteUrl + "/?" + parentData["type"] + "=" + parentData["id"];
+            parent.id = _xApiOptions.ApiUrl + parentData["type"] + "/" + parentData["id"];
             parent.definition = new ActivityDefinition();
             parent.definition.name = new LanguageMap();
             parent.definition.name.Add("en-US", parentData["name"]);
             parent.definition.description = new LanguageMap();
             parent.definition.description.Add("en-US", parentData["description"]);
             parent.definition.type = new Uri(parentData["activityType"]);
-            parent.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + parentData["type"] + "=" + parentData["id"]);
+            if (parentData["moreInfo"] != "") {
+                parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
+            } else {
+                parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + parentData["type"] + "=?" + activityData["id"]);
+            }
 
             var contextActivities = new ContextActivities();
             contextActivities.parent = new List<Activity>();
@@ -142,14 +148,18 @@ namespace Gallery.Api.Services
             context.contextActivities = contextActivities;
 
             var other = new TinCan.Activity();
-            other.id = _xApiOptions.SiteUrl + "/?" + otherData["type"] + "=" + otherData["id"];
+            other.id = _xApiOptions.ApiUrl  + otherData["type"] + "/" + otherData["id"];
             other.definition = new ActivityDefinition();
             other.definition.name = new LanguageMap();
             other.definition.name.Add("en-US", otherData["name"]);
             other.definition.description = new LanguageMap();
             other.definition.description.Add("en-US", otherData["description"]);
             other.definition.type = new Uri(otherData["activityType"]);
-            other.definition.moreInfo = new Uri(_xApiOptions.SiteUrl + "/?" + otherData["type"] + "=" + otherData["id"]);
+            if (otherData["moreInfo"] != "") {
+                other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
+            } else {
+                other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + otherData["type"] + "=?" + activityData["id"]);
+            }
             context.contextActivities.other = new List<Activity>();
             context.contextActivities.other.Add(other);
 
