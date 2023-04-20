@@ -109,18 +109,14 @@ namespace Gallery.Api.Services
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
                 var group = new TinCan.Group();
-                group.name = team.Id.ToString();
+                group.name = team.ShortName;
                 if (_xApiOptions.EmailDomain != "") {
                     // this is being set but not logged inside the lrs
                     group.mbox = "mailto:" + team.ShortName + "@" + _xApiOptions.EmailDomain;
                 }
                 group.account = new AgentAccount();
                 group.account.homePage = new Uri(_xApiOptions.UiUrl);
-                if (_xApiOptions.UiUrl != "") {
-                    group.account.homePage = new Uri(_xApiOptions.UiUrl);
-                }
-
-                group.account.name = team.ShortName;
+                group.account.name = team.Id.ToString();;
                 group.member = new List<Agent> {};
                 group.member.Add(_agent);
 
