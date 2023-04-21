@@ -213,9 +213,12 @@ namespace Gallery.Api.Services
             statement.context = context;
 
             // TODO pass in separately
-            var result = new Result();
-            result.response = activityData["result"];
-            statement.result = result;
+            if (activityData.ContainsKey("result"))
+            {
+                var result = new Result();
+                result.response = activityData["result"];
+                statement.result = result;
+            }
 
             TinCan.LRSResponses.StatementLRSResponse lrsStatementResponse = _lrs.SaveStatement(statement);
             if (lrsStatementResponse.success)

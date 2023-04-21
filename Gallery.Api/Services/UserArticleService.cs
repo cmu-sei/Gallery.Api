@@ -212,8 +212,8 @@ namespace Gallery.Api.Services
 
                     var activity = new Dictionary<String,String>();
                     activity.Add("id", article.Id.ToString());
-                    activity.Add("name", "Article");
-                    activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
+                    activity.Add("name", article.Name);
+                    activity.Add("description", article.Summary);
                     activity.Add("type", "article");
                     activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
                     activity.Add("result", article.Name);
@@ -334,8 +334,8 @@ namespace Gallery.Api.Services
 
                 var activity = new Dictionary<String,String>();
                 activity.Add("id", article.Id.ToString());
-                activity.Add("name", "Article");
-                activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
+                activity.Add("name", article.Name);
+                activity.Add("description", article.Summary);
                 activity.Add("type", "article");
                 activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
                 activity.Add("result", article.Name);
