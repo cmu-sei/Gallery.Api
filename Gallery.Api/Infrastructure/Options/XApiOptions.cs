@@ -15,5 +15,6 @@ namespace Gallery.Api.Infrastructure.Options
         public string ApiUrl { get; set; }
         public string UiUrl { get; set; }
         public string EmailDomain { get; set; }
+        public string Platform { get; set; }
     }
 }

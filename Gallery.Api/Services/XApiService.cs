@@ -21,7 +21,15 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> CreateAsync(Uri verb, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Dictionary<String,String> otherData, Guid teamId, CancellationToken ct);
+        Task<Boolean> CreateAsync(
+            Uri verb,
+            Dictionary<String,String> activityData,
+            Dictionary<String,String> categoryData,
+            Dictionary<String,String> groupingData,
+            Dictionary<String,String> parentData,
+            Dictionary<String,String> otherData,
+            Guid teamId,
+            CancellationToken ct);
     }
 
     public class XApiService : IXApiService
@@ -64,7 +72,7 @@ namespace Gallery.Api.Services
 
                 // Initialize the Context
                 _xApiContext = new Context();
-                _xApiContext.platform = "Gallery";
+                _xApiContext.platform = _xApiOptions.Platform;
                 _xApiContext.language = "en-US";
 
             }
@@ -75,7 +83,14 @@ namespace Gallery.Api.Services
             return _xApiOptions.Username != null;
         }
 
-        public async Task<Boolean> CreateAsync(Uri verbUri, Dictionary<String,String> activityData, Dictionary<String,String> parentData, Dictionary<String,String> otherData, Guid teamId, CancellationToken ct)
+        public async Task<Boolean> CreateAsync(
+            Uri verbUri, Dictionary<String,String> activityData,
+            Dictionary<String,String> parentData,
+            Dictionary<String,String> categoryData,
+            Dictionary<String,String> groupingData,
+            Dictionary<String,String> otherData,
+            Guid teamId,
+            CancellationToken ct)
         {
             if (!IsConfigured())
             {
@@ -94,17 +109,17 @@ namespace Gallery.Api.Services
             activity.id = _xApiOptions.ApiUrl + activityData["type"] + "/" + activityData["id"];
             activity.definition = new TinCan.ActivityDefinition();
             activity.definition.type = new Uri(activityData["activityType"]);
-            if (activityData["moreInfo"] != "") {
+            if (activityData.ContainsKey("moreInfo")) {
                 activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + activityData["moreInfo"]);
-            } else {
-                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + activityData["type"] + "=?" + activityData["id"]);
             }
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
             activity.definition.description = new LanguageMap();
             activity.definition.description.Add("en-US", activityData["description"]);
 
-            var context = _xApiContext;
+            var context = new Context();
+            context.platform = _xApiContext.platform;
+            context.language = _xApiContext.language;
 
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
@@ -119,48 +134,77 @@ namespace Gallery.Api.Services
                 group.account.name = team.Id.ToString();;
                 group.member = new List<Agent> {};
                 group.member.Add(_agent);
-
                 context.team = group;
-
-            }
-
-            var parent = new Activity();
-            parent.id = _xApiOptions.ApiUrl + parentData["type"] + "/" + parentData["id"];
-            parent.definition = new ActivityDefinition();
-            parent.definition.name = new LanguageMap();
-            parent.definition.name.Add("en-US", parentData["name"]);
-            parent.definition.description = new LanguageMap();
-            parent.definition.description.Add("en-US", parentData["description"]);
-            parent.definition.type = new Uri(parentData["activityType"]);
-            if (parentData["moreInfo"] != "") {
-                parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
-            } else {
-                parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + parentData["type"] + "=?" + activityData["id"]);
             }
 
             var contextActivities = new ContextActivities();
-            contextActivities.parent = new List<Activity>();
-            contextActivities.parent.Add(parent);
             context.contextActivities = contextActivities;
 
-            var other = new TinCan.Activity();
-            other.id = _xApiOptions.ApiUrl  + otherData["type"] + "/" + otherData["id"];
-            other.definition = new ActivityDefinition();
-            other.definition.name = new LanguageMap();
-            other.definition.name.Add("en-US", otherData["name"]);
-            other.definition.description = new LanguageMap();
-            other.definition.description.Add("en-US", otherData["description"]);
-            other.definition.type = new Uri(otherData["activityType"]);
-            if (otherData["moreInfo"] != "") {
-                other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
-            } else {
-                other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + "/?" + otherData["type"] + "=?" + activityData["id"]);
+            if (parentData.Count() > 0) {
+                var parent = new Activity();
+                parent.id = _xApiOptions.ApiUrl + parentData["type"] + "/" + parentData["id"];
+                parent.definition = new ActivityDefinition();
+                parent.definition.name = new LanguageMap();
+                parent.definition.name.Add("en-US", parentData["name"]);
+                parent.definition.description = new LanguageMap();
+                parent.definition.description.Add("en-US", parentData["description"]);
+                parent.definition.type = new Uri(parentData["activityType"]);
+                if (parentData.ContainsKey("moreInfo")) {
+                    parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
+                }
+                contextActivities.parent = new List<Activity>();
+                contextActivities.parent.Add(parent);
             }
-            context.contextActivities.other = new List<Activity>();
-            context.contextActivities.other.Add(other);
 
+            if (otherData.Count() > 0) {
+                var other = new TinCan.Activity();
+                other.id = _xApiOptions.ApiUrl  + otherData["type"] + "/" + otherData["id"];
+                other.definition = new ActivityDefinition();
+                other.definition.name = new LanguageMap();
+                other.definition.name.Add("en-US", otherData["name"]);
+                other.definition.description = new LanguageMap();
+                other.definition.description.Add("en-US", otherData["description"]);
+                other.definition.type = new Uri(otherData["activityType"]);
+                if (otherData.ContainsKey("moreInfo")) {
+                    other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
+                }
+                contextActivities.other = new List<Activity>();
+                context.contextActivities.other.Add(other);
+            }
             //var extensions = new Extensions();
             //context.extensions = new TinCan.Extensions();
+
+            if (groupingData.Count() > 0) {
+                var grouping = new TinCan.Activity();
+                grouping.id = _xApiOptions.ApiUrl  + groupingData["type"] + "/" + groupingData["id"];
+                grouping.definition = new ActivityDefinition();
+                grouping.definition.name = new LanguageMap();
+                grouping.definition.name.Add("en-US", groupingData["name"]);
+                grouping.definition.description = new LanguageMap();
+                grouping.definition.description.Add("en-US", groupingData["description"]);
+                grouping.definition.type = new Uri(groupingData["activityType"]);
+                if (groupingData.ContainsKey("moreInfo")) {
+                    grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingData["moreInfo"]);
+                }
+                contextActivities.grouping = new List<Activity>();
+                context.contextActivities.grouping.Add(grouping);
+            }
+
+            if (categoryData.Count() > 0) {
+                var category = new TinCan.Activity();
+                category.id = _xApiOptions.ApiUrl  + categoryData["type"] + "/" + categoryData["id"];
+                category.definition = new ActivityDefinition();
+                category.definition.name = new LanguageMap();
+                category.definition.name.Add("en-US", categoryData["name"]);
+                category.definition.description = new LanguageMap();
+                category.definition.description.Add("en-US", categoryData["description"]);
+                category.definition.type = new Uri(categoryData["activityType"]);
+                if (categoryData.ContainsKey("moreInfo")) {
+                    category.definition.moreInfo = new Uri(_xApiOptions.UiUrl + categoryData["moreInfo"]);
+                }
+                contextActivities.category = new List<Activity>();
+                context.contextActivities.category.Add(category);
+            }
 
             var statement = new Statement();
             statement.actor = _agent;

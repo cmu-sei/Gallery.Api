@@ -179,7 +179,7 @@ namespace Gallery.Api.Services
                     activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
                     activity.Add("type", "article");
                     activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-                    activity.Add("result", article.Summary);
+                    activity.Add("result", article.Name);
                     activity.Add("moreInfo", "/article/" + article.Id.ToString());
 
                     var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
@@ -191,17 +191,28 @@ namespace Gallery.Api.Services
                     parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
                     parent.Add("moreInfo", "/?exhibit=" + article.ExhibitId.ToString());
 
+                    var category = new Dictionary<String,String>();
+                    category.Add("id", article.SourceType.ToString());
+                    category.Add("name", article.SourceType.ToString());
+                    category.Add("description", "The source type for the article.");
+                    category.Add("type", "sourceType");
+                    category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+                    category.Add("moreInfo", "");
+
                     var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                    var grouping = new Dictionary<String,String>();
+                    grouping.Add("id", card.Id.ToString());
+                    grouping.Add("name", "Card");
+                    grouping.Add("description", "A card is an organized set of related articles.");
+                    grouping.Add("type", "card");
+                    grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                    grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+
                     var other = new Dictionary<String,String>();
-                    other.Add("id", card.Id.ToString());
-                    other.Add("name", "Card");
-                    other.Add("description", "A card is an organized set of related articles.");
-                    other.Add("type", "card");
-                    other.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-                    other.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
 
                     // TODO determine if we should log exhibit as registration
-                    await _xApiService.CreateAsync(verb, activity, parent, other, teamId, ct);
+                    await _xApiService.CreateAsync(
+                        verb, activity, parent, category, grouping, other, teamId, ct);
 
                 }
             }
@@ -275,7 +286,7 @@ namespace Gallery.Api.Services
                     activity.Add("description", "An article contains information related to an incident and/or inject within a scenario.");
                     activity.Add("type", "article");
                     activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-                    activity.Add("result", article.Summary);
+                    activity.Add("result", article.Name);
                     activity.Add("moreInfo", "/article/" + article.Id.ToString());
 
                     var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
@@ -287,17 +298,29 @@ namespace Gallery.Api.Services
                     parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
                     parent.Add("moreInfo", "/?exhibit=" + article.ExhibitId.ToString());
 
+                    var category = new Dictionary<String,String>();
+                    category.Add("id", article.SourceType.ToString());
+                    category.Add("name", article.SourceType.ToString());
+                    category.Add("description", "The source type for the article.");
+                    category.Add("type", "sourceType");
+                    category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+                    category.Add("moreInfo", "");
+
                     var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                    var grouping = new Dictionary<String,String>();
+                    grouping.Add("id", card.Id.ToString());
+                    grouping.Add("name", "Card");
+                    grouping.Add("description", "A card is an organized set of related articles.");
+                    grouping.Add("type", "card");
+                    grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                    grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+
                     var other = new Dictionary<String,String>();
-                    other.Add("id", card.Id.ToString());
-                    other.Add("name", "Card");
-                    other.Add("description", "A card is an organized set of related articles.");
-                    other.Add("type", "card");
-                    other.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-                    other.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
 
                     // TODO determine if we should log exhibit as registration
-                    await _xApiService.CreateAsync(verb, activity, parent, other, teamId, ct);
+                    await _xApiService.CreateAsync(
+                        verb, activity, parent, category, grouping, other, teamId, ct);
+
                 }
             }
 
