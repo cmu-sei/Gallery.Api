@@ -51,7 +51,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
                 .Include(ua => ua.Article)
                 .SingleOrDefaultAsync(ua => ua.Id == userArticleEntity.Id);
             var exhibit = await _db.Exhibits
-                .SingleOrDefaultAsync(e => e.Id == userArticleEntity.Article.ExhibitId);
+                .SingleOrDefaultAsync(e => e.Id == userArticleEntity.ExhibitId);
             if (userArticleEntity.Article.Move < exhibit.CurrentMove ||
                 (userArticleEntity.Article.Move == exhibit.CurrentMove && userArticleEntity.Article.Inject <= exhibit.CurrentInject))
             {
