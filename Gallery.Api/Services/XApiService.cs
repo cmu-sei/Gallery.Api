@@ -224,7 +224,7 @@ namespace Gallery.Api.Services
             if (lrsStatementResponse.success)
             {
                 // List of statements available
-                Console.WriteLine("LRS saved statesment from xAPI Service");
+                Console.WriteLine("LRS saved statement from xAPI Service");
             } else {
                 Console.WriteLine("ERROR FROM LRS VIA XAPI SERVICE: " + lrsStatementResponse.errMsg);
                 return false;
