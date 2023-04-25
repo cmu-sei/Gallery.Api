@@ -17,6 +17,7 @@ namespace Gallery.Api.Infrastructure.Options
         public List<CardEntity> Cards { get; set; }
         public List<TeamCardEntity> TeamCards { get; set; }
         public List<ArticleEntity> Articles { get; set; }
+        public List<TeamArticleEntity> TeamArticles { get; set; }
         public List<ExhibitEntity> Exhibits { get; set; }
 
     }

@@ -59,16 +59,6 @@
       "CollectionId": "e3a41f39-0feb-4eaf-bc1c-6b020b0e934b"
     }
   ],
-  "TeamCards": [
-    {
-    "Id": "86135513-3278-4c00-9531-278148cdb560",
-    "Move": 0,
-    "Inject": 0,
-    "IsShownOnWall": true,
-    "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1",
-    "CardId": "dd7ceda3-ecfd-4eb6-a19f-5c86ded620ba"
-    }
-  ],
   "Articles": [
     {
       "Id": "5fca5592-3e0c-4a50-afd2-a491dd0cf14f",
@@ -92,6 +82,24 @@
       "CurrentInject": 0,
       "CollectionId": "e3a41f39-0feb-4eaf-bc1c-6b020b0e934b",
       "SenerioId": ""
+    }
+  ],
+  "TeamCards": [
+    {
+    "Id": "86135513-3278-4c00-9531-278148cdb560",
+    "Move": 0,
+    "Inject": 0,
+    "IsShownOnWall": true,
+    "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1",
+    "CardId": "dd7ceda3-ecfd-4eb6-a19f-5c86ded620ba"
+    }
+  ],
+  "TeamArticles": [
+    {
+    "Id": "86135513-3278-4c00-9531-278148cdb605",
+    "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1",
+    "ArticleId": "5fca5592-3e0c-4a50-afd2-a491dd0cf14f",
+    "ExhibitId": "deff55dc-2231-4aff-bd4a-fd79fb587285"
     }
   ]
 }
