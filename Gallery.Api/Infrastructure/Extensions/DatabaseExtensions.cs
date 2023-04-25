@@ -102,6 +102,59 @@ namespace Gallery.Api.Infrastructure.Extensions
                 }
                 context.SaveChanges();
             }
+            if (options.Collections != null && options.Collections.Any())
+            {
+
+                var dbCollections = context.Collections.ToList();
+
+                foreach (CollectionEntity collections in options.Collections)
+                {
+                    if (!dbCollections.Where(x => x.Id == collections.Id).Any())
+                    {
+                        context.Collections.Add(collections);
+                    }
+                }
+                context.SaveChanges();
+            }
+            if (options.Cards != null && options.Cards.Any())
+            {
+                var dbCards = context.Cards.ToList();
+
+                foreach (CardEntity cards in options.Cards)
+                {
+                    if (!dbCards.Where(x => x.Id == cards.Id).Any())
+                    {
+                        context.Cards.Add(cards);
+                    }
+                }
+                context.SaveChanges();
+            }
+            if (options.Articles != null && options.Articles.Any())
+            {
+                var dbArticles = context.Articles.ToList();
+
+                foreach (ArticleEntity articles in options.Articles)
+                {
+                    if (!dbArticles.Where(x => x.Id == articles.Id).Any())
+                    {
+                        context.Articles.Add(articles);
+                    }
+                }
+                context.SaveChanges();
+            }
+            if (options.Exhibits != null && options.Exhibits.Any())
+            {
+                var dbExhibits = context.Exhibits.ToList();
+
+                foreach (ExhibitEntity exhibits in options.Exhibits)
+                {
+                    if (!dbExhibits.Where(x => x.Id == exhibits.Id).Any())
+                    {
+                        context.Exhibits.Add(exhibits);
+                    }
+                }
+                context.SaveChanges();
+            }
             if (options.Teams != null && options.Teams.Any())
             {
                 var dbTeams = context.Teams.ToList();
@@ -141,33 +194,6 @@ namespace Gallery.Api.Infrastructure.Extensions
                 }
                 context.SaveChanges();
             }
-            if (options.Collections != null && options.Collections.Any())
-            {
-
-                var dbCollections = context.Collections.ToList();
-
-                foreach (CollectionEntity collections in options.Collections)
-                {
-                    if (!dbCollections.Where(x => x.Id == collections.Id).Any())
-                    {
-                        context.Collections.Add(collections);
-                    }
-                }
-                context.SaveChanges();
-            }
-            if (options.Cards != null && options.Cards.Any())
-            {
-                var dbCards = context.Cards.ToList();
-
-                foreach (CardEntity cards in options.Cards)
-                {
-                    if (!dbCards.Where(x => x.Id == cards.Id).Any())
-                    {
-                        context.Cards.Add(cards);
-                    }
-                }
-                context.SaveChanges();
-            }
             if (options.TeamCards != null && options.TeamCards.Any())
             {
                 var dbTeamCards = context.TeamCards.ToList();
@@ -181,28 +207,15 @@ namespace Gallery.Api.Infrastructure.Extensions
                 }
                 context.SaveChanges();
             }
-            if (options.Articles != null && options.Articles.Any())
+            if (options.TeamArticles != null && options.TeamArticles.Any())
             {
-                var dbArticles = context.Articles.ToList();
+                var dbTeamArticles = context.TeamArticles.ToList();
 
-                foreach (ArticleEntity articles in options.Articles)
+                foreach (TeamArticleEntity teamArticles in options.TeamArticles)
                 {
-                    if (!dbArticles.Where(x => x.Id == articles.Id).Any())
+                    if (!dbTeamArticles.Where(x => x.Id == teamArticles.Id).Any())
                     {
-                        context.Articles.Add(articles);
-                    }
-                }
-                context.SaveChanges();
-            }
-            if (options.Exhibits != null && options.Exhibits.Any())
-            {
-                var dbExhibits = context.Exhibits.ToList();
-
-                foreach (ExhibitEntity exhibits in options.Exhibits)
-                {
-                    if (!dbExhibits.Where(x => x.Id == exhibits.Id).Any())
-                    {
-                        context.Exhibits.Add(exhibits);
+                        context.TeamArticles.Add(teamArticles);
                     }
                 }
                 context.SaveChanges();
