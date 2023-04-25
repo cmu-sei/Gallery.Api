@@ -334,8 +334,8 @@ namespace Gallery.Api.Services
                     var card = _context.Cards.Where(c => c.Id == article.CardId).First();
                     var grouping = new Dictionary<String,String>();
                     grouping.Add("id", card.Id.ToString());
-                    grouping.Add("name", "Card");
-                    grouping.Add("description", "A card is an organized set of related articles.");
+                    grouping.Add("name", card.Name);
+                    grouping.Add("description", card.Description);
                     grouping.Add("type", "card");
                     grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                     grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
