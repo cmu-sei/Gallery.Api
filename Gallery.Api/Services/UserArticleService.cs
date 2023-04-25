@@ -34,7 +34,7 @@ namespace Gallery.Api.Services
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> LoadUserArticlesAsync(ExhibitEntity exhibit, CancellationToken ct);
         Task<bool> LoadUserArticlesAsync(Guid teamArticleId, CancellationToken ct);
-        Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct);
+        Task<bool> LogXApiAsync(Uri verb, Article article, Guid exhibitId, CancellationToken ct);
 
     }
 
@@ -193,7 +193,7 @@ namespace Gallery.Api.Services
 
                 var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
                 var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
-                await LogXApiAsync(verb, _mapper.Map<Article>(article), ct);
+                await LogXApiAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, ct);
 
                 if (_clientOptions.IsEmailActive)
                 {
@@ -254,7 +254,7 @@ namespace Gallery.Api.Services
             if (!isRead) {
                 verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/reset");
             }
-            await LogXApiAsync(verb, _mapper.Map<Article>(article), ct);
+            await LogXApiAsync(verb, _mapper.Map<Article>(article), userArticleEntity.ExhibitId, ct);
 
             return _mapper.Map<UserArticle>(userArticleEntity);
         }
@@ -495,58 +495,58 @@ namespace Gallery.Api.Services
 
         }
 
-        public async Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct)
+        public async Task<bool> LogXApiAsync(Uri verb, Article article, Guid exhibitId, CancellationToken ct)
         {
+            if (_xApiService.IsConfigured())
+            {
 
-                if (_xApiService.IsConfigured())
-                {
-                    // create and send xapi statement
-                    // need to determine the users team for this particular card
-                    var teamId = (await _context.TeamUsers
-                        .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
+                var card = _context.Cards.Where(c => c.Id == article.CardId).First();
 
-                    var activity = new Dictionary<String,String>();
-                    activity.Add("id", article.Id.ToString());
-                    activity.Add("name", article.Name);
-                    activity.Add("description", article.Summary);
-                    activity.Add("type", "article");
-                    activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-                    activity.Add("moreInfo", "/article/" + article.Id.ToString());
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId)).TeamId;
 
-                    var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
-                    var parent = new Dictionary<String,String>();
-                    parent.Add("id", article.ExhibitId.ToString());
-                    parent.Add("name", "Exhibit");
-                    parent.Add("description", "An exhibit is the runtime collection of cards and articles.");
-                    parent.Add("type", "exhibit");
-                    parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
-                    parent.Add("moreInfo", "/?exhibit=" + article.ExhibitId.ToString());
+                // create and send xapi statement
+                var activity = new Dictionary<String,String>();
+                activity.Add("id", article.Id.ToString());
+                activity.Add("name", article.Name);
+                activity.Add("description", article.Summary);
+                activity.Add("type", "article");
+                activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+                activity.Add("moreInfo", "/article/" + article.Id.ToString());
 
-                    var category = new Dictionary<String,String>();
-                    category.Add("id", article.SourceType.ToString());
-                    category.Add("name", article.SourceType.ToString());
-                    category.Add("description", "The source type for the article.");
-                    category.Add("type", "sourceType");
-                    category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
-                    category.Add("moreInfo", "");
+                var parent = new Dictionary<String,String>();
+                parent.Add("id", exhibitId.ToString());
+                parent.Add("name", "Exhibit");
+                parent.Add("description", collection.Name);
+                parent.Add("type", "exhibit");
+                parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+                parent.Add("moreInfo", "/?exhibit=" + exhibitId.ToString());
 
-                    var card = _context.Cards.Where(c => c.Id == article.CardId).First();
-                    var grouping = new Dictionary<String,String>();
-                    grouping.Add("id", card.Id.ToString());
-                    grouping.Add("name", card.Name);
-                    grouping.Add("description", card.Description);
-                    grouping.Add("type", "card");
-                    grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                    grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+                var category = new Dictionary<String,String>();
+                category.Add("id", article.SourceType.ToString());
+                category.Add("name", article.SourceType.ToString());
+                category.Add("description", "The source type for the article.");
+                category.Add("type", "sourceType");
+                category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+                //category.Add("moreInfo", "");
 
-                    var other = new Dictionary<String,String>();
+                var grouping = new Dictionary<String,String>();
+                grouping.Add("id", card.Id.ToString());
+                grouping.Add("name", card.Name);
+                grouping.Add("description", card.Description);
+                grouping.Add("type", "card");
+                grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
 
-                    // TODO determine if we should log exhibit as registration
-                    return await _xApiService.CreateAsync(
-                        verb, activity, parent, category, grouping, other, teamId, ct);
+                var other = new Dictionary<String,String>();
 
-                }
-                return false;
+                // TODO determine if we should log exhibit as registration
+                return await _xApiService.CreateAsync(
+                    verb, activity, parent, category, grouping, other, teamId, ct);
+
+            }
+            return false;
         }
 
     }
