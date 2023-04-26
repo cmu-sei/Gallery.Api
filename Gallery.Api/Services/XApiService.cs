@@ -9,6 +9,7 @@ using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
@@ -42,12 +43,20 @@ namespace Gallery.Api.Services
         private readonly Agent _agent;
         private readonly AgentAccount _account;
         private readonly Context _xApiContext;
-        public XApiService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, XApiOptions xApiOptions)
+        private readonly ILogger<XApiService> _logger;
+
+        public XApiService(
+            GalleryDbContext context,
+            IPrincipal user,
+            IAuthorizationService authorizationService,
+            XApiOptions xApiOptions,
+            ILogger<XApiService> logger)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
             _authorizationService = authorizationService;
             _xApiOptions = xApiOptions;
+            _logger = logger;
 
             if (IsConfigured()) {
                 // configure LRS
@@ -224,9 +233,9 @@ namespace Gallery.Api.Services
             if (lrsStatementResponse.success)
             {
                 // List of statements available
-                Console.WriteLine("LRS saved statement from xAPI Service");
+                _logger.LogInformation("LRS saved statement from xAPI Service");
             } else {
-                Console.WriteLine("ERROR FROM LRS VIA XAPI SERVICE: " + lrsStatementResponse.errMsg);
+                _logger.LogError("ERROR FROM LRS VIA XAPI SERVICE: " + lrsStatementResponse.errMsg);
                 return false;
             }
 
