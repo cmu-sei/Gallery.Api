@@ -37,7 +37,7 @@ namespace Gallery.Api
     public class Startup
     {
         public Infrastructure.Options.AuthorizationOptions _authOptions = new Infrastructure.Options.AuthorizationOptions();
-        public Infrastructure.Options.VmTaskProcessingOptions _vmTaskProcessingOptions = new Infrastructure.Options.VmTaskProcessingOptions();
+        public Infrastructure.Options.XApiOptions _xApiOptions = new Infrastructure.Options.XApiOptions();
         public IConfiguration Configuration { get; }
         private const string _routePrefix = "api";
         private string _pathbase;
@@ -46,7 +46,7 @@ namespace Gallery.Api
         {
             Configuration = configuration;
             Configuration.GetSection("Authorization").Bind(_authOptions);
-            Configuration.GetSection("VmTaskProcessing").Bind(_vmTaskProcessingOptions);
+            Configuration.GetSection("XApiOptions").Bind(_xApiOptions);
             _pathbase = Configuration["PathBase"];
         }
 
@@ -92,6 +92,9 @@ namespace Gallery.Api
             services.AddOptions()
                 .Configure<DatabaseOptions>(Configuration.GetSection("Database"))
                     .AddScoped(config => config.GetService<IOptionsMonitor<DatabaseOptions>>().CurrentValue)
+
+                .Configure<XApiOptions>(Configuration.GetSection("XApiOptions"))
+                    .AddScoped(config => config.GetService<IOptionsMonitor<XApiOptions>>().CurrentValue)
 
                 .Configure<ClaimsTransformationOptions>(Configuration.GetSection("ClaimsTransformation"))
                     .AddScoped(config => config.GetService<IOptionsMonitor<ClaimsTransformationOptions>>().CurrentValue)
@@ -185,6 +188,7 @@ namespace Gallery.Api
 
             services.AddMemoryCache();
 
+            services.AddScoped<IXApiService, XApiService>();
             services.AddScoped<IArticleService, ArticleService>();
             services.AddScoped<ICardService, CardService>();
             services.AddScoped<ICollectionService, CollectionService>();
@@ -213,7 +217,6 @@ namespace Gallery.Api
                     (pm, c) => c.MapFrom<object, object, object, object>(new IgnoreNullSourceValues(), pm.SourceMember.Name));
             }, typeof(Startup));
             services.AddMediatR(typeof(Startup));
-            services.Configure<VmTaskProcessingOptions>(Configuration.GetSection("VmTaskProcessing"));
             services
                 .Configure<ResourceOwnerAuthorizationOptions>(Configuration.GetSection("ResourceOwnerAuthorization"))
                 .AddScoped(config => config.GetService<IOptionsMonitor<ResourceOwnerAuthorizationOptions>>().CurrentValue);

@@ -34,6 +34,8 @@ namespace Gallery.Api.Services
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> LoadUserArticlesAsync(ExhibitEntity exhibit, CancellationToken ct);
         Task<bool> LoadUserArticlesAsync(Guid teamArticleId, CancellationToken ct);
+        Task<bool> LogXApiAsync(Uri verb, Article article, Guid exhibitId, CancellationToken ct);
+
     }
 
     public class UserArticleService : IUserArticleService
@@ -45,6 +47,7 @@ namespace Gallery.Api.Services
         private readonly ClientOptions _clientOptions;
         private readonly ISteamfitterService _steamfitterService;
         private readonly ILogger<UserArticleService> _logger;
+        private readonly IXApiService _xApiService;
 
         public UserArticleService(
             GalleryDbContext context,
@@ -53,6 +56,7 @@ namespace Gallery.Api.Services
             IMapper mapper,
             ClientOptions clientOptions,
             ISteamfitterService steamfitterService,
+            IXApiService xApiService,
             ILogger<UserArticleService> logger)
         {
             _context = context;
@@ -62,6 +66,7 @@ namespace Gallery.Api.Services
             _clientOptions = clientOptions;
             _steamfitterService = steamfitterService;
             _logger = logger;
+            _xApiService = xApiService;
         }
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -185,6 +190,11 @@ namespace Gallery.Api.Services
                     }
                     await _context.SaveChangesAsync(ct);
                 }
+
+                var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
+                var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
+                await LogXApiAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, ct);
+
                 if (_clientOptions.IsEmailActive)
                 {
                     // get the email addresses
@@ -239,6 +249,13 @@ namespace Gallery.Api.Services
 
             await _context.SaveChangesAsync(ct);
 
+            var article = _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).First();
+            var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/read");
+            if (!isRead) {
+                verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/reset");
+            }
+            await LogXApiAsync(verb, _mapper.Map<Article>(article), userArticleEntity.ExhibitId, ct);
+
             return _mapper.Map<UserArticle>(userArticleEntity);
         }
 
@@ -290,7 +307,7 @@ namespace Gallery.Api.Services
                     }
                     catch (Exception ex)
                     {
-                        if (ex.InnerException == null 
+                        if (ex.InnerException == null
                             || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
                         {
                             throw ex;
@@ -331,7 +348,7 @@ namespace Gallery.Api.Services
                 }
                 catch (Exception ex)
                 {
-                    if (ex.InnerException == null 
+                    if (ex.InnerException == null
                         || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
                     {
                         throw ex;
@@ -367,7 +384,7 @@ namespace Gallery.Api.Services
                     ua.ExhibitId == exhibit.Id &&
                     ua.ArticleId == teamArticle.ArticleId &&
                     ua.UserId == userId);
-                var alreadyAdded = newUserArticles.Any(ua => 
+                var alreadyAdded = newUserArticles.Any(ua =>
                     ua.ExhibitId == exhibit.Id &&
                     ua.ArticleId == teamArticle.ArticleId &&
                     ua.UserId == userId);
@@ -476,6 +493,60 @@ namespace Gallery.Api.Services
                 Count = count.ToString()
             };
 
+        }
+
+        public async Task<bool> LogXApiAsync(Uri verb, Article article, Guid exhibitId, CancellationToken ct)
+        {
+            if (_xApiService.IsConfigured())
+            {
+
+                var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
+                var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+
+                var teamId = (await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId)).TeamId;
+
+                // create and send xapi statement
+                var activity = new Dictionary<String,String>();
+                activity.Add("id", article.Id.ToString());
+                activity.Add("name", article.Name);
+                activity.Add("description", article.Summary);
+                activity.Add("type", "article");
+                activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+                activity.Add("moreInfo", "/article/" + article.Id.ToString());
+
+                var parent = new Dictionary<String,String>();
+                parent.Add("id", exhibitId.ToString());
+                parent.Add("name", "Exhibit");
+                parent.Add("description", collection.Name);
+                parent.Add("type", "exhibit");
+                parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+                parent.Add("moreInfo", "/?exhibit=" + exhibitId.ToString());
+
+                var category = new Dictionary<String,String>();
+                category.Add("id", article.SourceType.ToString());
+                category.Add("name", article.SourceType.ToString());
+                category.Add("description", "The source type for the article.");
+                category.Add("type", "sourceType");
+                category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+                //category.Add("moreInfo", "");
+
+                var grouping = new Dictionary<String,String>();
+                grouping.Add("id", card.Id.ToString());
+                grouping.Add("name", card.Name);
+                grouping.Add("description", card.Description);
+                grouping.Add("type", "card");
+                grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+
+                var other = new Dictionary<String,String>();
+
+                // TODO determine if we should log exhibit as registration
+                return await _xApiService.CreateAsync(
+                    verb, activity, parent, category, grouping, other, teamId, ct);
+
+            }
+            return false;
         }
 
     }
