@@ -199,7 +199,7 @@ namespace Gallery.Api.Services
                     await _context.SaveChangesAsync(ct);
                 }
 
-                var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
+                var article = await _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).FirstAsync();
                 var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
                 await LogXApiAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, ct);
                 // if email is active, send the article sharing email
@@ -258,7 +258,7 @@ namespace Gallery.Api.Services
 
             await _context.SaveChangesAsync(ct);
 
-            var article = _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).First();
+            var article = await _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).FirstAsync();
             var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/read");
             if (!isRead) {
                 verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/reset");
@@ -541,8 +541,8 @@ namespace Gallery.Api.Services
             if (_xApiService.IsConfigured())
             {
 
-                var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
-                var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
 
                 var teamId = (await _context.TeamUsers
                     .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId)).TeamId;
