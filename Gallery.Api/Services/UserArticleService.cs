@@ -225,7 +225,8 @@ namespace Gallery.Api.Services
                     var emailTo = string.Join(",", toTeamEmailList);
                     if (emailTo == "")
                     {
-                        throw new ArgumentException("The selected teams have no valid email addresses in Gallery.");
+                        var toTeamNames = string.Join(",", exhibitTeamList.Where(t => shareDetails.ToTeamIdList.Contains(t.Id)).Select(t => t.ShortName).ToList());
+                        throw new ArgumentException($"The selected teams ({toTeamNames}) have no valid email addresses in Gallery.");
                     }
                     var scenarioId = (await _context.Exhibits
                         .FirstOrDefaultAsync(e => e.Id == shareDetails.ExhibitId))
@@ -419,11 +420,11 @@ namespace Gallery.Api.Services
         {
             var userEmail = "";
             var user = team.TeamUsers.SingleOrDefault(tu => tu.UserId == userId).User;
-            if (user.Email.Contains("@"))
+            if (user.Email != null && user.Email.Contains("@"))
             {
                 userEmail = user.Email;
             }
-            else if (team.Email.Contains("@"))
+            else if (team.Email != null && team.Email.Contains("@"))
             {
                 userEmail = team.Email;
             }
@@ -433,7 +434,7 @@ namespace Gallery.Api.Services
         private string GetTeamEmail(TeamEntity team)
         {
             var teamEmail = "";
-            if (team.Email.Contains("@"))
+            if (team.Email != null && team.Email.Contains("@"))
             {
                 teamEmail = team.Email;
             }

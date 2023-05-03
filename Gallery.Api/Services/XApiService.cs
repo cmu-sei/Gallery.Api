@@ -80,7 +80,7 @@ namespace Gallery.Api.Services
 
         public Boolean IsConfigured()
         {
-            return _xApiOptions.Username != null;
+            return !string.IsNullOrWhiteSpace(_xApiOptions.Username);
         }
 
         public async Task<Boolean> CreateAsync(
