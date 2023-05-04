@@ -261,7 +261,7 @@ namespace Gallery.Api.Services
             var article = await _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).FirstAsync();
             var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/read");
             if (!isRead) {
-                verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/reset");
+                verb = new Uri("http://id.tincanapi.com/verb/marked-unread");
             }
             await LogXApiAsync(verb, _mapper.Map<Article>(article), userArticleEntity.ExhibitId, ct);
 
