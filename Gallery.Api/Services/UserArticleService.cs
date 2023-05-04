@@ -153,7 +153,8 @@ namespace Gallery.Api.Services
             if (userArticleEntity == null)
                 throw new EntityNotFoundException<UserArticle>();
 
-            if (_user.GetId() != userArticleEntity.UserId)
+            var fromUserId = _user.GetId();
+            if (fromUserId != userArticleEntity.UserId)
                 throw new ForbiddenException();
 
             var sharedUserArticle = _mapper.Map<UserArticle>(userArticleEntity);
@@ -161,18 +162,25 @@ namespace Gallery.Api.Services
                 .Where(ua => ua.ArticleId == userArticleEntity.ArticleId && ua.ExhibitId == userArticleEntity.ExhibitId)
                 .Select(ua => ua.UserId)
                 .ToListAsync(ct);
-            var exhibitTeamIdList = await _context.Teams
+            var exhibitTeamList = _context.Teams
                 .Where(t => t.ExhibitId == shareDetails.ExhibitId)
-                .Select(t => t.Id)
-                .ToListAsync(ct);
-            var ccTeamId = (await _context.TeamUsers
-                .FirstOrDefaultAsync(tu => tu.UserId == _user.GetId() && exhibitTeamIdList.Contains(tu.TeamId))).TeamId;
-            var teamUsers = _context.TeamUsers
+                .Include(t => t.TeamUsers)
+                .ThenInclude(tu => tu.User)
+                .AsSingleQuery();
+            var exhibitTeamIdList = exhibitTeamList
+                .Select(t => t.Id);
+            var fromTeamId = (await _context.TeamUsers
+                .Where(tu => tu.UserId == fromUserId && exhibitTeamIdList.Contains(tu.TeamId))
+                .SingleOrDefaultAsync()).TeamId;
+            var toTeamUsers = _context.TeamUsers
                 .Where(tu => shareDetails.ToTeamIdList.Contains(tu.TeamId))
+                .Include(tu => tu.Team)
+                .Include(tu => tu.User)
+                .AsNoTracking()
                 .Distinct();
-            if (await teamUsers.AnyAsync(ct))
+            if (await toTeamUsers.AnyAsync(ct))
             {
-                var addUserIds = teamUsers
+                var addUserIds = toTeamUsers
                     .Where(u => !existingUserIdList.Contains(u.UserId))
                     .Select(u => u.UserId);
                 if (await addUserIds.AnyAsync(ct))
@@ -182,7 +190,7 @@ namespace Gallery.Api.Services
                         sharedUserArticle.Id = Guid.NewGuid();
                         sharedUserArticle.UserId = userId;
                         sharedUserArticle.DateCreated = DateTime.UtcNow;
-                        sharedUserArticle.CreatedBy = _user.GetId();
+                        sharedUserArticle.CreatedBy = fromUserId;
                         sharedUserArticle.DateModified = null;
                         sharedUserArticle.ModifiedBy = null;
                         var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
@@ -194,31 +202,32 @@ namespace Gallery.Api.Services
                 var article = _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).First();
                 var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
                 await LogXApiAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, ct);
-
+                // if email is active, send the article sharing email
                 if (_clientOptions.IsEmailActive)
                 {
-                    // get the email addresses
-                    var emailFrom = (await _context.Users
-                        .FirstOrDefaultAsync(u => u.Id == _user.GetId())).Email;
-                    var emailTo = string.Join(",", (await teamUsers
-                        .Where(tu => tu.User.Email.Contains("@"))
-                        .Select(tu => tu.User.Email)
-                        .ToListAsync(ct)));
+                    // determine the emailFrom address
+                    var emailFrom = GetUserEmail(fromUserId, exhibitTeamList.SingleOrDefault(t => t.Id == fromTeamId));
                     if (emailFrom == "")
                     {
-                        throw new ArgumentException("You do not have an email address in Gallery.");
+                        throw new ArgumentException("You nor your team have a valid email address in Gallery.");
                     }
-                    else if (emailTo == "")
+                    // get the emailCc and emailTo addresses
+                    var emailCc = GetTeamEmail(exhibitTeamList.SingleOrDefault(t => t.Id == fromTeamId));
+                    var toTeamEmailList = new List<string>();
+                    foreach (var teamId in shareDetails.ToTeamIdList)
                     {
-                        throw new ArgumentException("The selected teams have no users with email addresses in Gallery.");
+                        var teamEmail = GetTeamEmail(exhibitTeamList.SingleOrDefault(t => t.Id == teamId));
+                        if (!string.IsNullOrEmpty(teamEmail))
+                        {
+                            toTeamEmailList.Add(teamEmail);
+                        }
                     }
-                    var ccUsers = await _context.TeamUsers
-                        .Where(tu => tu.TeamId == ccTeamId && tu.User.Email.Contains("@"))
-                        .Select(tu => tu.User)
-                        .ToListAsync(ct);
-                    var emailCc = string.Join(",", ccUsers
-                        .Select(u => u.Email)
-                        .ToList());
+                    var emailTo = string.Join(",", toTeamEmailList);
+                    if (emailTo == "")
+                    {
+                        var toTeamNames = string.Join(",", exhibitTeamList.Where(t => shareDetails.ToTeamIdList.Contains(t.Id)).Select(t => t.ShortName).ToList());
+                        throw new ArgumentException($"The selected teams ({toTeamNames}) have no valid email addresses in Gallery.");
+                    }
                     var scenarioId = (await _context.Exhibits
                         .FirstOrDefaultAsync(e => e.Id == shareDetails.ExhibitId))
                         .ScenarioId;
@@ -228,7 +237,7 @@ namespace Gallery.Api.Services
                     await SendEmail(emailFrom, emailTo, emailCc, shareDetails.Subject, shareDetails.Message, (Guid)scenarioId, ct);
                 }
             } else {
-                throw new ArgumentException("There are no users on the selected teams to receive an email notification.");
+                throw new ArgumentException("There are no users on the selected teams to receive a shared article.");
             }
 
             return _mapper.Map<UserArticle>(userArticleEntity);
@@ -405,6 +414,38 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
 
             return true;
+        }
+
+        private string GetUserEmail(Guid userId, TeamEntity team)
+        {
+            var userEmail = "";
+            var user = team.TeamUsers.SingleOrDefault(tu => tu.UserId == userId).User;
+            if (user.Email != null && user.Email.Contains("@"))
+            {
+                userEmail = user.Email;
+            }
+            else if (team.Email != null && team.Email.Contains("@"))
+            {
+                userEmail = team.Email;
+            }
+            return userEmail;
+        }
+
+        private string GetTeamEmail(TeamEntity team)
+        {
+            var teamEmail = "";
+            if (team.Email != null && team.Email.Contains("@"))
+            {
+                teamEmail = team.Email;
+            }
+            else 
+            {
+                teamEmail = string.Join(",", (team.TeamUsers
+                    .Where(tu => tu.User.Email.Contains("@"))
+                    .Select(tu => tu.User.Email)
+                    .ToList()));
+            }
+            return teamEmail;
         }
 
         private async Task<string> SendEmail(

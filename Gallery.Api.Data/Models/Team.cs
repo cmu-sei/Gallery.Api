@@ -17,6 +17,7 @@ namespace Gallery.Api.Data.Models
         public Guid Id { get; set; }
         public string Name { get; set; }
         public string ShortName { get; set; }
+        public string Email { get; set; }
         public Guid? ExhibitId { get; set; }
         public virtual ExhibitEntity Exhibit { get; set; }
         public ICollection<TeamUserEntity> TeamUsers { get; set; } = new List<TeamUserEntity>();
