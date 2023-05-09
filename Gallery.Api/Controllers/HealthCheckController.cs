@@ -1,22 +1,24 @@
 // Copyright 2022 Carnegie Mellon University. All Rights Reserved.
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
+using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Gallery.Api.Controllers
 {
     [AllowAnonymous]
-    public class HealthController : BaseController
+    public class HealthCheckController : BaseController
     {
         private readonly HealthCheckService healthCheckService;
 
-        public HealthController(HealthCheckService healthCheckService)
+        public HealthCheckController(HealthCheckService healthCheckService)
         {
             this.healthCheckService = healthCheckService;
         }
@@ -30,7 +32,7 @@ namespace Gallery.Api.Controllers
         /// <returns></returns>
         [HttpGet("health/live")]
         [ProducesResponseType(typeof(HealthReport), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "Health_GetLiveliness")]
+        [SwaggerOperation(OperationId = "getLiveliness")]
         public async Task<IActionResult> GetLiveliness(CancellationToken ct)
         {
             HealthReport report = await this.healthCheckService.CheckHealthAsync((check) => check.Tags.Contains("live"));
@@ -50,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// <returns></returns>
         [HttpGet("health/ready")]
         [ProducesResponseType(typeof(HealthReport), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "Health_GetReadiness")]
+        [SwaggerOperation(OperationId = "getReadiness")]
         public async Task<IActionResult> GetReadiness(CancellationToken ct)
         {
             HealthReport report = await this.healthCheckService.CheckHealthAsync((check) => check.Tags.Contains("ready"));
@@ -60,5 +62,26 @@ namespace Gallery.Api.Controllers
             };
             return report.Status == HealthStatus.Healthy ? this.Ok(result) : this.StatusCode((int)HttpStatusCode.ServiceUnavailable, result);
         }
+
+        /// <summary>
+        /// Returns the current version of the API
+        /// </summary>
+        /// <remarks>
+        /// Returns the version.
+        /// </remarks>
+        /// <returns></returns>
+        [HttpGet("version")]
+        [ProducesResponseType(typeof(string), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "getVersion")]
+        public async Task<IActionResult> GetVersion(CancellationToken ct)
+        {
+            var version = (AssemblyInformationalVersionAttribute)Assembly
+                .GetExecutingAssembly()
+                .GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)
+                .FirstOrDefault();
+
+            return Ok(version.InformationalVersion);
+        }
+
     }
 }
