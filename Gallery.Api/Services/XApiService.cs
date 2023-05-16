@@ -11,17 +11,23 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
+using Gallery.Api.ViewModels;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Options;
 using TinCan;
+using Gallery.Api.Data.Models;
 
 namespace Gallery.Api.Services
 {
     public interface IXApiService
     {
         Boolean IsConfigured();
+        Task<Boolean> ArticleViewedAsync(Article article, Card card, Collection collection, CancellationToken ct);
+        Task<Boolean> CardViewedAsync(Card card, Exhibit exhibit, Collection collection, CancellationToken ct);
+        Task<Boolean> ExhibitArchiveViewedAsync(Exhibit exhibit, Collection collection, CancellationToken ct);
+        Task<Boolean> ExhibitWallViewedAsync(Exhibit exhibit, Collection collection, CancellationToken ct);
         Task<Boolean> CreateAsync(
             Uri verb,
             Dictionary<String,String> activityData,
@@ -90,6 +96,154 @@ namespace Gallery.Api.Services
         public Boolean IsConfigured()
         {
             return !string.IsNullOrWhiteSpace(_xApiOptions.Username);
+        }
+
+        public async Task<Boolean> ArticleViewedAsync(Article article, Card card, Collection collection, CancellationToken ct)
+        {
+            var verb = new Uri("http://id.tincanapi.com/verb/viewed");
+
+            var teamId = (_context.TeamUsers
+                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+
+            var activity = new Dictionary<String,String>();
+            activity.Add("id", article.Id.ToString());
+            activity.Add("name", article.Name);
+            activity.Add("description", article.Summary);
+            activity.Add("type", "article");
+            activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            activity.Add("moreInfo", "/article/" + article.Id.ToString());
+
+            var parent = new Dictionary<String,String>();
+            parent.Add("id", article.ExhibitId.ToString());
+            parent.Add("name", "Exhibit");
+            parent.Add("description", collection.Name);
+            parent.Add("type", "exhibit");
+            parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+            parent.Add("moreInfo", "/?exhibit=" + article.ExhibitId.ToString());
+
+            var category = new Dictionary<String,String>();
+            category.Add("id", article.SourceType.ToString());
+            category.Add("name", article.SourceType.ToString());
+            category.Add("description", "The source type for the article.");
+            category.Add("type", "sourceType");
+            category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+            category.Add("moreInfo", "");
+
+            var grouping = new Dictionary<String,String>();
+            grouping.Add("id", card.Id.ToString());
+            grouping.Add("name", card.Name);
+            grouping.Add("description", card.Description);
+            grouping.Add("type", "card");
+            grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+            grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+
+            var other = new Dictionary<String,String>();
+
+            return await CreateAsync(
+                verb, activity, parent, category, grouping, other, teamId, ct);
+
+        }
+
+        public async Task<Boolean> CardViewedAsync(Card card, Exhibit exhibit, Collection collection, CancellationToken ct)
+        {
+            var verb = new Uri("http://id.tincanapi.com/verb/viewed");
+            //var teamId = new Guid();
+
+            var teamId = (_context.TeamUsers
+                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+
+            var activity = new Dictionary<String,String>();
+
+            activity.Add("id", card.Id.ToString());
+            activity.Add("name", card.Name);
+            activity.Add("description", card.Description);
+            activity.Add("type", "card");
+            activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            activity.Add("moreInfo", "/?exhbit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
+
+            var parent = new Dictionary<String,String>();
+            parent.Add("id", exhibit.Id.ToString());
+            parent.Add("name", "Exhibit");
+            parent.Add("description", collection.Name);
+            parent.Add("type", "exhibit");
+            parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+            parent.Add("moreInfo", "/?exhibit=" + exhibit.Id.ToString());
+
+            var category = new Dictionary<String,String>();
+            var grouping = new Dictionary<String,String>();
+            var other = new Dictionary<String,String>();
+
+            return await CreateAsync(
+                verb, activity, parent, category, grouping, other, teamId, ct);
+
+        }
+
+        public async Task<Boolean> ExhibitArchiveViewedAsync(Exhibit exhibit,Collection collection, CancellationToken ct)
+        {
+            var verb = new Uri("http://id.tincanapi.com/verb/viewed");
+
+            var teamId = (_context.TeamUsers
+                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+
+            var activity = new Dictionary<String,String>();
+
+            activity.Add("id", exhibit.Id.ToString());
+            activity.Add("name", "Archive");
+            activity.Add("description", "The Gallery Archive is a collection of information that contains relevant reporting, intelligence, news, and social media data sources.");
+            activity.Add("type", "exhibit");
+            activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            activity.Add("moreInfo", "?section=archive&exhibit=" + exhibit.Id.ToString());
+
+            var parent = new Dictionary<String,String>();
+
+            parent.Add("id", exhibit.Id.ToString());
+            parent.Add("name", collection.Name);
+            parent.Add("description", collection.Description);
+            parent.Add("type", "exhibit");
+            parent.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
+
+            var category = new Dictionary<String,String>();
+            var grouping = new Dictionary<String,String>();
+            var other = new Dictionary<String,String>();
+
+            return await CreateAsync(
+                verb, activity, parent, category, grouping, other, teamId, ct);
+
+        }
+
+        public async Task<Boolean> ExhibitWallViewedAsync(Exhibit exhibit, Collection collection, CancellationToken ct)
+        {
+            var verb = new Uri("http://id.tincanapi.com/verb/viewed");
+
+            var teamId = (_context.TeamUsers
+                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+
+            var activity = new Dictionary<String,String>();
+
+            activity.Add("id", exhibit.Id.ToString());
+            activity.Add("name", "Wall");
+            activity.Add("description", "The Gallery Wall is a dashboard with red, orange, yellow, and green status indicators.");
+            activity.Add("type", "exhibit");
+            activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            activity.Add("moreInfo", "?section=wall&exhibit=" + exhibit.Id.ToString());
+
+            var parent = new Dictionary<String,String>();
+
+            parent.Add("id", exhibit.Id.ToString());
+            parent.Add("name", collection.Name);
+            parent.Add("description", collection.Description);
+            parent.Add("type", "exhibit");
+            parent.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+            parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
+
+            var category = new Dictionary<String,String>();
+            var grouping = new Dictionary<String,String>();
+            var other = new Dictionary<String,String>();
+
+            return await CreateAsync(
+                verb, activity, parent, category, grouping, other, teamId, ct);
+
         }
 
         public async Task<Boolean> CreateAsync(
