@@ -52,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// Returns a list of the current user's Teams.
         /// </remarks>
         /// <returns></returns>
-        [HttpGet("teams/mine")]
+        [HttpGet("myteams")]
         [ProducesResponseType(typeof(IEnumerable<Team>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyTeams")]
         public async Task<IActionResult> GetMine(CancellationToken ct)

@@ -1140,7 +1140,7 @@ namespace Gallery.Api.Client
                 throw new System.ArgumentNullException("exhibitId");
 
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/exhibits/{exhibitId}/cards/mine");
+            urlBuilder_.Append("api/exhibits/{exhibitId}/mycards");
             urlBuilder_.Replace("{exhibitId}", System.Uri.EscapeDataString(ConvertToString(exhibitId, System.Globalization.CultureInfo.InvariantCulture)));
 
             var client_ = _httpClient;
@@ -1667,7 +1667,7 @@ namespace Gallery.Api.Client
         public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Collection>> GetMyCollectionsAsync(System.Threading.CancellationToken cancellationToken)
         {
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/collections/mine");
+            urlBuilder_.Append("api/mycollections");
 
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -2193,7 +2193,7 @@ namespace Gallery.Api.Client
         public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Exhibit>> GetMyExhibitsAsync(System.Threading.CancellationToken cancellationToken)
         {
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/exhibits/mine");
+            urlBuilder_.Append("api/myexhibits");
 
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -2372,7 +2372,7 @@ namespace Gallery.Api.Client
                 throw new System.ArgumentNullException("collectionId");
 
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/collections/{collectionId}/exhibits/mine");
+            urlBuilder_.Append("api/collections/{collectionId}/myexhibits");
             urlBuilder_.Replace("{collectionId}", System.Uri.EscapeDataString(ConvertToString(collectionId, System.Globalization.CultureInfo.InvariantCulture)));
 
             var client_ = _httpClient;
@@ -3697,7 +3697,7 @@ namespace Gallery.Api.Client
         public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Permission>> GetMyPermissionsAsync(System.Threading.CancellationToken cancellationToken)
         {
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/permissions/mine");
+            urlBuilder_.Append("api/mypermissions");
 
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -4311,7 +4311,7 @@ namespace Gallery.Api.Client
         public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<Team>> GetMyTeamsAsync(System.Threading.CancellationToken cancellationToken)
         {
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/teams/mine");
+            urlBuilder_.Append("api/myteams");
 
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -7596,7 +7596,7 @@ namespace Gallery.Api.Client
                 throw new System.ArgumentNullException("exhibitId");
 
             var urlBuilder_ = new System.Text.StringBuilder();
-            urlBuilder_.Append("api/exhibits/{exhibitId}/userarticles/mine");
+            urlBuilder_.Append("api/exhibits/{exhibitId}/myuserarticles");
             urlBuilder_.Replace("{exhibitId}", System.Uri.EscapeDataString(ConvertToString(exhibitId, System.Globalization.CultureInfo.InvariantCulture)));
 
             var client_ = _httpClient;

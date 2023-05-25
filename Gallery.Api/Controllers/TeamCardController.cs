@@ -90,7 +90,7 @@ namespace Gallery.Api.Controllers
         /// <param name="exhibitId">The id of the TeamCard</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("exhibits/{exhibitId}/teamcards/mine")]
+        [HttpGet("exhibits/{exhibitId}/myteamcards")]
         [ProducesResponseType(typeof(IEnumerable<TeamCard>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyExhibitTeamCards")]
         public async Task<IActionResult> GetMineByExhibit(Guid exhibitId, CancellationToken ct)

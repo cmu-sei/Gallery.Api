@@ -52,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// </remarks>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("exhibits/mine")]
+        [HttpGet("myexhibits")]
         [ProducesResponseType(typeof(IEnumerable<Exhibit>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyExhibits")]
         public async Task<IActionResult> GetMine(CancellationToken ct)
@@ -88,7 +88,7 @@ namespace Gallery.Api.Controllers
         /// <param name="collectionId">The id of the Collection</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("collections/{collectionId}/exhibits/mine")]
+        [HttpGet("collections/{collectionId}/myexhibits")]
         [ProducesResponseType(typeof(IEnumerable<Exhibit>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyCollectionExhibits")]
         public async Task<IActionResult> GetMineByCollection(Guid collectionId, CancellationToken ct)

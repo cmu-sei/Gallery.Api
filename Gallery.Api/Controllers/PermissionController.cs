@@ -52,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// Returns a list of the current user's Permissions.
         /// </remarks>
         /// <returns></returns>
-        [HttpGet("permissions/mine")]
+        [HttpGet("mypermissions")]
         [ProducesResponseType(typeof(IEnumerable<Permission>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyPermissions")]
         public async Task<IActionResult> GetMine(CancellationToken ct)
