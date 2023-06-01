@@ -90,6 +90,23 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
+        /// Sets the selected TeamUser observer flag
+        /// </summary>
+        /// <remarks>
+        /// Sets the TeamUser to an observer.
+        /// </remarks>
+        /// <param name="id">The Id of the TeamUser to update</param>
+        /// <param name="ct"></param>
+        [HttpPut("teamusers/{id}/observer/set")]
+        [ProducesResponseType(typeof(TeamUser), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "setObserver")]
+        public async Task<IActionResult> SetObserver([FromRoute] Guid id, CancellationToken ct)
+        {
+            var result = await _teamUserService.SetObserverAsync(id, true, ct);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Deletes a TeamUser
         /// </summary>
         /// <remarks>

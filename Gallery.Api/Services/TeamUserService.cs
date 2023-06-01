@@ -27,6 +27,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
         Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUser teamUser, CancellationToken ct);
+        Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
     }
@@ -122,6 +123,23 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
 
             return await GetAsync(teamUserEntity.Id, ct);
+        }
+
+        public async Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
+                throw new ForbiddenException();
+
+            var teamUserToUpdate = await _context.TeamUsers
+                .Include(tu => tu.User)
+                .SingleOrDefaultAsync(v => v.Id == id, ct);
+            if (teamUserToUpdate == null)
+                throw new EntityNotFoundException<TeamUser>();
+
+            teamUserToUpdate.IsObserver = value;
+            await _context.SaveChangesAsync(ct);
+
+            return _mapper.Map<TeamUser>(teamUserToUpdate);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

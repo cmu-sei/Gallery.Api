@@ -9,7 +9,8 @@ namespace Gallery.Api.Infrastructure.Authorization
         ContentDeveloper,
         BaseUser,
         ExhibitUser,
-        TeamUser
+        TeamUser,
+        ExhibitObserver
     }
 }
 

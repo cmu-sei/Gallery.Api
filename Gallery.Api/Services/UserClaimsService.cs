@@ -162,18 +162,19 @@ namespace Gallery.Api.Services
             }
 
             // Object Permissions
-            var teamList = await _context.TeamUsers
+            var teamUserList = await _context.TeamUsers
+                .Include(tu => tu.Team)
                 .Where(x => x.UserId == userId)
-                .Select(x => x.Team)
                 .ToListAsync();
             var teamIdList = new List<string>();
             var exhibitIdList = new List<string>();
+            var observerExhibitIdList = new List<string>();
             // add IDs of allowed teams
-            foreach (var team in teamList)
+            foreach (var teamUser in teamUserList)
             {
-                teamIdList.Add(team.Id.ToString());
+                teamIdList.Add(teamUser.TeamId.ToString());
                 var teamExhibitIdList = await _context.Teams
-                    .Where(x => x.Id == team.Id)
+                    .Where(x => x.Id == teamUser.TeamId)
                     .Select(x => x.ExhibitId)
                     .ToListAsync();
                 foreach (var id in teamExhibitIdList)
@@ -183,12 +184,17 @@ namespace Gallery.Api.Services
                         exhibitIdList.Add(id.ToString());
                     }
                 }
+                if (teamUser.IsObserver)
+                {
+                    observerExhibitIdList.Add(teamUser.Team.ExhibitId.ToString());
+                }
             }
             // add IDs of allowed teams
             claims.Add(new Claim(UserClaimTypes.TeamUser.ToString(), String.Join(",", teamIdList.ToArray())));
             // add IDs of allowed exhibits
             claims.Add(new Claim(UserClaimTypes.ExhibitUser.ToString(), String.Join(",", exhibitIdList.ToArray())));
-
+            // add IDs of observer evaluations
+            claims.Add(new Claim(UserClaimTypes.ExhibitObserver.ToString(), String.Join(",", observerExhibitIdList.ToArray())));
 
             return claims;
         }

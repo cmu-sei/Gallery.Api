@@ -25,7 +25,7 @@ namespace Gallery.Api.Services
     {
         Task<IEnumerable<ViewModels.Team>> GetAsync(CancellationToken ct);
         Task<ViewModels.Team> GetAsync(Guid id, CancellationToken ct);
-        Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.Team>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
@@ -71,15 +71,29 @@ namespace Gallery.Api.Services
             return item;
         }
 
-        public async Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Team>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if(!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
+            var userId = _user.GetId();
             var items = await _context.TeamUsers
-                .Where(w => w.UserId == _user.GetId())
+                .Where(w => w.UserId == userId)
                 .Select(x => x.Team)
                 .ToListAsync(ct);
+
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
+            {
+                var myTeamUser = await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
+                if (myTeamUser != null)
+                {
+                    items = items
+                        .Where(team => team.Id == myTeamUser.Team.Id)
+                        .ToList();
+                }
+                else
+                {
+                    throw new ForbiddenException();
+                }
+            }
 
             return _mapper.Map<IEnumerable<Team>>(items);
         }

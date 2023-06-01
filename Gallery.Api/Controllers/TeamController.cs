@@ -46,18 +46,18 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets Teams for the current user
+        /// Gets Exhibit Teams for the current user
         /// </summary>
         /// <remarks>
-        /// Returns a list of the current user's Teams.
+        /// Returns a list of the current user's Exhibit Teams.
         /// </remarks>
         /// <returns></returns>
-        [HttpGet("myteams")]
+        [HttpGet("exhibits/{exhibitId}/myteams")]
         [ProducesResponseType(typeof(IEnumerable<Team>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getMyTeams")]
-        public async Task<IActionResult> GetMine(CancellationToken ct)
+        [SwaggerOperation(OperationId = "getMyExhibitTeams")]
+        public async Task<IActionResult> GetMineByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            var list = await _teamService.GetMineAsync(ct);
+            var list = await _teamService.GetMineByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
 
