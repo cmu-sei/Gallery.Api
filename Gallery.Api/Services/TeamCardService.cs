@@ -25,7 +25,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.TeamCard>> GetAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.TeamCard>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct);
         Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct);
         Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct);
@@ -71,13 +71,14 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<TeamCard>>(items);
         }
 
-        public async Task<IEnumerable<ViewModels.TeamCard>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var userId = _user.GetId();
-            var teamUser = await _context.TeamUsers
-                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId);
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
+                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
+                throw new ForbiddenException();
+
             var items = await _context.TeamCards
-                .Where(tc => tc.TeamId == teamUser.TeamId)
+                .Where(tc => tc.TeamId == teamId)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<TeamCard>>(items);

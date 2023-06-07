@@ -87,14 +87,15 @@ namespace Gallery.Api.Controllers
         /// Returns a list of Cards based on the exhibit's current move and current inject for the user.
         /// </remarks>
         /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="teamId">The id of the Team</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("exhibits/{exhibitId}/mycards")]
+        [HttpGet("exhibits/{exhibitId}/teams/{teamId}/cards")]
         [ProducesResponseType(typeof(IEnumerable<Card>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getExhibitCardsMine")]
-        public async Task<IActionResult> GetByExhibitUser(Guid exhibitId, CancellationToken ct)
+        [SwaggerOperation(OperationId = "getExhibitCardsByTeam")]
+        public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var list = await _cardService.GetByExhibitUserAsync(exhibitId, ct);
+            var list = await _cardService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
             return Ok(list);
         }
 

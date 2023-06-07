@@ -46,20 +46,21 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Gets UserArticles for an exhibit for the user
+        /// Gets UserArticles for an exhibit team
         /// </summary>
         /// <remarks>
-        /// Returns a list of UserArticles based on the exhibit's current move and current inject for the user.
+        /// Returns a list of UserArticles based on the exhibit's current move and current inject for the team.
         /// </remarks>
         /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="teamId">The id of the Team</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("exhibits/{exhibitId}/myuserArticles")]
+        [HttpGet("exhibits/{exhibitId}/teams/{teamId}/userarticles")]
         [ProducesResponseType(typeof(IEnumerable<UserArticle>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getExhibitUserArticlesMine")]
-        public async Task<IActionResult> GetByExhibitUser(Guid exhibitId, CancellationToken ct)
+        [SwaggerOperation(OperationId = "getExhibitTeamUserArticles")]
+        public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var list = await _userArticleService.GetMineByExhibitAsync(exhibitId, ct);
+            var list = await _userArticleService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
             return Ok(list);
         }
 

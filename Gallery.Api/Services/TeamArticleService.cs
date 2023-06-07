@@ -66,7 +66,12 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamArticle>> GetByTeamAsync(Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded)
+            var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
+            if (team == null)
+                throw new EntityNotFoundException<Team>("Team " + teamId.ToString());
+
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
+                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement((Guid)team.ExhibitId))).Succeeded)
                 throw new ForbiddenException();
 
             var items = await _context.TeamArticles

@@ -25,7 +25,7 @@ namespace Gallery.Api.Services
     public interface IUserArticleService
     {
         Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid Exhibit, CancellationToken ct);
-        Task<IEnumerable<ViewModels.UserArticle>> GetMineByExhibitAsync(Guid Exhibit, CancellationToken ct);
+        Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid Exhibit, Guid teamId, CancellationToken ct);
         Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct);
         Task<UnreadArticles> GetUnreadCountAsync(Guid exhibitId, Guid userId, CancellationToken ct);
         Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct);
@@ -87,27 +87,72 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<UserArticle>>(await articles.ToListAsync());
         }
 
-        public async Task<IEnumerable<ViewModels.UserArticle>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var userId = _user.GetId();
             var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
-            await LoadUserArticlesAsync(exhibit, userId, ct);
-            var userArticleEntityList =  await _context.UserArticles
-                .Where(ua =>
-                    ua.UserId == userId &&
-                    ua.ExhibitId == exhibitId &&
-                    (
-                        (ua.Article.Move < exhibit.CurrentMove) ||
-                        (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+            if (exhibit == null)
+                throw new EntityNotFoundException<ExhibitEntity>("Exhibit not found " + exhibitId.ToString());
+
+            var userArticleEntityList = new List<UserArticleEntity>();
+            if ((await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded)
+            {
+                // user is requesting their own user articles
+                // make sure all of the user articles have been created
+                await LoadUserArticlesAsync(exhibit, userId, ct);
+                // get the user articles
+                userArticleEntityList =  await _context.UserArticles
+                    .Where(ua =>
+                        ua.UserId == userId &&
+                        ua.ExhibitId == exhibitId &&
+                        (
+                            (ua.Article.Move < exhibit.CurrentMove) ||
+                            (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                        )
                     )
-                )
-                .Include(ua => ua.Article)
-                .OrderByDescending(ua => ua.Article.Move)
-                .ThenByDescending(ua => ua.Article.Inject)
-                .ToListAsync();
+                    .Include(ua => ua.Article)
+                    .OrderByDescending(ua => ua.Article.Move)
+                    .ThenByDescending(ua => ua.Article.Inject)
+                    .ToListAsync();
+            }
+            else if ((await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
+            {
+                // user is requesting to observe another team
+                // get all users on the team
+                var userIdList = await _context.TeamUsers
+                    .Where(tu => tu.TeamId == teamId)
+                    .Select(tu => tu.UserId)
+                    .ToListAsync(ct);
+                var uaList = await  _context.UserArticles
+                    .Where(ua =>
+                        userIdList.Contains(ua.UserId) &&
+                        (
+                            (ua.Article.Move < exhibit.CurrentMove) ||
+                            (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                        )
+                    )
+                    .Include(ua => ua.Article)
+                    .ToListAsync(ct);
+                userArticleEntityList = uaList
+                    .GroupBy(ua => new { ua.ExhibitId, ua.ArticleId, ua.Article })
+                    .Select(g => new UserArticleEntity() {
+                        ArticleId = g.Key.ArticleId,
+                        Article = g.Key.Article,
+                        ExhibitId = g.Key.ExhibitId,
+                        Id = g.Min(m => m.Id),
+                        UserId = userId,
+                        IsRead = g.Any(m => m.IsRead),
+                        ActualDatePosted = g.Min(m => m.ActualDatePosted)
+                    })
+                    .OrderByDescending(m => m.Article.Move)
+                    .ThenByDescending(m => m.Article.Inject)
+                    .ToList();
+            }
+            else
+            {
+                throw new ForbiddenException();
+            }
+
 
             return _mapper.Map<IEnumerable<UserArticle>>(userArticleEntityList);
         }
