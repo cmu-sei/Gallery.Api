@@ -301,8 +301,8 @@ namespace Gallery.Api.Services
 
             if (_xApiService.IsConfigured())
             {
-                var collection = _context.Collections.Where(c => c.Id == article.CollectionId).First();
-                var card = _context.Cards.Where(c => c.Id == article.CardId).First();
+                var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
 
                 var teamId = (await _context.TeamUsers
                     .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
