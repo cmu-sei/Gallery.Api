@@ -257,7 +257,7 @@ namespace Gallery.Api.Services
         {
             if (!IsConfigured())
             {
-                return false;
+                return true;
             };
 
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)

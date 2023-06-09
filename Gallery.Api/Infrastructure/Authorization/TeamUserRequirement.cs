@@ -21,13 +21,9 @@ namespace Gallery.Api.Infrastructure.Authorization
     {
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, TeamUserRequirement requirement)
         {
-            if (context.User.HasClaim(c => c.Type == UserClaimTypes.SystemAdmin.ToString()) ||
-                context.User.HasClaim(c => c.Type == UserClaimTypes.ContentDeveloper.ToString()) ||
-                (
-                    context.User.HasClaim(c =>
-                        c.Type == UserClaimTypes.TeamUser.ToString() &&
-                        c.Value.Contains(requirement.TeamId.ToString())
-                    )
+            if (context.User.HasClaim(c =>
+                    c.Type == UserClaimTypes.TeamUser.ToString() &&
+                    c.Value.Contains(requirement.TeamId.ToString())
                 )
             )
             {

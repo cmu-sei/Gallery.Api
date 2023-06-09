@@ -22,11 +22,13 @@ namespace Gallery.Api.Services
 {
     public interface ITeamUserService
     {
-        Task<IEnumerable<ViewModels.TeamUser>> GetAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.TeamUser>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.TeamUser>> GetByTeamAsync(Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamUser> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
         Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUser teamUser, CancellationToken ct);
+        Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
     }
@@ -46,12 +48,30 @@ namespace Gallery.Api.Services
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<ViewModels.TeamUser>> GetAsync(CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.TeamUser>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
                 throw new ForbiddenException();
 
             var items = await _context.TeamUsers
+                .Where(tu => tu.Team.ExhibitId == exhibitId)
+                .ToListAsync(ct);
+
+            return _mapper.Map<IEnumerable<TeamUser>>(items);
+        }
+
+        public async Task<IEnumerable<ViewModels.TeamUser>> GetByTeamAsync(Guid teamId, CancellationToken ct)
+        {
+            var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
+            if (team == null)
+                throw new EntityNotFoundException<Team>();
+
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement((Guid)team.ExhibitId))).Succeeded)
+                throw new ForbiddenException();
+
+            var items = await _context.TeamUsers
+                .Where(tu => tu.TeamId == teamId)
+                .Include(tu => tu.User)
                 .ToListAsync(ct);
 
             return _mapper.Map<IEnumerable<TeamUser>>(items);
@@ -122,6 +142,23 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
 
             return await GetAsync(teamUserEntity.Id, ct);
+        }
+
+        public async Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
+                throw new ForbiddenException();
+
+            var teamUserToUpdate = await _context.TeamUsers
+                .Include(tu => tu.User)
+                .SingleOrDefaultAsync(v => v.Id == id, ct);
+            if (teamUserToUpdate == null)
+                throw new EntityNotFoundException<TeamUser>();
+
+            teamUserToUpdate.IsObserver = value;
+            await _context.SaveChangesAsync(ct);
+
+            return _mapper.Map<TeamUser>(teamUserToUpdate);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

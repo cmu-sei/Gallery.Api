@@ -703,7 +703,7 @@
         }
       }
     },
-    "/api/exhibits/{exhibitId}/cards/mine": {
+    "/api/exhibits/{exhibitId}/mycards": {
       "get": {
         "tags": [
           "Card"
@@ -1038,7 +1038,7 @@
         }
       }
     },
-    "/api/collections/mine": {
+    "/api/mycollections": {
       "get": {
         "tags": [
           "Collection"
@@ -1361,7 +1361,7 @@
         }
       }
     },
-    "/api/exhibits/mine": {
+    "/api/myexhibits": {
       "get": {
         "tags": [
           "Exhibit"
@@ -1475,7 +1475,7 @@
         }
       }
     },
-    "/api/collections/{collectionId}/exhibits/mine": {
+    "/api/collections/{collectionId}/myexhibits": {
       "get": {
         "tags": [
           "Exhibit"
@@ -2278,7 +2278,7 @@
         }
       }
     },
-    "/api/permissions/mine": {
+    "/api/mypermissions": {
       "get": {
         "tags": [
           "Permission"
@@ -2663,7 +2663,7 @@
         }
       }
     },
-    "/api/teams/mine": {
+    "/api/myteams": {
       "get": {
         "tags": [
           "Team"
@@ -4722,7 +4722,7 @@
         }
       }
     },
-    "/api/exhibits/{exhibitId}/userarticles/mine": {
+    "/api/exhibits/{exhibitId}/myuserarticles": {
       "get": {
         "tags": [
           "UserArticle"

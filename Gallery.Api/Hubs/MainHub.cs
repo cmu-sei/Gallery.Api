@@ -6,88 +6,147 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
 using Gallery.Api.Data;
+using Gallery.Api.Services;
 using Gallery.Api.Infrastructure.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using Gallery.Api.Infrastructure.Options;
 
 namespace Gallery.Api.Hubs
 {
     [Authorize(AuthenticationSchemes = "Bearer")]
     public class MainHub : Hub
     {
+        private readonly ITeamService _teamService;
+        private readonly IExhibitService _exhibitService;
         private readonly GalleryDbContext _context;
+        private readonly DatabaseOptions _options;
         private readonly CancellationToken _ct;
-        private readonly ILogger<MainHub> _logger;
+        private readonly IAuthorizationService _authorizationService;
+        public const string ADMIN_DATA_GROUP = "AdminDataGroup";
 
         public MainHub(
+            ITeamService teamService,
+            IExhibitService exhibitService,
             GalleryDbContext context,
-            ILogger<MainHub> logger
+            DatabaseOptions options,
+            IAuthorizationService authorizationService
         )
         {
+            _teamService = teamService;
+            _exhibitService = exhibitService;
             _context = context;
+            _options = options;
             CancellationTokenSource source = new CancellationTokenSource();
             _ct = source.Token;
-            _logger = logger;
-        }
-
-        public async Task<List<string>> GetGroupIdsAsync()
-        {
-            var groupIdList = new List<string>();
-            // personal user group
-            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
-            var userIdString = Guid.Parse(userId);
-            groupIdList.Add(userId);
-            // system admins group
-            var systemAdminPermissionId = _context.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefault().Id;
-            if (_context.UserPermissions.Any(
-                up => up.UserId == userIdString && up.PermissionId == systemAdminPermissionId))
-            {
-                groupIdList.Add(systemAdminPermissionId.ToString());
-            }
-            // add this user's exhibits
-            var exhibitIdList = await _context.Teams
-                .Join(
-                    _context.TeamUsers,
-                    t => t.Id,
-                    tu => tu.TeamId,
-                    (t, tu) => new
-                    {
-                        ExhibitId = t.ExhibitId,
-                        UserId = tu.UserId
-                    }
-                )
-                .Where(n => n.UserId == userIdString && n.ExhibitId != null)
-                .Select(n => n.ExhibitId.ToString())
-                .ToListAsync();
-            if (exhibitIdList.Any())
-            {
-                groupIdList.AddRange(exhibitIdList);
-            }
-
-            return groupIdList;
+            _authorizationService = authorizationService;
         }
 
         public async Task Join()
         {
-            var groupIdList = await GetGroupIdsAsync();
-            foreach (var groupId in groupIdList)
+            var idList = await GetIdList();
+            foreach (var id in idList)
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
+                await Groups.AddToGroupAsync(Context.ConnectionId, id.ToString());
             }
-            _logger.LogDebug("MainHub.Join: complete");
         }
 
         public async Task Leave()
         {
-            var groupIdList = await GetGroupIdsAsync();
-            foreach (var groupId in groupIdList)
+            var idList = await GetIdList();
+            foreach (var id in idList)
             {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, id.ToString());
             }
         }
+
+        public async Task SwitchTeam(Guid[] args)
+        {
+            if (args.Count() == 2)
+            {
+                var oldTeamId = args[0];
+                var newTeamId = args[1];
+                // leave the old team
+                var idList = await GetTeamIdList(oldTeamId);
+                foreach (var id in idList)
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, id.ToString());
+                }
+                // join the new team
+                idList = await GetTeamIdList(newTeamId);
+                foreach (var id in idList)
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, id.ToString());
+                }
+            }
+        }
+
+        public async Task JoinAdmin()
+        {
+            var idList = await GetAdminIdList();
+            foreach (var id in idList)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, id.ToString());
+            }
+        }
+
+        public async Task LeaveAdmin()
+        {
+            var idList = await GetAdminIdList();
+            foreach (var id in idList)
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, id.ToString());
+            }
+        }
+
+        private async Task<List<string>> GetIdList()
+        {
+            // only add the user ID
+            // exhibit and team will be added in the setTeam method
+            var idList = new List<string>();
+            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+            idList.Add(userId);
+
+            return idList;
+        }
+
+        private async Task<List<string>> GetTeamIdList(Guid teamId)
+        {
+            var idList = new List<string>();
+            // add the user's ID
+            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+            idList.Add(userId);
+            // make sure that the user has access to the requested team
+            var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
+            if (team != null)
+            {
+                var teamUser = await _context.TeamUsers.SingleOrDefaultAsync(tu => tu.Team.ExhibitId == team.ExhibitId && tu.UserId.ToString() == userId);
+                if (teamUser != null && (teamUser.TeamId == teamId || teamUser.IsObserver))
+                {
+                    idList.Add(teamId.ToString());
+                    idList.Add(team.ExhibitId.ToString());
+                }
+            }
+
+            return idList;
+        }
+
+        private async Task<List<string>> GetAdminIdList()
+        {
+            var idList = new List<string>();
+            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+            idList.Add(userId);
+            // content developer or system admin
+            if ((await _authorizationService.AuthorizeAsync(Context.User, null, new ContentDeveloperRequirement())).Succeeded)
+            {
+                idList.Add(ADMIN_DATA_GROUP);
+            }
+
+            return idList;
+        }
+
     }
 
     public static class MainHubMethods

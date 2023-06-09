@@ -28,7 +28,7 @@ namespace Gallery.Api.Services
         Task<ViewModels.Card> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.Card>> GetByExhibitUserAsync(Guid exhibitId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
         Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct);
         Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
@@ -109,16 +109,13 @@ namespace Gallery.Api.Services
             return cards;
         }
 
-        public async Task<IEnumerable<ViewModels.Card>> GetByExhibitUserAsync(Guid exhibitId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
+                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
                 throw new ForbiddenException();
 
             var exhibit = await _context.Exhibits.FindAsync(exhibitId);
-            var userId = _user.GetId();
-            var teamId = (await _context.Teams
-                .Where(t => t.ExhibitId == exhibitId && t.TeamUsers.Any(tu => tu.UserId == userId))
-                .FirstAsync()).Id;
             var cards = await _context.TeamCards
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
                 .Include(tc => tc.Card)
