@@ -52,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// Returns a list of the current user's Exhibit Teams.
         /// </remarks>
         /// <returns></returns>
-        [HttpGet("exhibits/{exhibitId}/myteams")]
+        [HttpGet("exhibits/{exhibitId}/my-teams")]
         [ProducesResponseType(typeof(IEnumerable<Team>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyExhibitTeams")]
         public async Task<IActionResult> GetMineByExhibit(Guid exhibitId, CancellationToken ct)

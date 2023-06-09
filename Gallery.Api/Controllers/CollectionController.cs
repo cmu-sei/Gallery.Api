@@ -52,7 +52,7 @@ namespace Gallery.Api.Controllers
         /// </remarks>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("mycollections")]
+        [HttpGet("my-collections")]
         [ProducesResponseType(typeof(IEnumerable<Collection>), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "getMyCollections")]
         public async Task<IActionResult> GetMine(CancellationToken ct)
