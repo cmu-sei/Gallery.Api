@@ -24,7 +24,7 @@ namespace Gallery.Api.Services
     public interface IXApiService
     {
         Boolean IsConfigured();
-        Task<Boolean> ArticleViewedAsync(Article article, Card card, Collection collection, CancellationToken ct);
+        Task<Boolean> ArticleViewedAsync(Exhibit exhibit, Article article, Card card, Collection collection, CancellationToken ct);
         Task<Boolean> CardViewedAsync(Card card, Exhibit exhibit, Collection collection, CancellationToken ct);
         Task<Boolean> ExhibitArchiveViewedAsync(Exhibit exhibit, Collection collection, CancellationToken ct);
         Task<Boolean> ExhibitWallViewedAsync(Exhibit exhibit, Collection collection, CancellationToken ct);
@@ -98,12 +98,12 @@ namespace Gallery.Api.Services
             return !string.IsNullOrWhiteSpace(_xApiOptions.Username);
         }
 
-        public async Task<Boolean> ArticleViewedAsync(Article article, Card card, Collection collection, CancellationToken ct)
+        public async Task<Boolean> ArticleViewedAsync(Exhibit exhibit, Article article, Card card, Collection collection, CancellationToken ct)
         {
             var verb = new Uri("http://id.tincanapi.com/verb/viewed");
 
             var teamId = (_context.TeamUsers
-                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
 
             var activity = new Dictionary<String,String>();
             activity.Add("id", article.Id.ToString());
@@ -111,15 +111,15 @@ namespace Gallery.Api.Services
             activity.Add("description", article.Summary);
             activity.Add("type", "article");
             activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
-            activity.Add("moreInfo", "/article/" + article.Id.ToString());
+            activity.Add("moreInfo", "/exhibit/" + exhibit.Id.ToString() + "/article/" + article.Id.ToString());
 
             var parent = new Dictionary<String,String>();
-            parent.Add("id", article.ExhibitId.ToString());
+            parent.Add("id", exhibit.Id.ToString());
             parent.Add("name", "Exhibit");
             parent.Add("description", collection.Name);
             parent.Add("type", "exhibit");
             parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
-            parent.Add("moreInfo", "/?exhibit=" + article.ExhibitId.ToString());
+            parent.Add("moreInfo", "/?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
             category.Add("id", article.SourceType.ToString());
@@ -135,7 +135,7 @@ namespace Gallery.Api.Services
             grouping.Add("description", card.Description);
             grouping.Add("type", "card");
             grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-            grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+            grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
 
             var other = new Dictionary<String,String>();
 
@@ -257,6 +257,7 @@ namespace Gallery.Api.Services
         {
             if (!IsConfigured())
             {
+                _logger.LogInformation("xAPI Service not configured");
                 return true;
             };
 

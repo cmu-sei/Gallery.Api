@@ -141,13 +141,14 @@ namespace Gallery.Api.Controllers
         /// <remarks>
         /// Returns status
         /// </remarks>
+        /// <param name="exhibitId">The id of the Exhibit</param>
         /// <param name="articleId">The id of the Article</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        [HttpGet("xapi/viewed/article/{articleId}")]
+        [HttpGet("xapi/viewed/exhibit/{exhibitId}/article/{articleId}")]
         [ProducesResponseType((int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "viewedArticle")]
-        public async Task<IActionResult> ViewArticle(Guid articleId, CancellationToken ct)
+        public async Task<IActionResult> ViewArticle(Guid exhibitId, Guid articleId, CancellationToken ct)
         {
             var article = await _articleService.GetAsync(articleId, ct);
             if (article == null)
@@ -161,7 +162,11 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            if (!await _xApiService.ArticleViewedAsync(article, card, collection, ct))
+            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+
+            if (!await _xApiService.ArticleViewedAsync(exhibit, article, card, collection, ct))
                 throw new Exception();
 
             return Ok();
