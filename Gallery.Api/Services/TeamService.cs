@@ -74,9 +74,10 @@ namespace Gallery.Api.Services
         public async Task<IEnumerable<ViewModels.Team>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
             var userId = _user.GetId();
-            var items = await _context.TeamUsers
-                .Where(w => w.UserId == userId)
-                .Select(x => x.Team)
+            var items = await _context.Teams
+                .Where(w => w.ExhibitId == exhibitId)
+                .Include(t => t.TeamUsers)
+                .ThenInclude(tu => tu.User)
                 .ToListAsync(ct);
 
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
