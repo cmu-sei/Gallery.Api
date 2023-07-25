@@ -413,7 +413,9 @@ namespace Gallery.Api.Services
                 group.account.homePage = new Uri(_xApiOptions.UiUrl);
                 group.account.name = team.Id.ToString();;
                 group.member = new List<Agent> {};
-                group.member.Add(_agent);
+                if (verb.id.Segments.Last() != "observed") {
+                    group.member.Add(_agent);
+                }
                 context.team = group;
             }
 
