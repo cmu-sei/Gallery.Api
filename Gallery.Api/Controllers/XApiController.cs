@@ -172,6 +172,109 @@ namespace Gallery.Api.Controllers
             return Ok();
         }
 
+        /// <summary>
+        /// Logs xAPI previewed statement for Article by id
+        /// </summary>
+        /// <remarks>
+        /// Returns status
+        /// </remarks>
+        /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="articleId">The id of the Article</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [HttpGet("xapi/previewed/exhibit/{exhibitId}/article/{articleId}")]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "previewedArticle")]
+        public async Task<IActionResult> PreiewedArticle(Guid exhibitId, Guid articleId, CancellationToken ct)
+        {
+            var article = await _articleService.GetAsync(articleId, ct);
+            if (article == null)
+                throw new EntityNotFoundException<Article>();
+
+            var card = await _cardService.GetAsync(article.CardId.Value, ct);
+            if (card == null)
+                throw new EntityNotFoundException<Card>();
+
+            var collection = await _collectionService.GetAsync(article.CollectionId, ct);
+            if (collection == null)
+                throw new EntityNotFoundException<Collection>();
+
+            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+
+            if (!await _xApiService.ArticlePreviewedAsync(exhibit, article, card, collection, ct))
+                throw new Exception();
+
+            return Ok();
+        }
+
+        /// <summary>
+        /// Logs xAPI observed statement for Wall by Exhibit id and Team  id
+        /// </summary>
+        /// <remarks>
+        /// Returns status
+        /// </remarks>
+        /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="teamId">The id of the Team</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [HttpGet("xapi/observed/exhibit/{exhibitId}/team/{teamId}/wall")]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "observedExhibitWall")]
+        public async Task<IActionResult> ObservedExhibitWall(Guid exhibitId, Guid teamId, CancellationToken ct)
+        {
+            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+
+            var team = await _teamService.GetAsync(teamId, ct);
+            if (team == null)
+                throw new EntityNotFoundException<Team>();
+
+            var collection = await _collectionService.GetAsync(exhibit.CollectionId, ct);
+            if (collection == null)
+                throw new EntityNotFoundException<Collection>();
+
+            if (!await _xApiService.ExhibitWallObservedAsync(exhibit, collection, team, ct))
+                throw new Exception();
+
+            return Ok();
+        }
+
+        /// <summary>
+        /// Logs xAPI observed statement for Archive by Exhibit id and Team id
+        /// </summary>
+        /// <remarks>
+        /// Returns status
+        /// </remarks>
+        /// <param name="exhibitId">The id of the Exhibit</param>
+        /// <param name="teamId">The id of the Team</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [HttpGet("xapi/observed/exhibit/{exhibitId}/team/{teamId}/archive")]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "observedExhibitArchive")]
+        public async Task<IActionResult> ObservedExhibitArchive(Guid exhibitId, Guid teamId, CancellationToken ct)
+        {
+            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+
+            var team = await _teamService.GetAsync(teamId, ct);
+            if (team == null)
+                throw new EntityNotFoundException<Team>();
+
+            var collection = await _collectionService.GetAsync(exhibit.CollectionId, ct);
+            if (collection == null)
+                throw new EntityNotFoundException<Collection>();
+
+            if (!await _xApiService.ExhibitArchiveObservedAsync(exhibit, collection, team, ct))
+                throw new Exception();
+
+            return Ok();
+        }
+
 
     }
 }
