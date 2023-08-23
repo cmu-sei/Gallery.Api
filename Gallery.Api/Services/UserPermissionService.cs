@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Authorization;
@@ -34,13 +35,15 @@ namespace Gallery.Api.Services
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
+        private readonly ILogger<ITeamUserService> _logger;
 
-        public UserPermissionService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user, IMapper mapper)
+        public UserPermissionService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user, ILogger<ITeamUserService> logger, IMapper mapper)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<ViewModels.UserPermission>> GetAsync(CancellationToken ct)
@@ -79,7 +82,7 @@ namespace Gallery.Api.Services
 
             _context.UserPermissions.Add(userPermissionEntity);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"UserPermission created by {_user.GetId()} = user: {userPermission.UserId} and permission: {userPermission.PermissionId}");
             return await GetAsync(userPermissionEntity.Id, ct);
         }
 
@@ -95,7 +98,7 @@ namespace Gallery.Api.Services
 
             _context.UserPermissions.Remove(userPermissionToDelete);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"UserPermission deleted by {_user.GetId()} = user: {userPermissionToDelete.UserId} and permission: {userPermissionToDelete.PermissionId}");
             return true;
         }
 
@@ -111,7 +114,7 @@ namespace Gallery.Api.Services
 
             _context.UserPermissions.Remove(userPermissionToDelete);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"UserPermission deleted by {_user.GetId()} = user: {userPermissionToDelete.UserId} and permission: {userPermissionToDelete.PermissionId}");
             return true;
         }
 

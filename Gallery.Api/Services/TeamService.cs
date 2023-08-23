@@ -12,6 +12,7 @@ using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Extensions;
@@ -40,13 +41,15 @@ namespace Gallery.Api.Services
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
         private readonly IMapper _mapper;
+        private readonly ILogger<ITeamService> _logger;
 
-        public TeamService(GalleryDbContext context, IPrincipal team, IAuthorizationService authorizationService, IMapper mapper)
+        public TeamService(GalleryDbContext context, IPrincipal team, IAuthorizationService authorizationService, ILogger<ITeamService> logger, IMapper mapper)
         {
             _context = context;
             _user = team as ClaimsPrincipal;
             _authorizationService = authorizationService;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<ViewModels.Team>> GetAsync(CancellationToken ct)
@@ -153,7 +156,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Add(teamEntity);
             await _context.SaveChangesAsync(ct);
-
+             _logger.LogWarning($"Team {team.Name} ({teamEntity.Id}) in Exhibit {team.ExhibitId} created by {_user.GetId()}");
             return await GetAsync(teamEntity.Id, ct);
         }
 
@@ -181,7 +184,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Update(teamToUpdate);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"Team {teamToUpdate.Name} ({teamToUpdate.Id}) in Exhibit {team.ExhibitId} updated by {_user.GetId()}");
             return await GetAsync(id, ct);
         }
 
@@ -202,7 +205,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Remove(teamToDelete);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"Team {teamToDelete.Name} ({teamToDelete.Id}) in Evaluation {teamToDelete.ExhibitId} deleted by {_user.GetId()}");
             return true;
         }
 

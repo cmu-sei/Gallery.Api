@@ -12,6 +12,7 @@ using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Extensions;
@@ -36,15 +37,15 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IUserClaimsService _userClaimsService;
         private readonly IMapper _mapper;
+        private readonly ILogger<ITeamUserService> _logger;
 
-        public UserService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, IUserClaimsService userClaimsService, IMapper mapper)
+        public UserService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, ILogger<ITeamUserService> logger, IMapper mapper)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
             _authorizationService = authorizationService;
-            _userClaimsService = userClaimsService;
+            _logger = logger;
             _mapper = mapper;
         }
 
@@ -57,11 +58,11 @@ namespace Gallery.Api.Services
             if((await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded) {
                 items = await _context.Users
                     .ProjectTo<ViewModels.User>(_mapper.ConfigurationProvider, dest => dest.Permissions)
-                    .ToListAsync();
+                    .ToListAsync(ct);
             } else {
                 items = await _context.Users
                     .ProjectTo<ViewModels.User>(_mapper.ConfigurationProvider)
-                    .ToListAsync();
+                    .ToListAsync(ct);
             }
             return items;
         }
@@ -105,7 +106,7 @@ namespace Gallery.Api.Services
 
             _context.Users.Add(userEntity);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"User {user.Name} ({userEntity.Id}) created by {_user.GetId()}");
             return await GetAsync(user.Id, ct);
         }
 
@@ -133,7 +134,7 @@ namespace Gallery.Api.Services
 
             _context.Users.Update(userToUpdate);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"User {userToUpdate.Name} ({userToUpdate.Id}) updated by {_user.GetId()}");
             return await GetAsync(id, ct);
         }
 
@@ -154,7 +155,7 @@ namespace Gallery.Api.Services
 
             _context.Users.Remove(userToDelete);
             await _context.SaveChangesAsync(ct);
-
+            _logger.LogWarning($"User {userToDelete.Name} ({userToDelete.Id}) deleted by {_user.GetId()}");
             return true;
         }
 
