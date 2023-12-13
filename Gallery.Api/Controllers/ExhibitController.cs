@@ -45,7 +45,7 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
-        /// Get User's Exhibits
+        /// Get My Exhibits
         /// </summary>
         /// <remarks>
         /// Returns a list of Exhibits.
@@ -58,6 +58,24 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> GetMine(CancellationToken ct)
         {
             var list = await _exhibitService.GetMineAsync(ct);
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// Get User Exhibits
+        /// </summary>
+        /// <remarks>
+        /// Returns a list of Exhibits.
+        /// </remarks>
+        /// <param name="userId"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        [HttpGet("users/{userId}/exhibits")]
+        [ProducesResponseType(typeof(IEnumerable<Exhibit>), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "getUserExhibits")]
+        public async Task<IActionResult> GetUserExhibits(Guid userId, CancellationToken ct)
+        {
+            var list = await _exhibitService.GetUserExhibitsAsync(userId, ct);
             return Ok(list);
         }
 

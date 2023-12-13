@@ -24,6 +24,7 @@ namespace Gallery.Api.Services
     {
         Task<IEnumerable<ViewModels.Exhibit>> GetAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<ViewModels.Exhibit> GetAsync(Guid id, CancellationToken ct);
@@ -67,10 +68,25 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var userId = _user.GetId();
+
+            return await GetUserExhibitsAsync(userId, ct);
+        }
+
+        public async Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct)
+        {
+            var currentUserId = _user.GetId();
+            if (currentUserId == userId)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+            else
+            {
+                if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
+                    throw new ForbiddenException();
+            }
+
             var exhibits = await _context.Teams
                 .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.ExhibitId != null)
                 .Select(et => et.Exhibit)
