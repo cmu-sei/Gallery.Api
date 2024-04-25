@@ -3,9 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -26,6 +30,9 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct);
         Task<ViewModels.Collection> GetAsync(Guid id, CancellationToken ct);
         Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct);
+        Task<ViewModels.Collection> CopyAsync(Guid collectionId, CancellationToken ct);
+        Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid collectionId, CancellationToken ct);
+        Task<Collection> UploadJsonAsync(FileForm form, CancellationToken ct);
         Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
     }
@@ -103,6 +110,147 @@ namespace Gallery.Api.Services
             return collection;
         }
 
+        public async Task<ViewModels.Collection> CopyAsync(Guid collectionId, CancellationToken ct)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                throw new ForbiddenException();
+
+            var collectionEntity = await _context.Collections
+                .AsNoTracking()
+                .SingleOrDefaultAsync(m => m.Id == collectionId);
+            if (collectionEntity == null)
+                throw new EntityNotFoundException<CollectionEntity>("Collection not found with ID=" + collectionId.ToString());
+
+            var cards = await _context.Cards
+                .AsNoTracking()
+                .Where(c => c.CollectionId == collectionId)
+                .ToListAsync(ct);
+            var articles = await _context.Articles
+                .AsNoTracking()
+                .Where(c => c.CollectionId == collectionId)
+                .ToListAsync(ct);
+            var newCollectionEntity = await privateCollectionCopyAsync(collectionEntity, cards, articles, ct);
+            var collection = _mapper.Map<Collection>(newCollectionEntity);
+
+            return collection;
+        }
+
+        private async Task<CollectionEntity> privateCollectionCopyAsync(
+            CollectionEntity collectionEntity,
+            List<CardEntity> cards,
+            List<ArticleEntity> articles,
+            CancellationToken ct)
+        {
+            var currentUserId = _user.GetId();
+            var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == _user.GetId())).Name;
+            var oldCollectionId = collectionEntity.Id;
+            var newCollectionId = Guid.NewGuid();
+            var dateCreated = DateTime.UtcNow;
+            collectionEntity.Id = newCollectionId;
+            collectionEntity.DateCreated = dateCreated;
+            collectionEntity.CreatedBy = currentUserId;
+            collectionEntity.DateModified = collectionEntity.DateCreated;
+            collectionEntity.ModifiedBy = collectionEntity.CreatedBy;
+            collectionEntity.Description = collectionEntity.Description + " - " + username;
+            // copy cards
+            var newCardIds = new Dictionary<Guid, Guid>();
+            foreach (var cardEntity in cards)
+            {
+                newCardIds[cardEntity.Id] = Guid.NewGuid();
+                cardEntity.Id = newCardIds[cardEntity.Id];
+                cardEntity.CollectionId = collectionEntity.Id;
+                cardEntity.Collection = null;
+                cardEntity.DateCreated = collectionEntity.DateCreated;
+                cardEntity.CreatedBy = collectionEntity.CreatedBy;
+                 _context.Cards.Add(cardEntity);
+            }
+            // copy articles
+            foreach (var articleEntity in articles)
+            {
+                articleEntity.Id = Guid.NewGuid();
+                articleEntity.CollectionId = newCollectionId;
+                articleEntity.Collection = null;
+                articleEntity.CardId = articleEntity.CardId == null ? null : newCardIds[(Guid)articleEntity.CardId];
+                articleEntity.Card = null;
+                articleEntity.DateCreated = collectionEntity.DateCreated;
+                articleEntity.CreatedBy = collectionEntity.CreatedBy;
+                _context.Articles.Add(articleEntity);
+            }
+            await _context.SaveChangesAsync(ct);
+
+            // get the new Collection to return
+            collectionEntity = await _context.Collections
+                .SingleOrDefaultAsync(sm => sm.Id == newCollectionId, ct);
+
+            return collectionEntity;
+        }
+
+        public async Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid collectionId, CancellationToken ct)
+        {
+            // user must be a Content Developer
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                throw new ForbiddenException();
+
+            var collection = await _context.Collections
+                .SingleOrDefaultAsync(sm => sm.Id == collectionId, ct);
+            if (collection == null)
+            {
+                throw new EntityNotFoundException<CollectionEntity>("Collection not found " + collectionId);
+            }
+            // get the cards
+            var cards = await _context.Cards
+                .AsNoTracking()
+                .Where(c => c.CollectionId == collectionId)
+                .ToListAsync(ct);
+            //get the articles
+            var articles = await _context.Articles
+                .AsNoTracking()
+                .Where(c => c.CollectionId == collectionId)
+                .ToListAsync(ct);
+            // create the whole object
+            var collectionFileObject = new CollectionFileFormat(){
+                Collection = collection,
+                Cards = cards,
+                Articles = articles
+            };
+            var collectionFileJson = "";
+            var options = new JsonSerializerOptions()
+            {
+                ReferenceHandler = ReferenceHandler.Preserve
+            };
+            collectionFileJson = JsonSerializer.Serialize(collectionFileObject, options);
+            // convert string to stream
+            byte[] byteArray = Encoding.ASCII.GetBytes(collectionFileJson);
+            MemoryStream memoryStream = new MemoryStream(byteArray);
+            var filename = collection.Description.ToLower().EndsWith(".json") ? collection.Description : collection.Description + ".json";
+
+            return System.Tuple.Create(memoryStream, filename);
+        }
+
+        public async Task<Collection> UploadJsonAsync(FileForm form, CancellationToken ct)
+        {
+            // user must be a Content Developer
+            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
+                throw new ForbiddenException();
+
+            var uploadItem = form.ToUpload;
+            var collectionJson = "";
+            using (StreamReader reader = new StreamReader(uploadItem.OpenReadStream()))
+            {
+                // convert stream to string
+                collectionJson = reader.ReadToEnd();
+            }
+            var options = new JsonSerializerOptions()
+            {
+                ReferenceHandler = ReferenceHandler.Preserve
+            };
+            var collectionFileObject = JsonSerializer.Deserialize<CollectionFileFormat>(collectionJson, options);
+            // make a copy and add it to the database
+            var collectionEntity = await privateCollectionCopyAsync(collectionFileObject.Collection, collectionFileObject.Cards, collectionFileObject.Articles, ct);
+
+            return _mapper.Map<Collection>(collectionEntity);
+        }
+
         public async Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct)
         {
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
@@ -143,6 +291,13 @@ namespace Gallery.Api.Services
             return true;
         }
 
+    }
+
+    class CollectionFileFormat
+    {
+        public CollectionEntity Collection { get; set; }
+        public List<CardEntity> Cards { get; set; }
+        public List<ArticleEntity> Articles { get; set; }
     }
 }
 

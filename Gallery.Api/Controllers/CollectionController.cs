@@ -104,6 +104,25 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
+        /// Creates a new Collection by copying an existing Collection
+        /// </summary>
+        /// <remarks>
+        /// Creates a new Collection from the specified existing Collection
+        /// <para />
+        /// Accessible only to a ContentDeveloper or an Administrator
+        /// </remarks>
+        /// <param name="id">The ID of the Collection to be copied</param>
+        /// <param name="ct"></param>
+        [HttpPost("collections/{id}/copy")]
+        [ProducesResponseType(typeof(Collection), (int)HttpStatusCode.Created)]
+        [SwaggerOperation(OperationId = "copyCollection")]
+        public async Task<IActionResult> Copy(Guid id, CancellationToken ct)
+        {
+            var createdCollection = await _collectionService.CopyAsync(id, ct);
+            return CreatedAtAction(nameof(this.Get), new { id = createdCollection.Id }, createdCollection);
+        }
+
+        /// <summary>
         /// Updates a  Collection
         /// </summary>
         /// <remarks>
@@ -142,6 +161,32 @@ namespace Gallery.Api.Controllers
         {
             await _collectionService.DeleteAsync(id, ct);
             return NoContent();
+        }
+
+        /// <summary> Upload a json Collection file </summary>
+        /// <param name="form"> The files to upload and their settings </param>
+        /// <param name="ct"></param>
+        [HttpPost("collections/json")]
+        [ProducesResponseType(typeof(Collection), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "uploadJsonFiles")]
+        public async Task<IActionResult> UploadJsonAsync([FromForm] FileForm form, CancellationToken ct)
+        {
+            var result = await _collectionService.UploadJsonAsync(form, ct);
+            return Ok(result);
+        }
+
+        /// <summary> Download a Collection by id as json file </summary>
+        /// <param name="id"> The id of the collection </param>
+        /// <param name="ct"></param>
+        [HttpGet("collections/{id}/json")]
+        [ProducesResponseType(typeof(FileResult), (int)HttpStatusCode.OK)]
+        [SwaggerOperation(OperationId = "downloadJson")]
+        public async Task<IActionResult> DownloadJsonAsync(Guid id, CancellationToken ct)
+        {
+            (var stream, var fileName) = await _collectionService.DownloadJsonAsync(id, ct);
+
+            // If this is wrapped in an Ok, it throws an exception
+            return File(stream, "application/octet-stream", fileName);
         }
 
     }
