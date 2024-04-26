@@ -151,7 +151,8 @@ namespace Gallery.Api.Services
             collectionEntity.CreatedBy = currentUserId;
             collectionEntity.DateModified = collectionEntity.DateCreated;
             collectionEntity.ModifiedBy = collectionEntity.CreatedBy;
-            collectionEntity.Description = collectionEntity.Description + " - " + username;
+            collectionEntity.Name = collectionEntity.Name + " - " + username;
+            await _context.Collections.AddAsync(collectionEntity, ct);
             // copy cards
             var newCardIds = new Dictionary<Guid, Guid>();
             foreach (var cardEntity in cards)
@@ -162,7 +163,7 @@ namespace Gallery.Api.Services
                 cardEntity.Collection = null;
                 cardEntity.DateCreated = collectionEntity.DateCreated;
                 cardEntity.CreatedBy = collectionEntity.CreatedBy;
-                 _context.Cards.Add(cardEntity);
+                 await _context.Cards.AddAsync(cardEntity, ct);
             }
             // copy articles
             foreach (var articleEntity in articles)
@@ -174,7 +175,7 @@ namespace Gallery.Api.Services
                 articleEntity.Card = null;
                 articleEntity.DateCreated = collectionEntity.DateCreated;
                 articleEntity.CreatedBy = collectionEntity.CreatedBy;
-                _context.Articles.Add(articleEntity);
+                await _context.Articles.AddAsync(articleEntity, ct);
             }
             await _context.SaveChangesAsync(ct);
 
