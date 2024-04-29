@@ -265,7 +265,7 @@ namespace Gallery.Api.Services
             var oldExhibitId = exhibitFileObject.Exhibit.Id;
             var newExhibitId = Guid.NewGuid();
             exhibitFileObject.Exhibit.Id = newExhibitId;
-            exhibitFileObject.Exhibit.CollectionId = newCollectionId;
+            exhibitFileObject.Exhibit.CollectionId = copyTheCollection ? newCollectionId : oldCollectionId;
             exhibitFileObject.Exhibit.DateCreated = DateTime.UtcNow;
             exhibitFileObject.Exhibit.CreatedBy = currentUserId;
             exhibitFileObject.Exhibit.DateModified = exhibitFileObject.Exhibit.DateCreated;
