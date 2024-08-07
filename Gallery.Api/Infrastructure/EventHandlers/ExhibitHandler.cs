@@ -44,13 +44,29 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _citeHub = citeHub;
         }
 
-        protected async Task<List<string>> GetMainGroups(ExhibitEntity exhibitEntity, CancellationToken cancellationToken)
+        protected async Task<List<Guid>> GetMainGroups(ExhibitEntity exhibitEntity, CancellationToken cancellationToken)
         {
-            var groupIds = new List<string>();
-            groupIds.Add(exhibitEntity.Id.ToString());
+            var groupIds = new List<Guid>();
+            groupIds.Add(exhibitEntity.Id);
             // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id.ToString();
+            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
             groupIds.Add(systemAdminPermissionId);
+
+            // add this exhibit's users
+            var exhibitIdList = (IQueryable<Guid>)_db.Exhibits
+                .Where(e => e.CollectionId == exhibitEntity.CollectionId)
+                .Select(e => e.Id);
+            var teamIdList = _db.Teams
+                .Where(t => t.ExhibitId != null && exhibitIdList.Contains((Guid)t.ExhibitId))
+                .Select(t => t.Id);
+            var userIdList = await _db.TeamUsers
+                .Where(tu => teamIdList.Contains(tu.TeamId))
+                .Select(tu => tu.UserId)
+                .ToListAsync();
+            foreach (var userId in userIdList)
+            {
+                groupIds.Add(userId);
+            }
 
             return groupIds;
         }
