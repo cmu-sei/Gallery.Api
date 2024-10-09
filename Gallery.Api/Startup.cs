@@ -280,8 +280,14 @@ public class Startup
                 {
                     Predicate = (check) => check.Tags.Contains("live"),
                 });
-                endpoints.MapHub<Hubs.MainHub>("/hubs/main");
-                endpoints.MapHub<Hubs.CiteHub>("/hubs/cite");
+                endpoints.MapHub<Hubs.MainHub>("/hubs/main", options =>
+                    {
+                        options.AllowStatefulReconnects = _signalROptions.EnableStatefulReconnect;
+                    });
+                endpoints.MapHub<Hubs.CiteHub>("/hubs/cite", options =>
+                    {
+                        options.AllowStatefulReconnects = _signalROptions.EnableStatefulReconnect;
+                    });
             }
         );
 
