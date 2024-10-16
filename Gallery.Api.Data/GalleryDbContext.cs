@@ -1,21 +1,20 @@
 // Copyright 2022 Carnegie Mellon University. All Rights Reserved.
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
+using System;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Data.Extensions;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.Internal;
 
 namespace Gallery.Api.Data
 {
     public class GalleryDbContext : DbContext
     {
-        private DbContextOptions<GalleryDbContext> _options;
+        // Needed for EventInterceptor
+        public IServiceProvider ServiceProvider;
 
-        public GalleryDbContext(DbContextOptions<GalleryDbContext> options) : base(options) {
-            _options = options;
-        }
+        public GalleryDbContext(DbContextOptions<GalleryDbContext> options)
+            : base(options) { }
 
         public DbSet<UserEntity> Users { get; set; }
         public DbSet<PermissionEntity> Permissions { get; set; }
@@ -45,4 +44,3 @@ namespace Gallery.Api.Data
         }
     }
 }
-
