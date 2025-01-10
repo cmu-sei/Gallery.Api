@@ -7,7 +7,7 @@ name: "Security - CodeQL"
 
 on:
   push:
-    branches: [code-ql-fix]
+    branches: [development, main, staging]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [development]
