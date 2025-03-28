@@ -21,6 +21,13 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                 table: "exhibits",
                 type: "text",
                 nullable: true);
+
+            migrationBuilder.Sql(@"
+                UPDATE exhibits
+                SET name = to_char(exhibits.date_created,'MM/DD/YYYY HH24:MI') || ' - ' || users.name
+                from users where users.id = exhibits.created_by
+            ");
+
         }
 
         /// <inheritdoc />
