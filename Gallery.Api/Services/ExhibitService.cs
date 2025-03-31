@@ -21,6 +21,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Gallery.Api.Services
 {
@@ -144,6 +145,12 @@ namespace Gallery.Api.Services
             if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
                 throw new ForbiddenException();
 
+            var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId);
+            if (collection == null)
+                throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
+
+            exhibit.Name = exhibit.Name.IsNullOrEmpty() ? collection.Name : exhibit.Name;
+            exhibit.Description = exhibit.Description.IsNullOrEmpty() ? collection.Description : exhibit.Description;
             exhibit.DateCreated = DateTime.UtcNow;
             exhibit.CreatedBy = _user.GetId();
             exhibit.DateModified = null;
@@ -443,4 +450,3 @@ namespace Gallery.Api.Services
         public List<TeamArticleEntity> TeamArticles { get; set; }
     }
 }
-
