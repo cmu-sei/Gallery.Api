@@ -135,6 +135,7 @@ namespace Gallery.Api.Services
             IQueryable<ExhibitEntity> exhibits = _context.Teams
                 .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId == collectionId)
                 .Select(t => t.Exhibit)
+                .Distinct()
                 .OrderByDescending(a => a.DateCreated);
 
             return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
