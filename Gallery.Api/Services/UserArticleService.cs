@@ -346,7 +346,10 @@ namespace Gallery.Api.Services
             {
                 foreach (var teamUser in teamArticle.Team.TeamUsers)
                 {
-                    try
+                    var userArticleExists = await _context.UserArticles
+                        .Where(m => (m.ArticleId == teamArticle.ArticleId) && (m.UserId == teamUser.UserId))
+                        .AnyAsync(ct);
+                    if (!userArticleExists)
                     {
                         var newUserArticle = new UserArticleEntity() {
                             Id = Guid.NewGuid(),
@@ -359,16 +362,7 @@ namespace Gallery.Api.Services
                         await _context.UserArticles.AddAsync(newUserArticle, ct);
                         await _context.SaveChangesAsync(ct);
                     }
-                    catch (Exception ex)
-                    {
-                        if (ex.InnerException == null
-                            || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
-                        {
-                            throw ex;
-                        }
-                    }
                 }
-
             }
 
             return true;
@@ -483,7 +477,7 @@ namespace Gallery.Api.Services
             {
                 teamEmail = team.Email;
             }
-            else 
+            else
             {
                 teamEmail = string.Join(",", (team.TeamUsers
                     .Where(tu => tu.User.Email.Contains("@"))
@@ -653,4 +647,3 @@ namespace Gallery.Api.Services
     }
 
 }
-
