@@ -69,7 +69,18 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var tasks = new List<Task>();
-            var unreadArticles = await _UserArticleService.GetMyUnreadCountAsync(userArticleEntity.ExhibitId, cancellationToken);
+            var exhibit = await _db.Exhibits.FirstAsync(e => e.Id == userArticleEntity.ExhibitId);
+            var unreadArticles = await _db.UserArticles
+                .Where(ua =>
+                    ua.UserId == userArticleEntity.UserId &&
+                    ua.ExhibitId == exhibit.Id &&
+                    (
+                        (ua.Article.Move < exhibit.CurrentMove) ||
+                        (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                    ) &&
+                    !ua.IsRead
+                )
+                .CountAsync();
             // Cite Hub task
             tasks.Add(_citeHub.Clients.Group(userArticleEntity.UserId.ToString() + CiteHubMethods.GroupNameSuffix).SendAsync(CiteHubMethods.UnreadCountUpdated, unreadArticles, null, cancellationToken));
 
@@ -142,5 +153,3 @@ namespace Gallery.Api.Infrastructure.EventHandlers
         }
     }
 }
-
-
