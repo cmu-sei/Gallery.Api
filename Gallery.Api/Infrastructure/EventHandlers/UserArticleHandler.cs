@@ -70,7 +70,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
         {
             var tasks = new List<Task>();
             var exhibit = await _db.Exhibits.FirstAsync(e => e.Id == userArticleEntity.ExhibitId);
-            var unreadArticles = await _db.UserArticles
+            var count = await _db.UserArticles
                 .Where(ua =>
                     ua.UserId == userArticleEntity.UserId &&
                     ua.ExhibitId == exhibit.Id &&
@@ -81,6 +81,11 @@ namespace Gallery.Api.Infrastructure.EventHandlers
                     !ua.IsRead
                 )
                 .CountAsync();
+            var unreadArticles = new UnreadArticles {
+                ExhibitId = userArticleEntity.ExhibitId,
+                UserId = userArticleEntity.UserId,
+                Count = count.ToString()
+            };
             // Cite Hub task
             tasks.Add(_citeHub.Clients.Group(userArticleEntity.UserId.ToString() + CiteHubMethods.GroupNameSuffix).SendAsync(CiteHubMethods.UnreadCountUpdated, unreadArticles, null, cancellationToken));
 
