@@ -19,20 +19,14 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class UserHandler
     {
-        protected readonly GalleryDbContext _db;
         protected readonly IMapper _mapper;
-        protected readonly IUserService _UserService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public UserHandler(
-            GalleryDbContext db,
             IMapper mapper,
-            IUserService UserService,
             IHubContext<MainHub> mainHub)
         {
-            _db = db;
             _mapper = mapper;
-            _UserService = UserService;
             _mainHub = mainHub;
         }
 
@@ -66,10 +60,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     public class UserCreatedSignalRHandler : UserHandler, INotificationHandler<EntityCreated<UserEntity>>
     {
         public UserCreatedSignalRHandler(
-            GalleryDbContext db,
             IMapper mapper,
-            IUserService userService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, userService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(mapper, mainHub) { }
 
         public async Task Handle(EntityCreated<UserEntity> notification, CancellationToken cancellationToken)
         {
@@ -80,10 +72,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     public class UserUpdatedSignalRHandler : UserHandler, INotificationHandler<EntityUpdated<UserEntity>>
     {
         public UserUpdatedSignalRHandler(
-            GalleryDbContext db,
             IMapper mapper,
-            IUserService userService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, userService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(mapper, mainHub) { }
 
         public async Task Handle(EntityUpdated<UserEntity> notification, CancellationToken cancellationToken)
         {
@@ -98,10 +88,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     public class UserDeletedSignalRHandler : UserHandler, INotificationHandler<EntityDeleted<UserEntity>>
     {
         public UserDeletedSignalRHandler(
-            GalleryDbContext db,
             IMapper mapper,
-            IUserService userService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, userService, mainHub)
+            IHubContext<MainHub> mainHub) : base(mapper, mainHub)
         {
         }
 
