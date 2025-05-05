@@ -2,7 +2,6 @@
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +22,6 @@ namespace Gallery.Api.Data.Models
         public string Description { get; set; }
 
         public bool ReadOnly { get; set; }
-        public ICollection<UserPermissionEntity> UserPermissions { get; set; } = new List<UserPermissionEntity>();
     }
 
     public class PermissionConfiguration : IEntityTypeConfiguration<PermissionEntity>
@@ -34,4 +32,3 @@ namespace Gallery.Api.Data.Models
         }
     }
 }
-

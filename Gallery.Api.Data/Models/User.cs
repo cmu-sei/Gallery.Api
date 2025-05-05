@@ -17,9 +17,14 @@ namespace Gallery.Api.Data.Models
         public string Name { get; set; }
         public string Email { get; set; }
 
-        public ICollection<UserPermissionEntity> UserPermissions { get; set; } = new List<UserPermissionEntity>();
         public ICollection<TeamUserEntity> TeamUsers { get; set; } = new List<TeamUserEntity>();
-    }
+        public Guid? RoleId { get; set; }
+        public virtual SystemRoleEntity Role { get; set; }
+
+        public ICollection<ExhibitMembershipEntity> ExhibitMemberships { get; set; } = new List<ExhibitMembershipEntity>();
+        public ICollection<CollectionMembershipEntity> CollectionMemberships { get; set; } = new List<CollectionMembershipEntity>();
+        public ICollection<GroupMembershipEntity> GroupMemberships { get; set; } = new List<GroupMembershipEntity>();
+     }
 
     public class UserConfiguration : IEntityTypeConfiguration<UserEntity>
     {

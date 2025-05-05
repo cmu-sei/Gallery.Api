@@ -20,12 +20,9 @@ namespace Gallery.Api.Infrastructure.Extensions
 
                 options.DefaultPolicy = policyBuilder.Build();
             });
-            services.AddSingleton<IAuthorizationHandler, FullRightsHandler>();
-            services.AddSingleton<IAuthorizationHandler, ContentDeveloperHandler>();
-            services.AddSingleton<IAuthorizationHandler, BaseUserHandler>();
-            services.AddSingleton<IAuthorizationHandler, ExhibitObserverHandler>();
-            services.AddSingleton<IAuthorizationHandler, ExhibitUserHandler>();
-            services.AddSingleton<IAuthorizationHandler, TeamUserHandler>();
+            services.AddSingleton<IAuthorizationHandler, SystemPermissionHandler>();
+            services.AddSingleton<IAuthorizationHandler, CollectionPermissionHandler>();
+            services.AddSingleton<IAuthorizationHandler, ExhibitPermissionHandler>();
         }
 
 

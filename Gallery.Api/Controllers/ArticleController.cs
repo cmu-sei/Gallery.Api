@@ -6,25 +6,29 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
 using Gallery.Api.ViewModels;
 using Swashbuckle.AspNetCore.Annotations;
+using Gallery.Api.Data.Models;
 
 namespace Gallery.Api.Controllers
 {
     public class ArticleController : BaseController
     {
         private readonly IArticleService _articleService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
+        private readonly ICardService _cardService;
 
-        public ArticleController(IArticleService articleService, IAuthorizationService authorizationService)
+        public ArticleController(IArticleService articleService, IGalleryAuthorizationService authorizationService, ICardService cardService)
         {
             _articleService = articleService;
             _authorizationService = authorizationService;
+            _cardService = cardService;
         }
 
         /// <summary>
@@ -41,6 +45,14 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCardArticles")]
         public async Task<IActionResult> GetByCard(Guid cardId, CancellationToken ct)
         {
+            var card = await _cardService.GetAsync(cardId, ct);
+            if (card == null)
+                throw new EntityNotFoundException<CollectionEntity>();
+
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             var list = await _articleService.GetByCardAsync(cardId, ct);
             return Ok(list);
         }
@@ -59,6 +71,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionArticles")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             var list = await _articleService.GetByCollectionAsync(collectionId, ct);
             return Ok(list);
         }
@@ -77,6 +93,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitArticles")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
             var list = await _articleService.GetByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
@@ -100,6 +120,13 @@ namespace Gallery.Api.Controllers
             if (article == null)
                 throw new EntityNotFoundException<Article>();
 
+            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
+               !(await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            )
+                throw new ForbiddenException();
+
             return Ok(article);
         }
 
@@ -118,6 +145,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createArticle")]
         public async Task<IActionResult> Create([FromBody] Article article, CancellationToken ct)
         {
+            if (!(article.ExhibitId == null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))) &&
+               !(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct)))
+            )
+                throw new ForbiddenException();
+
             article.CreatedBy = User.GetId();
             var createdArticle = await _articleService.CreateAsync(article, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdArticle.Id }, createdArticle);
@@ -140,6 +174,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateArticle")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Article article, CancellationToken ct)
         {
+            if (!(article.ExhibitId == null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))) &&
+               !(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct)))
+            )
+                throw new ForbiddenException();
+
             article.ModifiedBy = User.GetId();
             var updatedArticle = await _articleService.UpdateAsync(id, article, ct);
             return Ok(updatedArticle);
@@ -160,10 +201,17 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteArticle")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            var article = await _articleService.GetAsync(id, ct);
+            if (!(article.ExhibitId == null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))) &&
+               !(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct)))
+            )
+                throw new ForbiddenException();
+
             await _articleService.DeleteAsync(id, ct);
             return NoContent();
         }
 
     }
 }
-

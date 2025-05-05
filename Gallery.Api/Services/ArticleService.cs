@@ -18,7 +18,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
@@ -64,9 +63,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.Articles.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
             return _mapper.Map<Article>(item);
@@ -352,4 +348,3 @@ namespace Gallery.Api.Services
         }
     }
 }
-

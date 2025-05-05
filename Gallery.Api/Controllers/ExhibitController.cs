@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -19,9 +21,9 @@ namespace Gallery.Api.Controllers
     public class ExhibitController : BaseController
     {
         private readonly IExhibitService _exhibitService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public ExhibitController(IExhibitService exhibitService, IAuthorizationService authorizationService)
+        public ExhibitController(IExhibitService exhibitService, IGalleryAuthorizationService authorizationService)
         {
             _exhibitService = exhibitService;
             _authorizationService = authorizationService;
@@ -40,7 +42,19 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibits")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var list = await _exhibitService.GetAsync(ct);
+            IEnumerable<Exhibit> list = new List<Exhibit>();
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+            {
+                list = await _exhibitService.GetAsync(ct);
+            }
+            else
+            {
+                list = await _exhibitService.GetMineAsync(ct);
+            }
+
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -262,6 +276,20 @@ namespace Gallery.Api.Controllers
             return File(stream, "application/octet-stream", fileName);
         }
 
+        private void AddPermissions(IEnumerable<Exhibit> list)
+        {
+            foreach (var item in list)
+            {
+                AddPermissions(item);
+            }
+        }
+
+        private void AddPermissions(Exhibit item)
+        {
+            item.ExhibitPermissions =
+            _authorizationService.GetExhibitPermissions(item.Id).Select((m) => m.ToString())
+            .Concat(_authorizationService.GetSystemPermissions().Select((m) => m.ToString()));
+        }
+
     }
 }
-

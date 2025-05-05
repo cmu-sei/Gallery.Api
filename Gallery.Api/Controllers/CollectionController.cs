@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -19,9 +21,9 @@ namespace Gallery.Api.Controllers
     public class CollectionController : BaseController
     {
         private readonly ICollectionService _collectionService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public CollectionController(ICollectionService collectionService, IAuthorizationService authorizationService)
+        public CollectionController(ICollectionService collectionService, IGalleryAuthorizationService authorizationService)
         {
             _collectionService = collectionService;
             _authorizationService = authorizationService;
@@ -40,7 +42,19 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollections")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var list = await _collectionService.GetAsync(ct);
+            IEnumerable<Collection> list = new List<Collection>();
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct))
+            {
+                list = await _collectionService.GetAsync(ct);
+            }
+            else
+            {
+                list = await _collectionService.GetMineAsync(ct);
+            }
+
+            // add this user's permissions for each event template
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -75,10 +89,16 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollection")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Collection>(id, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             var collection = await _collectionService.GetAsync(id, ct);
 
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
+
+            // add this user's permissions for the event template
+            AddPermissions(collection);
 
             return Ok(collection);
         }
@@ -98,6 +118,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createCollection")]
         public async Task<IActionResult> Create([FromBody] Collection collection, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateCollections], ct))
+                throw new ForbiddenException();
+
             collection.CreatedBy = User.GetId();
             var createdCollection = await _collectionService.CreateAsync(collection, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdCollection.Id }, createdCollection);
@@ -118,6 +141,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "copyCollection")]
         public async Task<IActionResult> Copy(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateCollections], ct) ||
+               !await _authorizationService.AuthorizeAsync<Collection>(id, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             var createdCollection = await _collectionService.CopyAsync(id, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdCollection.Id }, createdCollection);
         }
@@ -139,6 +166,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateCollection")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Collection collection, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Collection>(id, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
+                throw new ForbiddenException();
+
             collection.ModifiedBy = User.GetId();
             var updatedCollection = await _collectionService.UpdateAsync(id, collection, ct);
             return Ok(updatedCollection);
@@ -159,6 +189,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteCollection")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Collection>(id, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct))
+                throw new ForbiddenException();
+
             await _collectionService.DeleteAsync(id, ct);
             return NoContent();
         }
@@ -171,6 +204,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "uploadJsonFiles")]
         public async Task<IActionResult> UploadJsonAsync([FromForm] FileForm form, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateCollections], ct))
+                throw new ForbiddenException();
+
             var result = await _collectionService.UploadJsonAsync(form, ct);
             return Ok(result);
         }
@@ -183,12 +219,29 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "downloadJson")]
         public async Task<IActionResult> DownloadJsonAsync(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Collection>(id, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             (var stream, var fileName) = await _collectionService.DownloadJsonAsync(id, ct);
 
             // If this is wrapped in an Ok, it throws an exception
             return File(stream, "application/octet-stream", fileName);
         }
 
+        private void AddPermissions(IEnumerable<Collection> list)
+        {
+            foreach (var item in list)
+            {
+                AddPermissions(item);
+            }
+        }
+
+        private void AddPermissions(Collection item)
+        {
+            item.CollectionPermissions =
+            _authorizationService.GetCollectionPermissions(item.Id).Select((m) => String.Join(",", m.Permissions))
+            .Concat(_authorizationService.GetSystemPermissions().Select((m) => m.ToString()));
+        }
+
     }
 }
-
