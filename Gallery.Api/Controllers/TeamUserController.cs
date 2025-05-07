@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Gallery.Api.Infrastructure.Extensions;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
 using Gallery.Api.ViewModels;
@@ -18,11 +18,16 @@ namespace Gallery.Api.Controllers
 {
     public class TeamUserController : BaseController
     {
+        private readonly ITeamService _teamService;
         private readonly ITeamUserService _teamUserService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public TeamUserController(ITeamUserService teamUserService, IAuthorizationService authorizationService)
+        public TeamUserController(
+            ITeamService teamService,
+            ITeamUserService teamUserService,
+            IGalleryAuthorizationService authorizationService)
         {
+            _teamService = teamService;
             _teamUserService = teamUserService;
             _authorizationService = authorizationService;
         }
@@ -41,6 +46,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeamUsers")]
         public async Task<IActionResult> GetByExhibit([FromRoute] Guid exhibitId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
             var list = await _teamUserService.GetByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
@@ -59,6 +67,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamTeamUsers")]
         public async Task<IActionResult> GetByTeam([FromRoute] Guid teamId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
             var list = await _teamUserService.GetByTeamAsync(teamId, ct);
             return Ok(list);
         }
@@ -68,8 +79,6 @@ namespace Gallery.Api.Controllers
         /// </summary>
         /// <remarks>
         /// Returns the TeamUser with the id specified
-        /// <para />
-        /// Only accessible to a SuperUser
         /// </remarks>
         /// <param name="id">The id of the TeamUser</param>
         /// <param name="ct"></param>
@@ -79,12 +88,14 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamUser")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            var team = await _teamUserService.GetAsync(id, ct);
+            var teamUser = await _teamUserService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamUser.TeamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
 
-            if (team == null)
+            if (teamUser == null)
                 throw new EntityNotFoundException<TeamUser>();
 
-            return Ok(team);
+            return Ok(teamUser);
         }
 
         /// <summary>
@@ -95,15 +106,18 @@ namespace Gallery.Api.Controllers
         /// <para />
         /// Accessible only to a SuperUser
         /// </remarks>
-        /// <param name="team">The data to create the TeamUser with</param>
+        /// <param name="teamUser">The data to create the TeamUser with</param>
         /// <param name="ct"></param>
         [HttpPost("teamusers")]
         [ProducesResponseType(typeof(TeamUser), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeamUser")]
-        public async Task<IActionResult> Create([FromBody] TeamUser team, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamUser teamUser, CancellationToken ct)
         {
-            team.CreatedBy = User.GetId();
-            var createdTeamUser = await _teamUserService.CreateAsync(team, ct);
+            var team = await _teamService.GetAsync(teamUser.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
+            var createdTeamUser = await _teamUserService.CreateAsync(teamUser, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdTeamUser.Id }, createdTeamUser);
         }
 
@@ -120,6 +134,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "setObserver")]
         public async Task<IActionResult> SetObserver([FromRoute] Guid id, CancellationToken ct)
         {
+            var teamUser = await _teamUserService.GetAsync(id, ct);
+            var team = await _teamService.GetAsync(teamUser.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                throw new ForbiddenException();
+
             var result = await _teamUserService.SetObserverAsync(id, true, ct);
             return Ok(result);
         }
@@ -137,6 +156,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "clearObserver")]
         public async Task<IActionResult> ClearObserver([FromRoute] Guid id, CancellationToken ct)
         {
+            var teamUser = await _teamUserService.GetAsync(id, ct);
+            var team = await _teamService.GetAsync(teamUser.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                throw new ForbiddenException();
+
             var result = await _teamUserService.SetObserverAsync(id, false, ct);
             return Ok(result);
         }
@@ -156,6 +180,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamUser")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            var teamUser = await _teamUserService.GetAsync(id, ct);
+            var team = await _teamService.GetAsync(teamUser.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamUserService.DeleteAsync(id, ct);
             return NoContent();
         }
@@ -176,10 +205,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamUserByIds")]
         public async Task<IActionResult> Delete(Guid teamId, Guid userId, CancellationToken ct)
         {
+            var team = await _teamService.GetAsync(teamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamUserService.DeleteByIdsAsync(teamId, userId, ct);
             return NoContent();
         }
 
     }
 }
-

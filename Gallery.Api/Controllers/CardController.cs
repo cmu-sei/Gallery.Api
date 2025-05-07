@@ -105,7 +105,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitCardsByTeam")]
         public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _cardService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
@@ -156,7 +156,6 @@ namespace Gallery.Api.Controllers
             )
                 throw new ForbiddenException();
 
-            card.CreatedBy = User.GetId();
             var createdCard = await _cardService.CreateAsync(card, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdCard.Id }, createdCard);
         }

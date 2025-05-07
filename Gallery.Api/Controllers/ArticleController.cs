@@ -152,7 +152,6 @@ namespace Gallery.Api.Controllers
             )
                 throw new ForbiddenException();
 
-            article.CreatedBy = User.GetId();
             var createdArticle = await _articleService.CreateAsync(article, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdArticle.Id }, createdArticle);
         }

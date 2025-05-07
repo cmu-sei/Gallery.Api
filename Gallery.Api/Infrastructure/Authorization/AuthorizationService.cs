@@ -33,10 +33,16 @@ public interface IGalleryAuthorizationService
         CollectionPermission[] requiredCollectionPermissions,
         CancellationToken cancellationToken) where T : IAuthorizationType;
 
+    Task<bool> AuthorizeAsync<T>(
+        Guid? resourceId,
+        TeamPermission[] requiredTeamPermissions,
+        CancellationToken cancellationToken) where T : IAuthorizationType;
+
     IEnumerable<Guid> GetAuthorizedExhibitIds();
     IEnumerable<SystemPermission> GetSystemPermissions();
     IEnumerable<ExhibitPermissionClaim> GetExhibitPermissions(Guid? exhibitId = null);
     IEnumerable<CollectionPermissionClaim> GetCollectionPermissions(Guid? collectionId = null);
+    IEnumerable<TeamPermissionClaim> GetTeamPermissions(Guid? teamId = null);
 }
 
 public class AuthorizationService(
@@ -97,7 +103,25 @@ public class AuthorizationService(
 
                 succeeded = collectionPermissionResult.Succeeded;
             }
+        }
 
+        return succeeded;
+    }
+
+    public async Task<bool> AuthorizeAsync<T>(
+        Guid? resourceId,
+        TeamPermission[] requiredTeamPermissions,
+        CancellationToken cancellationToken) where T : IAuthorizationType
+    {
+        var claimsPrincipal = identityResolver.GetClaimsPrincipal();
+        bool succeeded = false;
+
+        if (resourceId.HasValue)
+        {
+            var teamPermissionRequirement = new TeamPermissionRequirement(requiredTeamPermissions, resourceId.Value);
+            var teamPermissionResult = await authService.AuthorizeAsync(claimsPrincipal, null, teamPermissionRequirement);
+
+            succeeded = teamPermissionResult.Succeeded;
         }
 
         return succeeded;

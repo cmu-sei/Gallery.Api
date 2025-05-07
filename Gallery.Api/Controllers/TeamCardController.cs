@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -18,11 +19,16 @@ namespace Gallery.Api.Controllers
 {
     public class TeamCardController : BaseController
     {
+        private readonly ITeamService _teamService;
         private readonly ITeamCardService _teamCardService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public TeamCardController(ITeamCardService teamCardService, IAuthorizationService authorizationService)
+        public TeamCardController(
+            ITeamService teamService,
+            ITeamCardService teamCardService,
+            IGalleryAuthorizationService authorizationService)
         {
+            _teamService = teamService;
             _teamCardService = teamCardService;
             _authorizationService = authorizationService;
         }
@@ -32,8 +38,6 @@ namespace Gallery.Api.Controllers
         /// </summary>
         /// <remarks>
         /// Returns a list of all of the TeamCards in the system.
-        /// <para />
-        /// Only accessible to a SuperCard
         /// </remarks>
         /// <returns></returns>
         [HttpGet("teamcards")]
@@ -41,6 +45,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamCards")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ManageExhibits], ct))
+                throw new ForbiddenException();
+
             var list = await _teamCardService.GetAsync(ct);
             return Ok(list);
         }
@@ -59,25 +66,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeamCards")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            var list = await _teamCardService.GetByExhibitAsync(exhibitId, ct);
-            return Ok(list);
-        }
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
 
-        /// <summary>
-        /// Gets all TeamCards for a card
-        /// </summary>
-        /// <remarks>
-        /// Returns a list of all of the TeamCards for the card.
-        /// </remarks>
-        /// <param name="cardId">The id of the TeamCard</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        [HttpGet("cards/{cardId}/teamcards")]
-        [ProducesResponseType(typeof(IEnumerable<TeamCard>), (int)HttpStatusCode.OK)]
-        [SwaggerOperation(OperationId = "getCardTeamCards")]
-        public async Task<IActionResult> GetByCard(Guid cardId, CancellationToken ct)
-        {
-            var list = await _teamCardService.GetByCardAsync(cardId, ct);
+            var list = await _teamCardService.GetByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
 
@@ -96,6 +88,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getByExhibitTeam")]
         public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
             var list = await _teamCardService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
             return Ok(list);
         }
@@ -105,8 +100,6 @@ namespace Gallery.Api.Controllers
         /// </summary>
         /// <remarks>
         /// Returns the TeamCard with the id specified
-        /// <para />
-        /// Only accessible to a SuperCard
         /// </remarks>
         /// <param name="id">The id of the TeamCard</param>
         /// <param name="ct"></param>
@@ -116,12 +109,15 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamCard")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            var team = await _teamCardService.GetAsync(id, ct);
+            var teamCard = await _teamCardService.GetAsync(id, ct);
 
-            if (team == null)
+            if (teamCard == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            return Ok(team);
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamCard.TeamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
+            return Ok(teamCard);
         }
 
         /// <summary>
@@ -139,7 +135,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createTeamCard")]
         public async Task<IActionResult> Create([FromBody] TeamCard teamCard, CancellationToken ct)
         {
-            teamCard.CreatedBy = User.GetId();
+            var team = await _teamService.GetAsync(teamCard.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             var createdTeamCard = await _teamCardService.CreateAsync(teamCard, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdTeamCard.Id }, createdTeamCard);
         }
@@ -161,7 +160,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateTeamCard")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamCard teamCard, CancellationToken ct)
         {
-            teamCard.ModifiedBy = User.GetId();
+            var team = await _teamService.GetAsync(teamCard.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             var updatedTeamCard = await _teamCardService.UpdateAsync(id, teamCard, ct);
             return Ok(updatedTeamCard);
         }
@@ -181,6 +183,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamCard")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            var teamCard = await _teamCardService.GetAsync(id, ct);
+            var team = await _teamService.GetAsync(teamCard.TeamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamCardService.DeleteAsync(id, ct);
             return NoContent();
         }
@@ -201,10 +208,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamCardByIds")]
         public async Task<IActionResult> Delete(Guid teamId, Guid cardId, CancellationToken ct)
         {
+            var team = await _teamService.GetAsync(teamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamCardService.DeleteByIdsAsync(teamId, cardId, ct);
             return NoContent();
         }
 
     }
 }
-

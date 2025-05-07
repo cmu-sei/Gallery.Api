@@ -24,6 +24,7 @@ namespace Gallery.Api.Services
 {
     public interface IUserArticleService
     {
+        Task<ViewModels.UserArticle> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid Exhibit, CancellationToken ct);
         Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid Exhibit, Guid teamId, CancellationToken ct);
         Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct);
@@ -67,6 +68,13 @@ namespace Gallery.Api.Services
             _steamfitterService = steamfitterService;
             _logger = logger;
             _xApiService = xApiService;
+        }
+
+        public async Task<ViewModels.UserArticle> GetAsync(Guid id, CancellationToken ct)
+        {
+            var userArticle = await _context.UserArticles.FirstAsync(e => e.Id == id);
+
+            return _mapper.Map<UserArticle>(userArticle);
         }
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)

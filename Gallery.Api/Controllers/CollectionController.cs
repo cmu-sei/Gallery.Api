@@ -121,7 +121,6 @@ namespace Gallery.Api.Controllers
             if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateCollections], ct))
                 throw new ForbiddenException();
 
-            collection.CreatedBy = User.GetId();
             var createdCollection = await _collectionService.CreateAsync(collection, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdCollection.Id }, createdCollection);
         }
