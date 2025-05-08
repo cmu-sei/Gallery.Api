@@ -377,9 +377,6 @@ namespace Gallery.Api.Services
                 return true;
             };
 
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var verb = new Verb();
             verb.id = verbUri;
             verb.display = new LanguageMap();
@@ -518,4 +515,3 @@ namespace Gallery.Api.Services
 
     }
 }
-

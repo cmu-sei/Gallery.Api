@@ -138,11 +138,11 @@ namespace Gallery.Api.Hubs
             var idList = new List<string>();
             var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
             idList.Add(userId);
-            // content developer or system admin
-            if ((await _authorizationService.AuthorizeAsync(Context.User, null, new ContentDeveloperRequirement())).Succeeded)
-            {
-                idList.Add(ADMIN_DATA_GROUP);
-            }
+            // TODO:  replace auth here content developer or system admin
+            // if ((await _authorizationService.AuthorizeAsync(Context.User, null, new ContentDeveloperRequirement())).Succeeded)
+            // {
+            //     idList.Add(ADMIN_DATA_GROUP);
+            // }
 
             return idList;
         }

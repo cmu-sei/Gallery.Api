@@ -139,7 +139,6 @@ namespace Gallery.Api.Services
                     };
 
                     _context.Users.Add(user);
-                    await _context.SaveChangesAsync();
                 }
                 else
                 {
@@ -147,9 +146,14 @@ namespace Gallery.Api.Services
                     {
                         user.Name = nameClaim;
                         _context.Update(user);
-                        await _context.SaveChangesAsync();
                     }
                 }
+                try
+                {
+                    await _context.SaveChangesAsync();
+
+                }
+                catch (Exception) { }
             }
 
             return user;

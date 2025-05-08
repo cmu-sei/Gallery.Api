@@ -180,19 +180,6 @@ namespace Gallery.Api.Infrastructure.Extensions
                 }
                 context.SaveChanges();
             }
-            if (options.UserPermissions != null && options.UserPermissions.Any())
-            {
-                var dbUserPermissions = context.UserPermissions.ToList();
-
-                foreach (UserPermissionEntity userPermission in options.UserPermissions)
-                {
-                    if (!dbUserPermissions.Where(x => x.UserId == userPermission.UserId && x.PermissionId == userPermission.PermissionId).Any())
-                    {
-                        context.UserPermissions.Add(userPermission);
-                    }
-                }
-                context.SaveChanges();
-            }
             if (options.TeamCards != null && options.TeamCards.Any())
             {
                 var dbTeamCards = context.TeamCards.ToList();

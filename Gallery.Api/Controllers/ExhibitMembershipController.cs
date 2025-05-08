@@ -8,7 +8,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Gallery.Api.Data;
+using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Services;
 using Gallery.Api.ViewModels;

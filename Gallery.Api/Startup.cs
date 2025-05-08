@@ -198,7 +198,6 @@ public class Startup
         services.AddScoped<ICollectionService, CollectionService>();
         services.AddScoped<IExhibitService, ExhibitService>();
         services.AddScoped<IExhibitTeamService, ExhibitTeamService>();
-        services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<ISteamfitterService, SteamfitterService>();
         services.AddScoped<ITeamService, TeamService>();
         services.AddScoped<ITeamArticleService, TeamArticleService>();
@@ -206,7 +205,6 @@ public class Startup
         services.AddScoped<ITeamUserService, TeamUserService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserArticleService, UserArticleService>();
-        services.AddScoped<IUserPermissionService, UserPermissionService>();
         services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IPrincipal>(p => p.GetService<IHttpContextAccessor>().HttpContext.User);
         services.AddHttpClient();
