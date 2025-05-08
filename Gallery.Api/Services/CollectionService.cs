@@ -58,9 +58,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Collection>> GetAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             IQueryable<CollectionEntity> collections = _context.Collections;
 
             return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());
@@ -68,9 +65,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var userId = _user.GetId();
             IQueryable<CollectionEntity> collections = _context.Teams
                 .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId != null)
@@ -83,9 +77,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Collection> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.Collections.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
             return _mapper.Map<Collection>(item);
@@ -93,13 +84,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            collection.DateCreated = DateTime.UtcNow;
-            collection.CreatedBy = _user.GetId();
-            collection.DateModified = null;
-            collection.ModifiedBy = null;
             var collectionEntity = _mapper.Map<CollectionEntity>(collection);
             collectionEntity.Id = collectionEntity.Id != Guid.Empty ? collectionEntity.Id : Guid.NewGuid();
 
@@ -112,9 +96,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Collection> CopyAsync(Guid collectionId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var collectionEntity = await _context.Collections
                 .AsNoTracking()
                 .SingleOrDefaultAsync(m => m.Id == collectionId);
@@ -188,10 +169,6 @@ namespace Gallery.Api.Services
 
         public async Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid collectionId, CancellationToken ct)
         {
-            // user must be a Content Developer
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var collection = await _context.Collections
                 .SingleOrDefaultAsync(sm => sm.Id == collectionId, ct);
             if (collection == null)
@@ -230,10 +207,6 @@ namespace Gallery.Api.Services
 
         public async Task<Collection> UploadJsonAsync(FileForm form, CancellationToken ct)
         {
-            // user must be a Content Developer
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var uploadItem = form.ToUpload;
             var collectionJson = "";
             using (StreamReader reader = new StreamReader(uploadItem.OpenReadStream()))
@@ -254,18 +227,10 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var collectionToUpdate = await _context.Collections.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (collectionToUpdate == null)
                 throw new EntityNotFoundException<Collection>();
 
-            collection.CreatedBy = collectionToUpdate.CreatedBy;
-            collection.DateCreated = collectionToUpdate.DateCreated;
-            collection.ModifiedBy = _user.GetId();
-            collection.DateModified = DateTime.UtcNow;
             _mapper.Map(collection, collectionToUpdate);
 
             _context.Collections.Update(collectionToUpdate);
@@ -278,11 +243,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var collectionToDelete = await _context.Collections.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (collectionToDelete == null)
                 throw new EntityNotFoundException<Collection>();
 
@@ -301,4 +262,3 @@ namespace Gallery.Api.Services
         public List<ArticleEntity> Articles { get; set; }
     }
 }
-

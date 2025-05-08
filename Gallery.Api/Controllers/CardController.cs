@@ -41,7 +41,8 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCards")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct))
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
+                !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
                 throw new ForbiddenException();
 
             var list = await _cardService.GetAsync(ct);

@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
@@ -55,8 +54,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
             var items = await _context.TeamArticles
                 .Where(ta => ta.ExhibitId == exhibitId)
                 .ToListAsync(ct);
@@ -69,10 +66,6 @@ namespace Gallery.Api.Services
             var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
             if (team == null)
                 throw new EntityNotFoundException<Team>("Team " + teamId.ToString());
-
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
-                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement((Guid)team.ExhibitId))).Succeeded)
-                throw new ForbiddenException();
 
             var items = await _context.TeamArticles
                 .Where(tc => tc.TeamId == teamId)
@@ -90,22 +83,11 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<TeamArticle>($"TeamArticle {id} was not found.");
             }
 
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(item.TeamId))).Succeeded &&
-                !(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             return _mapper.Map<TeamArticle>(item);
         }
 
         public async Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticle teamArticle, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            teamArticle.DateCreated = DateTime.UtcNow;
-            teamArticle.CreatedBy = _user.GetId();
-            teamArticle.DateModified = null;
-            teamArticle.ModifiedBy = null;
             var teamArticleEntity = _mapper.Map<TeamArticleEntity>(teamArticle);
             teamArticleEntity.Id = teamArticleEntity.Id != Guid.Empty ? teamArticleEntity.Id : Guid.NewGuid();
 
@@ -119,18 +101,10 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamArticle> UpdateAsync(Guid id, ViewModels.TeamArticle teamArticle, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamArticleToUpdate = await _context.TeamArticles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamArticleToUpdate == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
-            teamArticle.CreatedBy = teamArticleToUpdate.CreatedBy;
-            teamArticle.DateCreated = teamArticleToUpdate.DateCreated;
-            teamArticle.ModifiedBy = _user.GetId();
-            teamArticle.DateModified = DateTime.UtcNow;
             _mapper.Map(teamArticle, teamArticleToUpdate);
 
             _context.TeamArticles.Update(teamArticleToUpdate);
@@ -143,11 +117,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamArticleToDelete = await _context.TeamArticles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamArticleToDelete == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
@@ -159,11 +129,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteByIdsAsync(Guid teamId, Guid articleId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamArticleToDelete = await _context.TeamArticles.SingleOrDefaultAsync(v => (v.ArticleId == articleId) && (v.TeamId == teamId), ct);
-
             if (teamArticleToDelete == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
@@ -175,4 +141,3 @@ namespace Gallery.Api.Services
 
     }
 }
-

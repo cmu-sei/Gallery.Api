@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Options;
@@ -79,9 +78,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
             IQueryable<UserArticleEntity> articles = _context.UserArticles
                 .Where(ua =>
@@ -103,7 +99,9 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<ExhibitEntity>("Exhibit not found " + exhibitId.ToString());
 
             var userArticleEntityList = new List<UserArticleEntity>();
-            if ((await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded)
+            var myTeamUser = await _context.TeamUsers
+                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
+            if (myTeamUser.TeamId == teamId)
             {
                 // user is requesting their own user articles
                 // make sure all of the user articles have been created
@@ -123,7 +121,7 @@ namespace Gallery.Api.Services
                     .ThenByDescending(ua => ua.Article.Inject)
                     .ToListAsync();
             }
-            else if ((await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
+            else if (myTeamUser.IsObserver)
             {
                 // user is requesting to observe another team
                 // get all users on the team
@@ -156,43 +154,24 @@ namespace Gallery.Api.Services
                     .ThenByDescending(m => m.Article.Inject)
                     .ToList();
             }
-            else
-            {
-                throw new ForbiddenException();
-            }
-
 
             return _mapper.Map<IEnumerable<UserArticle>>(userArticleEntityList);
         }
 
         public async Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             return await GetUnreadArticlesAsync(exhibitId, _user.GetId(), ct);
         }
 
         public async Task<UnreadArticles> GetUnreadCountAsync(Guid exhibitId, Guid userId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             return await GetUnreadArticlesAsync(exhibitId, userId, ct);
         }
 
         public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            userArticle.DateCreated = DateTime.UtcNow;
-            userArticle.CreatedBy = _user.GetId();
-            userArticle.DateModified = null;
-            userArticle.ModifiedBy = null;
             var userArticleEntity = _mapper.Map<UserArticleEntity>(userArticle);
             userArticleEntity.Id = userArticleEntity.Id != Guid.Empty ? userArticleEntity.Id : Guid.NewGuid();
-
             _context.UserArticles.Add(userArticleEntity);
             await _context.SaveChangesAsync(ct);
 
@@ -323,11 +302,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var userArticleToDelete = await _context.UserArticles.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (userArticleToDelete == null)
                 throw new EntityNotFoundException<Article>();
 

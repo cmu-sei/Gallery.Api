@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
@@ -50,9 +49,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamCards
                 .ToListAsync(ct);
 
@@ -61,9 +57,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamCards
                 .Where(tc => tc.Team.ExhibitId == exhibitId)
                 .ToListAsync(ct);
@@ -73,10 +66,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
-                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamCards
                 .Where(tc => tc.TeamId == teamId)
                 .ToListAsync(ct);
@@ -86,9 +75,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamCards
                 .Where(tc => tc.CardId == cardId)
                 .ToListAsync(ct);
@@ -98,9 +84,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.TeamCards
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
 
@@ -109,13 +92,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            teamCard.DateCreated = DateTime.UtcNow;
-            teamCard.CreatedBy = _user.GetId();
-            teamCard.DateModified = null;
-            teamCard.ModifiedBy = null;
             var teamCardEntity = _mapper.Map<TeamCardEntity>(teamCard);
             teamCardEntity.Id = teamCardEntity.Id != Guid.Empty ? teamCardEntity.Id : Guid.NewGuid();
 
@@ -127,18 +103,10 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamCardToUpdate = await _context.TeamCards.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamCardToUpdate == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            teamCard.CreatedBy = teamCardToUpdate.CreatedBy;
-            teamCard.DateCreated = teamCardToUpdate.DateCreated;
-            teamCard.ModifiedBy = _user.GetId();
-            teamCard.DateModified = DateTime.UtcNow;
             _mapper.Map(teamCard, teamCardToUpdate);
 
             _context.TeamCards.Update(teamCardToUpdate);
@@ -151,11 +119,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamCardToDelete = await _context.TeamCards.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamCardToDelete == null)
                 throw new EntityNotFoundException<TeamCard>();
 
@@ -167,11 +131,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteByIdsAsync(Guid teamId, Guid cardId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamCardToDelete = await _context.TeamCards.SingleOrDefaultAsync(v => (v.CardId == cardId) && (v.TeamId == teamId), ct);
-
             if (teamCardToDelete == null)
                 throw new EntityNotFoundException<TeamCard>();
 
@@ -183,4 +143,3 @@ namespace Gallery.Api.Services
 
     }
 }
-

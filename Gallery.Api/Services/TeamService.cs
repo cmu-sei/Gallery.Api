@@ -54,9 +54,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetAsync(CancellationToken ct)
         {
-            if(!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.Teams
                 .ProjectTo<ViewModels.Team>(_mapper.ConfigurationProvider)
                 .ToArrayAsync(ct);
@@ -65,9 +62,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Team> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.Teams
                 .ProjectTo<ViewModels.Team>(_mapper.ConfigurationProvider, dest => dest.Users)
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
@@ -83,20 +77,17 @@ namespace Gallery.Api.Services
                 .ThenInclude(tu => tu.User)
                 .ToListAsync(ct);
 
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
+            var myTeamUser = await _context.TeamUsers
+                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
+            if (myTeamUser == null)
             {
-                var myTeamUser = await _context.TeamUsers
-                    .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
-                if (myTeamUser != null)
-                {
-                    items = items
-                        .Where(team => team.Id == myTeamUser.Team.Id)
-                        .ToList();
-                }
-                else
-                {
-                    throw new ForbiddenException();
-                }
+                items = [];
+            }
+            else if (!myTeamUser.IsObserver)
+            {
+                items = items
+                    .Where(team => team.Id == myTeamUser.Team.Id)
+                    .ToList();
             }
 
             return _mapper.Map<IEnumerable<Team>>(items);
@@ -104,9 +95,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamUsers
                 .Where(w => w.UserId == userId)
                 .Select(x => x.Team)
@@ -117,9 +105,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetByCardAsync(Guid cardId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamCards
                 .Where(tc => tc.CardId == cardId)
                 .Select(x => x.Team)
@@ -130,9 +115,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.Teams
                 .Include(t => t.TeamUsers)
                 .ThenInclude(tu => tu.User)
@@ -144,13 +126,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Team> CreateAsync(ViewModels.Team team, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            team.DateCreated = DateTime.UtcNow;
-            team.CreatedBy = _user.GetId();
-            team.DateModified = null;
-            team.ModifiedBy = null;
             var teamEntity = _mapper.Map<TeamEntity>(team);
             teamEntity.Id = teamEntity.Id != Guid.Empty ? teamEntity.Id : Guid.NewGuid();
 
@@ -162,24 +137,16 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.Team team, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             // Don't allow changing your own Id
-            if (id == _user.GetId() && id != team.Id)
+            if (id != team.Id)
             {
-                throw new ForbiddenException("You cannot change your own Id");
+                throw new ForbiddenException("You cannot change the team Id");
             }
 
             var teamToUpdate = await _context.Teams.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamToUpdate == null)
                 throw new EntityNotFoundException<Team>();
 
-            team.CreatedBy = teamToUpdate.CreatedBy;
-            team.DateCreated = teamToUpdate.DateCreated;
-            team.ModifiedBy = _user.GetId();
-            team.DateModified = DateTime.UtcNow;
             _mapper.Map(team, teamToUpdate);
 
             _context.Teams.Update(teamToUpdate);
@@ -190,16 +157,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            if (id == _user.GetId())
-            {
-                throw new ForbiddenException("You cannot delete your own account");
-            }
-
             var teamToDelete = await _context.Teams.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamToDelete == null)
                 throw new EntityNotFoundException<Team>();
 
@@ -211,4 +169,3 @@ namespace Gallery.Api.Services
 
     }
 }
-

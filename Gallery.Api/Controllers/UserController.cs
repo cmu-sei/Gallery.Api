@@ -42,10 +42,16 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getUsers")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewUsers, SystemPermission.ViewCollections, SystemPermission.ViewExhibits], ct))
-                throw new ForbiddenException();
+            var list = new List<User>();
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewUsers], ct))
+            {
+                list = (List<User>)await _userService.GetAsync(true, ct);
+            }
+            else if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections, SystemPermission.ViewExhibits], ct))
+            {
+                list = (List<User>)await _userService.GetAsync(false, ct);
+            }
 
-            var list = await _userService.GetAsync(ct);
             return Ok(list);
         }
 
