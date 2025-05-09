@@ -18,6 +18,8 @@ namespace Gallery.Api.Infrastructure.Options
         public List<ArticleEntity> Articles { get; set; }
         public List<TeamArticleEntity> TeamArticles { get; set; }
         public List<ExhibitEntity> Exhibits { get; set; }
+        public List<SystemRoleEntity> Roles { get; set; }
+        public List<GroupEntity> Groups { get; set; }
 
     }
 }

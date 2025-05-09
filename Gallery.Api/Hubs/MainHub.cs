@@ -10,9 +10,11 @@ using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
 using Gallery.Api.Data;
+using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Services;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Options;
+using Gallery.Api.ViewModels;
 
 namespace Gallery.Api.Hubs
 {
@@ -24,15 +26,19 @@ namespace Gallery.Api.Hubs
         private readonly GalleryDbContext _context;
         private readonly DatabaseOptions _options;
         private readonly CancellationToken _ct;
-        private readonly IAuthorizationService _authorizationService;
-        public const string ADMIN_DATA_GROUP = "AdminDataGroup";
+        private readonly IGalleryAuthorizationService _authorizationService;
+        public const string EXHIBIT_GROUP = "AdminExhibitGroup";
+        public const string COLLECTION_GROUP = "AdminCollectionGroup";
+        public const string GROUP_GROUP = "AdminGroupGroup";
+        public const string ROLE_GROUP = "AdminRoleGroup";
+        public const string USER_GROUP = "AdminUserGroup";
 
         public MainHub(
             ITeamService teamService,
             IExhibitService exhibitService,
             GalleryDbContext context,
             DatabaseOptions options,
-            IAuthorizationService authorizationService
+            IGalleryAuthorizationService authorizationService
         )
         {
             _teamService = teamService;
@@ -46,20 +52,14 @@ namespace Gallery.Api.Hubs
 
         public async Task Join()
         {
-            var idList = await GetIdList();
-            foreach (var id in idList)
-            {
-                await Groups.AddToGroupAsync(Context.ConnectionId, id.ToString());
-            }
+            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+            await Groups.AddToGroupAsync(Context.ConnectionId, userId);
         }
 
         public async Task Leave()
         {
-            var idList = await GetIdList();
-            foreach (var id in idList)
-            {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, id.ToString());
-            }
+            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, userId);
         }
 
         public async Task SwitchTeam(Guid[] args)
@@ -101,29 +101,18 @@ namespace Gallery.Api.Hubs
             }
         }
 
-        private async Task<List<string>> GetIdList()
-        {
-            // only add the user ID
-            // exhibit and team will be added in the setTeam method
-            var idList = new List<string>();
-            var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
-            idList.Add(userId);
-
-            return idList;
-        }
-
         private async Task<List<string>> GetTeamIdList(Guid teamId)
         {
             var idList = new List<string>();
             // add the user's ID
             var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
-            idList.Add(userId);
             // make sure that the user has access to the requested team
             var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
             if (team != null)
             {
-                var teamUser = await _context.TeamUsers.SingleOrDefaultAsync(tu => tu.Team.ExhibitId == team.ExhibitId && tu.UserId.ToString() == userId);
-                if (teamUser != null && (teamUser.TeamId == teamId || teamUser.IsObserver))
+                var ct = new CancellationToken();
+                var canSee = await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct);
+                if (canSee)
                 {
                     idList.Add(teamId.ToString());
                     idList.Add(team.ExhibitId.ToString());
@@ -135,14 +124,52 @@ namespace Gallery.Api.Hubs
 
         private async Task<List<string>> GetAdminIdList()
         {
+            var ct = new CancellationToken();
             var idList = new List<string>();
             var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
             idList.Add(userId);
-            // TODO:  replace auth here content developer or system admin
-            // if ((await _authorizationService.AuthorizeAsync(Context.User, null, new ContentDeveloperRequirement())).Succeeded)
-            // {
-            //     idList.Add(ADMIN_DATA_GROUP);
-            // }
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+            {
+                idList.Add(EXHIBIT_GROUP);
+            }
+            else
+            {
+                var exhibitIds = await _context.ExhibitMemberships
+                    .Where(x => x.UserId.ToString() == userId)
+                    .Select(x => x.ExhibitId)
+                    .ToListAsync(ct);
+                foreach (var item in exhibitIds)
+                {
+                    idList.Add(item.ToString());
+                }
+            }
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct))
+            {
+                idList.Add(COLLECTION_GROUP);
+            }
+            else
+            {
+                var collectionIds = await _context.CollectionMemberships
+                    .Where(x => x.UserId.ToString() == userId)
+                    .Select(x => x.CollectionId)
+                    .ToListAsync(ct);
+                foreach (var item in collectionIds)
+                {
+                    idList.Add(item.ToString());
+                }
+            }
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewGroups], ct))
+            {
+                idList.Add(GROUP_GROUP);
+            }
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewRoles], ct))
+            {
+                idList.Add(ROLE_GROUP);
+            }
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewUsers], ct))
+            {
+                idList.Add(USER_GROUP);
+            }
 
             return idList;
         }
@@ -177,5 +204,14 @@ namespace Gallery.Api.Hubs
         public const string ExhibitCreated = "ExhibitCreated";
         public const string ExhibitUpdated = "ExhibitUpdated";
         public const string ExhibitDeleted = "ExhibitDeleted";
+        public const string GroupMembershipCreated = "GroupMembershipCreated";
+        public const string GroupMembershipUpdated = "GroupMembershipUpdated";
+        public const string GroupMembershipDeleted = "GroupMembershipDeleted";
+        public const string CollectionMembershipCreated = "CollectionMembershipCreated";
+        public const string CollectionMembershipUpdated = "CollectionMembershipUpdated";
+        public const string CollectionMembershipDeleted = "CollectionMembershipDeleted";
+        public const string ExhibitMembershipCreated = "ExhibitMembershipCreated";
+        public const string ExhibitMembershipUpdated = "ExhibitMembershipUpdated";
+        public const string ExhibitMembershipDeleted = "ExhibitMembershipDeleted";
     }
 }

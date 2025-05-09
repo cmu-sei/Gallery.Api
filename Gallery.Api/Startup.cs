@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Gallery.Api.Infrastructure.EventHandlers;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Data;
+using Gallery.Api.Infrastructure.Identity;
 using Gallery.Api.Infrastructure.JsonConverters;
 using Gallery.Api.Infrastructure.Mapping;
 using Gallery.Api.Infrastructure.Options;
@@ -31,7 +32,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.JsonWebTokens;
 using AutoMapper.Internal;
-using MediatR;
 
 namespace Gallery.Api;
 public class Startup
@@ -195,8 +195,13 @@ public class Startup
         services.AddScoped<IXApiService, XApiService>();
         services.AddScoped<IArticleService, ArticleService>();
         services.AddScoped<ICardService, CardService>();
+        services.AddScoped<IClaimsTransformation, AuthorizationClaimsTransformer>();
         services.AddScoped<ICollectionService, CollectionService>();
+        services.AddScoped<ICollectionMembershipService, CollectionMembershipService>();
+        services.AddScoped<ICollectionRoleService, CollectionRoleService>();
         services.AddScoped<IExhibitService, ExhibitService>();
+        services.AddScoped<IExhibitMembershipService, ExhibitMembershipService>();
+        services.AddScoped<IExhibitRoleService, ExhibitRoleService>();
         services.AddScoped<IExhibitTeamService, ExhibitTeamService>();
         services.AddScoped<ISteamfitterService, SteamfitterService>();
         services.AddScoped<ITeamService, TeamService>();
@@ -205,6 +210,10 @@ public class Startup
         services.AddScoped<ITeamUserService, TeamUserService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserArticleService, UserArticleService>();
+        services.AddScoped<IGalleryAuthorizationService, AuthorizationService>();
+        services.AddScoped<IIdentityResolver, IdentityResolver>();
+        services.AddScoped<IGroupService, GroupService>();
+        services.AddScoped<ISystemRoleService, SystemRoleService>();
         services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IPrincipal>(p => p.GetService<IHttpContextAccessor>().HttpContext.User);
         services.AddHttpClient();
