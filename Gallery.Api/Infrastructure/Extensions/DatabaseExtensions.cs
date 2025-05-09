@@ -53,7 +53,7 @@ namespace Gallery.Api.Infrastructure.Extensions
                             databaseOptions.SeedFile
                         );
                         if (File.Exists(seedFile)) {
-                            SeedDataOptions seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(File.ReadAllText(seedFile));
+                            var seedDataOptions = services.GetService<SeedDataOptions>();
                             ProcessSeedDataOptions(seedDataOptions, ctx);
                             MoveExhibitTeamsToIndividualTeams(ctx);
                         }
