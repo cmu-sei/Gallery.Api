@@ -31,7 +31,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct);
-        Task<ViewModels.Exhibit> GetAsync(Guid id, CancellationToken ct);
+        Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct);
         Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct);
         Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct);
         Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid exhibitId, CancellationToken ct);
@@ -88,8 +88,16 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
-        public async Task<ViewModels.Exhibit> GetAsync(Guid id, CancellationToken ct)
+        public async Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct)
         {
+            if (checkForTeamMembership)
+            {
+                var userId = _user.GetId();
+                var isMember = await _context.TeamUsers
+                    .AnyAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == id, ct);
+                if(!isMember)
+                    throw new ForbiddenException();
+            }
             var item = await _context.Exhibits.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
             return _mapper.Map<Exhibit>(item);
@@ -133,7 +141,7 @@ namespace Gallery.Api.Services
 
             _context.Exhibits.Add(exhibitEntity);
             await _context.SaveChangesAsync(ct);
-            exhibit = await GetAsync(exhibitEntity.Id, ct);
+            exhibit = await GetAsync(exhibitEntity.Id, false, ct);
 
             return exhibit;
         }
@@ -349,7 +357,7 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
-            exhibit = await GetAsync(exhibitToUpdate.Id, ct);
+            exhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
 
             return exhibit;
         }
@@ -363,7 +371,7 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
-            var updatedExhibit = await GetAsync(exhibitToUpdate.Id, ct);
+            var updatedExhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
 
             return updatedExhibit;
         }

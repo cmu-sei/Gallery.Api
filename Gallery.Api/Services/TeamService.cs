@@ -29,7 +29,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Team>> GetMineByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByCardAsync(Guid cardId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, bool checkForTeamMembership, CancellationToken ct);
         Task<ViewModels.Team> CreateAsync(ViewModels.Team team, CancellationToken ct);
         Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.Team team, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
@@ -113,8 +113,16 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<Team>>(items);
         }
 
-        public async Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, bool checkForTeamMembership, CancellationToken ct)
         {
+            if (checkForTeamMembership)
+            {
+                var userId = _user.GetId();
+                var isMember = await _context.TeamUsers
+                    .AnyAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
+                if(!isMember)
+                    throw new ForbiddenException();
+            }
             var items = await _context.Teams
                 .Include(t => t.TeamUsers)
                 .ThenInclude(tu => tu.User)

@@ -155,10 +155,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibit")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
+            var checkTeamMembership = false;
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
-                throw new ForbiddenException();
+                checkTeamMembership = true;
 
-            var exhibit = await _exhibitService.GetAsync(id, ct);
+            var exhibit = await _exhibitService.GetAsync(id, checkTeamMembership, ct);
 
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();

@@ -40,9 +40,6 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getMyExhibitTeams")]
         public async Task<IActionResult> GetMineByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
-                throw new ForbiddenException();
-
             var list = await _teamService.GetMineByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
@@ -59,10 +56,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamsByExhibit")]
         public async Task<IActionResult> GetByExhibit([FromRoute] Guid exhibitId, CancellationToken ct)
         {
+            var checkForTeamMembership = false;
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
-                throw new ForbiddenException();
+                checkForTeamMembership = true;
 
-            var list = await _teamService.GetByExhibitAsync(exhibitId, ct);
+            var list = await _teamService.GetByExhibitAsync(exhibitId, checkForTeamMembership, ct);
             return Ok(list);
         }
 
