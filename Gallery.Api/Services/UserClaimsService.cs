@@ -17,6 +17,7 @@ using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.VisualBasic;
 
 namespace Gallery.Api.Services
 {
@@ -216,13 +217,19 @@ namespace Gallery.Api.Services
                 .Select(x => x.Id)
                 .ToListAsync();
 
+            // Get participant team/exhibit/collection IDs
+            var participantList = await _context.TeamUsers
+                .Where(tu => tu.UserId == userId && tu.Team.ExhibitId != null)
+                .Select(tu => new { TeamId = (Guid)tu.TeamId, IsObserver = tu.IsObserver, ExhibitId = (Guid)tu.Team.ExhibitId, CollectionId = (Guid)tu.Team.Exhibit.CollectionId })
+                .ToListAsync();
+
             // Get Exhibit Permissions
             var exhibitMemberships = await _context.ExhibitMemberships
                 .Where(x => x.UserId == userId || (x.GroupId.HasValue && groupIds.Contains(x.GroupId.Value)))
                 .Include(x => x.Role)
                 .GroupBy(x => x.ExhibitId)
                 .ToListAsync();
-
+            var participantExhibitIds = participantList.Select(p => p.ExhibitId).Distinct().ToList();
             foreach (var group in exhibitMemberships)
             {
                 var exhibitPermissions = new List<ExhibitPermission>();
@@ -236,6 +243,11 @@ namespace Gallery.Api.Services
                     else
                     {
                         exhibitPermissions.AddRange(membership.Role.Permissions);
+                        if (participantExhibitIds.Contains(membership.ExhibitId))
+                        {
+                            exhibitPermissions.Add(ExhibitPermission.ViewExhibit);
+                            participantExhibitIds.Remove(membership.ExhibitId);
+                        }
                     }
                 }
 
@@ -247,6 +259,15 @@ namespace Gallery.Api.Services
 
                 claims.Add(new Claim(AuthorizationConstants.ExhibitPermissionClaimType, permissionsClaim.ToString()));
             }
+            foreach (var id in participantExhibitIds)
+            {
+                var permissionsClaim = new ExhibitPermissionClaim
+                {
+                    ExhibitId = id,
+                    Permissions = [ExhibitPermission.ViewExhibit]
+                };
+                claims.Add(new Claim(AuthorizationConstants.ExhibitPermissionClaimType, permissionsClaim.ToString()));
+            }
 
             // Get Collection Permissions
             var collectionMemberships = await _context.CollectionMemberships
@@ -254,6 +275,7 @@ namespace Gallery.Api.Services
                 .Include(x => x.Role)
                 .GroupBy(x => x.CollectionId)
                 .ToListAsync();
+            var participantCollectionIds = participantList.Select(p => p.CollectionId).ToList();
             foreach (var group in collectionMemberships)
             {
                 var collectionPermissions = new List<CollectionPermission>();
@@ -267,6 +289,11 @@ namespace Gallery.Api.Services
                     else
                     {
                         collectionPermissions.AddRange(membership.Role.Permissions);
+                        if (participantCollectionIds.Contains(membership.CollectionId))
+                        {
+                            collectionPermissions.Add(CollectionPermission.ViewCollection);
+                            participantCollectionIds.Remove(membership.CollectionId);
+                        }
                     }
                 }
 
@@ -278,14 +305,17 @@ namespace Gallery.Api.Services
 
                 claims.Add(new Claim(AuthorizationConstants.CollectionPermissionClaimType, permissionsClaim.ToString()));
             }
+            foreach (var id in participantCollectionIds)
+            {
+                var permissionsClaim = new CollectionPermissionClaim
+                {
+                    CollectionId = id,
+                    Permissions = [CollectionPermission.ViewCollection]
+                };
+                claims.Add(new Claim(AuthorizationConstants.CollectionPermissionClaimType, permissionsClaim.ToString()));
+            }
 
-            // Get Team Permissions
-            var teamMemberships = await _context.TeamUsers
-                .Where(x => x.UserId == userId)
-                .Select(x => new {x.TeamId, x.IsObserver, x.Team.ExhibitId})
-                .ToListAsync();
-
-            foreach (var teamMembership in teamMemberships)
+            foreach (var teamMembership in participantList)
             {
                 var teamPermissions = new List<TeamPermission>();
                 var permissionsClaim = new TeamPermissionClaim

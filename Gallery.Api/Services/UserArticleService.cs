@@ -269,7 +269,7 @@ namespace Gallery.Api.Services
                     await SendEmail(emailFrom, emailTo, emailCc, shareDetails.Subject, shareDetails.Message, (Guid)scenarioId, ct);
                 }
             } else {
-                throw new ArgumentException("There are no users on the selected teams to receive a shared article.");
+                _logger.LogError("There are no users on the selected teams to receive a shared article.  " + String.Join(",", shareDetails.ToTeamIdList.ToArray()));
             }
 
             return _mapper.Map<UserArticle>(userArticleEntity);
