@@ -74,12 +74,10 @@ namespace Gallery.Api.Services
         public async STT.Task<ExhibitMembership> UpdateAsync(Guid id, ExhibitMembership exhibitMembership, CancellationToken ct)
         {
             var exhibitMembershipToUpdate = await _context.ExhibitMemberships.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (exhibitMembershipToUpdate == null)
                 throw new EntityNotFoundException<SAVM.Exhibit>();
 
-            _mapper.Map(exhibitMembership, exhibitMembershipToUpdate);
-
+            exhibitMembershipToUpdate.RoleId = exhibitMembership.RoleId;
             await _context.SaveChangesAsync(ct);
 
             return _mapper.Map<SAVM.ExhibitMembership>(exhibitMembershipToUpdate);

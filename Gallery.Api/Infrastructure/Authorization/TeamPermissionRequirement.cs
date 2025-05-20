@@ -13,14 +13,14 @@ namespace Gallery.Api.Infrastructure.Authorization
     public class TeamPermissionRequirement : IAuthorizationRequirement
     {
         public TeamPermission[] RequiredPermissions;
-        public Guid ExhibitId;
+        public Guid TeamId;
 
         public TeamPermissionRequirement(
             TeamPermission[] requiredPermissions,
             Guid projectId)
         {
             RequiredPermissions = requiredPermissions;
-            ExhibitId = projectId;
+            TeamId = projectId;
         }
     }
 
@@ -43,7 +43,7 @@ namespace Gallery.Api.Infrastructure.Authorization
                 foreach (var claim in claims)
                 {
                     var claimValue = TeamPermissionClaim.FromString(claim.Value);
-                    if (claimValue.TeamId == requirement.ExhibitId)
+                    if (claimValue.TeamId == requirement.TeamId)
                     {
                         teamPermissionsClaim = claimValue;
                         break;

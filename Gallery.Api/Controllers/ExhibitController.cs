@@ -116,7 +116,8 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionExhibits")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct))
+            if (!await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct) &&
+                !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
                 throw new ForbiddenException();
 
             var list = await _exhibitService.GetByCollectionAsync(collectionId, ct);

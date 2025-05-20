@@ -23,6 +23,7 @@ namespace Gallery.Api.Infrastructure.Extensions
             services.AddSingleton<IAuthorizationHandler, SystemPermissionHandler>();
             services.AddSingleton<IAuthorizationHandler, CollectionPermissionHandler>();
             services.AddSingleton<IAuthorizationHandler, ExhibitPermissionHandler>();
+            services.AddSingleton<IAuthorizationHandler, TeamPermissionHandler>();
         }
 
 

@@ -340,8 +340,6 @@ namespace Gallery.Api.Services
                         claims.Add(new Claim(AuthorizationConstants.TeamPermissionClaimType, permissionsClaim.ToString()));
                     }
                 }
-
-                claims.Add(new Claim(AuthorizationConstants.TeamPermissionClaimType, permissionsClaim.ToString()));
             }
 
             return claims;

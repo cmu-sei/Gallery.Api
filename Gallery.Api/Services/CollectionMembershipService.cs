@@ -72,12 +72,10 @@ namespace Gallery.Api.Services
         public async STT.Task<CollectionMembership> UpdateAsync(Guid id, CollectionMembership collectionMembership, CancellationToken ct)
         {
             var collectionMembershipToUpdate = await _context.CollectionMemberships.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (collectionMembershipToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            _mapper.Map(collectionMembership, collectionMembershipToUpdate);
-
+            collectionMembershipToUpdate.RoleId = collectionMembership.RoleId;
             await _context.SaveChangesAsync(ct);
 
             return _mapper.Map<CollectionMembership>(collectionMembershipToUpdate);
