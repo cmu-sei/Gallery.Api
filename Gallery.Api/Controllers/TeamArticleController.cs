@@ -47,8 +47,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeamArticles")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct) &&
-                !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
                 throw new ForbiddenException();
 
             var list = await _teamArticleService.GetByExhibitAsync(exhibitId, ct);

@@ -26,10 +26,10 @@ namespace Gallery.Api.Services
 {
     public interface IExhibitService
     {
-        Task<IEnumerable<ViewModels.Exhibit>> GetAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct);
         Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct);
@@ -63,11 +63,23 @@ namespace Gallery.Api.Services
             _userArticleService = userArticleService;
         }
 
-        public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct)
         {
-            IQueryable<ExhibitEntity> exhibits = _context.Exhibits;
+            List<ExhibitEntity> exhibits = new List<ExhibitEntity>();
+            if (canViewAll)
+            {
+                exhibits = await _context.Exhibits.ToListAsync();
+            }
+            else
+            {
+                var userId = _user.GetId();
+                exhibits = await _context.ExhibitMemberships
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.Exhibit)
+                    .ToListAsync();
+            }
 
-            return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
+            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct)
@@ -103,13 +115,27 @@ namespace Gallery.Api.Services
             return _mapper.Map<Exhibit>(item);
         }
 
-        public async Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct)
         {
-            IQueryable<ExhibitEntity> exhibits = _context.Exhibits
-                .Where(a => a.CollectionId == collectionId)
-                .OrderByDescending(a => a.DateCreated);
+            var exhibits = new List<ExhibitEntity>();
+            if (canViewAll)
+            {
+                exhibits = await _context.Exhibits
+                    .Where(a => a.CollectionId == collectionId)
+                    .OrderByDescending(a => a.DateCreated)
+                    .ToListAsync();
+            }
+            else
+            {
+                var userId = _user.GetId();
+                exhibits = await _context.ExhibitMemberships
+                    .Where(m => m.Exhibit.CollectionId == collectionId && m.UserId == userId)
+                    .Select(m => m.Exhibit)
+                    .OrderByDescending(e => e.DateCreated)
+                    .ToListAsync();
+            }
 
-            return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
+            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct)

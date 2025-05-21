@@ -42,17 +42,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollections")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            IEnumerable<Collection> list = new List<Collection>();
-            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct))
-            {
-                list = await _collectionService.GetAsync(ct);
-            }
-            else
-            {
-                list = await _collectionService.GetMineAsync(ct);
-            }
-
-            // add this user's permissions for each event template
+            var canViewAll = await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct);
+            IEnumerable<Collection> list = await _collectionService.GetAsync(canViewAll, ct);
+            // add this user's permissions for each collection
             AddPermissions(list);
 
             return Ok(list);
@@ -97,7 +89,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            // add this user's permissions for the event template
+            // add this user's permissions for the collection
             AddPermissions(collection);
 
             return Ok(collection);

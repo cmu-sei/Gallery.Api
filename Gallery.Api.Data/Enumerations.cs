@@ -45,21 +45,24 @@ namespace Gallery.Api.Data.Enumerations
     {
         ViewExhibit,
         EditExhibit,
-        ManageExhibit
+        ManageExhibit,
+        ParticipateExhibit
     }
 
     public enum CollectionPermission
     {
         ViewCollection,
         EditCollection,
-        ManageCollection
+        ManageCollection,
+        ParticipateCollection
     }
 
     public enum TeamPermission
     {
         ViewTeam,
         EditTeam,
-        ManageTeam
+        ManageTeam,
+        ParticipateTeam
     }
 
 }

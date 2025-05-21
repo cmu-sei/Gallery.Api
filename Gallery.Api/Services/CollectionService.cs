@@ -26,7 +26,7 @@ namespace Gallery.Api.Services
 {
     public interface ICollectionService
     {
-        Task<IEnumerable<ViewModels.Collection>> GetAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.Collection>> GetAsync(bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct);
         Task<ViewModels.Collection> GetAsync(Guid id, CancellationToken ct);
         Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct);
@@ -56,11 +56,23 @@ namespace Gallery.Api.Services
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<ViewModels.Collection>> GetAsync(CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Collection>> GetAsync(bool canViewAll, CancellationToken ct)
         {
-            IQueryable<CollectionEntity> collections = _context.Collections;
+            IList<CollectionEntity> collections = new List<CollectionEntity>();
+            if (canViewAll)
+            {
+                collections = await _context.Collections.ToListAsync(ct);
+            }
+            else
+            {
+                var userId = _user.GetId();
+                collections = await _context.CollectionMemberships
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.Collection)
+                    .ToListAsync(ct);
+            }
 
-            return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());
+            return _mapper.Map<IEnumerable<Collection>>(collections);
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct)

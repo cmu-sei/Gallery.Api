@@ -77,8 +77,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionArticles")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
-               !await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+            if (!await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
                 throw new ForbiddenException();
 
             var list = await _articleService.GetByCollectionAsync(collectionId, ct);
@@ -99,8 +98,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitArticles")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
-               !await _authorizationService.AuthorizeAsync<Collection>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            if (!await _authorizationService.AuthorizeAsync<Collection>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
                 throw new ForbiddenException();
 
             var list = await _articleService.GetByExhibitAsync(exhibitId, ct);
@@ -126,10 +124,8 @@ namespace Gallery.Api.Controllers
             if (article == null)
                 throw new EntityNotFoundException<Article>();
 
-            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
-               await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
-               !(await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
-               !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            if (!(article.ExhibitId == null && await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
+                !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
             )
                 throw new ForbiddenException();
 

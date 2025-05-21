@@ -42,16 +42,8 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibits")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            IEnumerable<Exhibit> list = new List<Exhibit>();
-            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
-            {
-                list = await _exhibitService.GetAsync(ct);
-            }
-            else
-            {
-                list = await _exhibitService.GetMineAsync(ct);
-            }
-
+            var canViewAll = await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct);
+            IEnumerable<Exhibit> list = await _exhibitService.GetAsync(canViewAll, ct);
             // add this user's permissions for each exhibit
             AddPermissions(list);
 
@@ -116,11 +108,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionExhibits")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct) &&
-                !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
-                throw new ForbiddenException();
+            var canViewAll =
+                await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
+                await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct);
+            var list = await _exhibitService.GetByCollectionAsync(collectionId, canViewAll, ct);
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
 
-            var list = await _exhibitService.GetByCollectionAsync(collectionId, ct);
             return Ok(list);
         }
 

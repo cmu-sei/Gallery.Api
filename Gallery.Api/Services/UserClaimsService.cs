@@ -245,7 +245,7 @@ namespace Gallery.Api.Services
                         exhibitPermissions.AddRange(membership.Role.Permissions);
                         if (participantExhibitIds.Contains(membership.ExhibitId))
                         {
-                            exhibitPermissions.Add(ExhibitPermission.ViewExhibit);
+                            exhibitPermissions.Add(ExhibitPermission.ParticipateExhibit);
                             participantExhibitIds.Remove(membership.ExhibitId);
                         }
                     }
@@ -264,7 +264,7 @@ namespace Gallery.Api.Services
                 var permissionsClaim = new ExhibitPermissionClaim
                 {
                     ExhibitId = id,
-                    Permissions = [ExhibitPermission.ViewExhibit]
+                    Permissions = [ExhibitPermission.ParticipateExhibit]
                 };
                 claims.Add(new Claim(AuthorizationConstants.ExhibitPermissionClaimType, permissionsClaim.ToString()));
             }
@@ -291,7 +291,7 @@ namespace Gallery.Api.Services
                         collectionPermissions.AddRange(membership.Role.Permissions);
                         if (participantCollectionIds.Contains(membership.CollectionId))
                         {
-                            collectionPermissions.Add(CollectionPermission.ViewCollection);
+                            collectionPermissions.Add(CollectionPermission.ParticipateCollection);
                             participantCollectionIds.Remove(membership.CollectionId);
                         }
                     }
@@ -310,7 +310,7 @@ namespace Gallery.Api.Services
                 var permissionsClaim = new CollectionPermissionClaim
                 {
                     CollectionId = id,
-                    Permissions = [CollectionPermission.ViewCollection]
+                    Permissions = [CollectionPermission.ParticipateCollection]
                 };
                 claims.Add(new Claim(AuthorizationConstants.CollectionPermissionClaimType, permissionsClaim.ToString()));
             }
@@ -321,7 +321,7 @@ namespace Gallery.Api.Services
                 var permissionsClaim = new TeamPermissionClaim
                 {
                     TeamId = teamMembership.TeamId,
-                    Permissions = [TeamPermission.EditTeam, TeamPermission.ViewTeam]
+                    Permissions = [TeamPermission.ParticipateTeam, TeamPermission.ViewTeam]
                 };
                 claims.Add(new Claim(AuthorizationConstants.TeamPermissionClaimType, permissionsClaim.ToString()));
                 if (teamMembership.IsObserver)
