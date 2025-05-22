@@ -63,7 +63,7 @@ public class ExhibitRoleConfiguration : IEntityTypeConfiguration<ExhibitRoleEnti
                     ExhibitPermission.ViewExhibit,
                     ExhibitPermission.EditExhibit
                 ],
-                Description = "Has read only access to the Exhibit"
+                Description = "Can edit the Exhibit"
             }
         );
     }

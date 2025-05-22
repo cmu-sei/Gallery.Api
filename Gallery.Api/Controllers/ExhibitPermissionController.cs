@@ -24,10 +24,10 @@ public class ExhibitPermissionsController : BaseController
     /// Get all SystemPermissions for the calling User.
     /// </summary>
     /// <returns></returns>
-    [HttpGet("exhibits/{id}/me/permissions")]
+    [HttpGet("exhibit-permissions")]
     [ProducesResponseType(typeof(IEnumerable<ExhibitPermissionClaim>), (int)HttpStatusCode.OK)]
     [SwaggerOperation(OperationId = "GetMyExhibitPermissions")]
-    public async Task<IActionResult> GetMine(Guid id)
+    public async Task<IActionResult> GetMine()
     {
         var result = _authorizationService.GetExhibitPermissions();
         return Ok(result);

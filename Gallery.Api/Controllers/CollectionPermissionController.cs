@@ -24,10 +24,10 @@ public class CollectionPermissionsController : BaseController
     /// Get all SystemPermissions for the calling User.
     /// </summary>
     /// <returns></returns>
-    [HttpGet("collections/{id}/me/permissions")]
+    [HttpGet("collection-permissions")]
     [ProducesResponseType(typeof(IEnumerable<CollectionPermissionClaim>), (int)HttpStatusCode.OK)]
     [SwaggerOperation(OperationId = "GetMyCollectionPermissions")]
-    public async Task<IActionResult> GetMine(Guid id)
+    public async Task<IActionResult> GetMine()
     {
         var result = _authorizationService.GetCollectionPermissions();
         return Ok(result);
