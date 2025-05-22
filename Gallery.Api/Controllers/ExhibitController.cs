@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -19,9 +21,9 @@ namespace Gallery.Api.Controllers
     public class ExhibitController : BaseController
     {
         private readonly IExhibitService _exhibitService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public ExhibitController(IExhibitService exhibitService, IAuthorizationService authorizationService)
+        public ExhibitController(IExhibitService exhibitService, IGalleryAuthorizationService authorizationService)
         {
             _exhibitService = exhibitService;
             _authorizationService = authorizationService;
@@ -40,7 +42,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibits")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var list = await _exhibitService.GetAsync(ct);
+            var canViewAll = await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct);
+            IEnumerable<Exhibit> list = await _exhibitService.GetAsync(canViewAll, ct);
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -58,6 +64,9 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> GetMine(CancellationToken ct)
         {
             var list = await _exhibitService.GetMineAsync(ct);
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -75,7 +84,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getUserExhibits")]
         public async Task<IActionResult> GetUserExhibits(Guid userId, CancellationToken ct)
         {
+            if (userId != User.GetId() && !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+                throw new ForbiddenException();
+
             var list = await _exhibitService.GetUserExhibitsAsync(userId, ct);
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -93,7 +108,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionExhibits")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
-            var list = await _exhibitService.GetByCollectionAsync(collectionId, ct);
+            var canViewAll =
+                await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct) ||
+                await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ManageCollections], [CollectionPermission.ManageCollection], ct);
+            var list = await _exhibitService.GetByCollectionAsync(collectionId, canViewAll, ct);
+            // add this user's permissions for each exhibit
+            AddPermissions(list);
+
             return Ok(list);
         }
 
@@ -129,7 +150,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibit")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            var exhibit = await _exhibitService.GetAsync(id, ct);
+            var checkTeamMembership = false;
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                checkTeamMembership = true;
+
+            var exhibit = await _exhibitService.GetAsync(id, checkTeamMembership, ct);
 
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
@@ -152,7 +177,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createExhibit")]
         public async Task<IActionResult> Create([FromBody] Exhibit exhibit, CancellationToken ct)
         {
-            exhibit.CreatedBy = User.GetId();
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct))
+                throw new ForbiddenException();
+
             var createdExhibit = await _exhibitService.CreateAsync(exhibit, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdExhibit.Id }, createdExhibit);
         }
@@ -172,6 +199,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "copyExhibit")]
         public async Task<IActionResult> Copy(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct) ||
+               !await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
             var createdExhibit = await _exhibitService.CopyAsync(id, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdExhibit.Id }, createdExhibit);
         }
@@ -193,6 +224,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateExhibit")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Exhibit exhibit, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                throw new ForbiddenException();
+
             exhibit.ModifiedBy = User.GetId();
             var updatedExhibit = await _exhibitService.UpdateAsync(id, exhibit, ct);
             return Ok(updatedExhibit);
@@ -213,6 +247,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "setExhibitMoveAndInject")]
         public async Task<IActionResult> setExhibitMoveAndInject([FromRoute] Guid id, int move, int inject, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             var updatedExhibit = await _exhibitService.SetMoveAndInjectAsync(id, move, inject, ct);
             return Ok(updatedExhibit);
         }
@@ -232,6 +269,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteExhibit")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             await _exhibitService.DeleteAsync(id, ct);
             return NoContent();
         }
@@ -244,6 +284,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "uploadJsonFiles")]
         public async Task<IActionResult> UploadJsonAsync([FromForm] FileForm form, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct))
+                throw new ForbiddenException();
+
             var result = await _exhibitService.UploadJsonAsync(form, ct);
             return Ok(result);
         }
@@ -256,12 +299,29 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "downloadJson")]
         public async Task<IActionResult> DownloadJsonAsync(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             (var stream, var fileName) = await _exhibitService.DownloadJsonAsync(id, ct);
 
             // If this is wrapped in an Ok, it throws an exception
             return File(stream, "application/octet-stream", fileName);
         }
 
+        private void AddPermissions(IEnumerable<Exhibit> list)
+        {
+            foreach (var item in list)
+            {
+                AddPermissions(item);
+            }
+        }
+
+        private void AddPermissions(Exhibit item)
+        {
+            item.ExhibitPermissions =
+            _authorizationService.GetExhibitPermissions(item.Id).Select((m) => m.ToString())
+            .Concat(_authorizationService.GetSystemPermissions().Select((m) => m.ToString()));
+        }
+
     }
 }
-

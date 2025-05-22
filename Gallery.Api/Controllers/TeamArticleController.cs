@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -18,11 +19,16 @@ namespace Gallery.Api.Controllers
 {
     public class TeamArticleController : BaseController
     {
+        private readonly ITeamService _teamService;
         private readonly ITeamArticleService _teamArticleService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public TeamArticleController(ITeamArticleService teamArticleService, IAuthorizationService authorizationService)
+        public TeamArticleController(
+            ITeamService teamService,
+            ITeamArticleService teamArticleService,
+            IGalleryAuthorizationService authorizationService)
         {
+            _teamService = teamService;
             _teamArticleService = teamArticleService;
             _authorizationService = authorizationService;
         }
@@ -41,6 +47,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeamArticles")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
             var list = await _teamArticleService.GetByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
@@ -59,6 +68,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamTeamArticles")]
         public async Task<IActionResult> GetByTeam(Guid teamId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
             var list = await _teamArticleService.GetByTeamAsync(teamId, ct);
             return Ok(list);
         }
@@ -79,12 +91,14 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamArticle")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            var team = await _teamArticleService.GetAsync(id, ct);
-
-            if (team == null)
+            var teamArticle = await _teamArticleService.GetAsync(id, ct);
+            if (teamArticle == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
-            return Ok(team);
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamArticle.TeamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
+            return Ok(teamArticle);
         }
 
         /// <summary>
@@ -92,8 +106,6 @@ namespace Gallery.Api.Controllers
         /// </summary>
         /// <remarks>
         /// Creates a new TeamArticle with the attributes specified
-        /// <para />
-        /// Accessible only to a SuperArticle
         /// </remarks>
         /// <param name="teamArticle">The data to create the TeamArticle with</param>
         /// <param name="ct"></param>
@@ -102,7 +114,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createTeamArticle")]
         public async Task<IActionResult> Create([FromBody] TeamArticle teamArticle, CancellationToken ct)
         {
-            teamArticle.CreatedBy = User.GetId();
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(teamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             var createdTeamArticle = await _teamArticleService.CreateAsync(teamArticle, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdTeamArticle.Id }, createdTeamArticle);
         }
@@ -124,6 +138,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateTeamArticle")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamArticle teamArticle, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(teamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             teamArticle.ModifiedBy = User.GetId();
             var updatedTeamArticle = await _teamArticleService.UpdateAsync(id, teamArticle, ct);
             return Ok(updatedTeamArticle);
@@ -144,6 +161,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamArticle")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            var teamArticle = await _teamArticleService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(teamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamArticleService.DeleteAsync(id, ct);
             return NoContent();
         }
@@ -153,8 +174,6 @@ namespace Gallery.Api.Controllers
         /// </summary>
         /// <remarks>
         /// Deletes a TeamArticle with the specified article ID and team ID
-        /// <para />
-        /// Accessible only to a SuperArticle
         /// </remarks>
         /// <param name="articleId">ID of a article.</param>
         /// <param name="teamId">ID of a team.</param>
@@ -164,10 +183,13 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteTeamArticleByIds")]
         public async Task<IActionResult> Delete(Guid teamId, Guid articleId, CancellationToken ct)
         {
+            var team = await _teamService.GetAsync(teamId, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
             await _teamArticleService.DeleteByIdsAsync(teamId, articleId, ct);
             return NoContent();
         }
 
     }
 }
-

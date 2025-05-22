@@ -8,10 +8,9 @@ namespace Gallery.Api.ViewModels
     public class User : Base
     {
         public Guid Id { get; set; }
-
         public string Name { get; set; }
         public string Email { get; set; }
-
+        public Guid? RoleId { get; set; }
         public Permission[] Permissions { get; set; }
 
     }

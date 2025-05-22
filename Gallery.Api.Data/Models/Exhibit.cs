@@ -21,5 +21,6 @@ namespace Gallery.Api.Data.Models
         public ICollection<TeamEntity> Teams { get; set; } = new List<TeamEntity>();
         public string Name { get; set; }
         public string Description { get; set; }
+        public virtual ICollection<ExhibitMembershipEntity> Memberships { get; set; } = new List<ExhibitMembershipEntity>();
     }
 }

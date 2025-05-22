@@ -1,18 +1,47 @@
 {
-  "Permissions": [
+  "Roles": [
     {
-      "Id": "2f82cb36-4c0a-4b60-857f-c4f2a9e70817",
-      "Key": "SystemAdmin",
-      "Value": "true",
-      "Description": "Has Full Rights.  Can do everything.",
-      "ReadOnly": true
+      "name": "Rangetech Admin",
+      "allPermissions": false,
+      "permissions": [
+        "CreateCollections",
+        "ViewCollections",
+        "EditCollections",
+        "ManageCollections",
+        "ImportCollections",
+        "CreateCollections",
+        "ViewCollections",
+        "EditCollections",
+        "ManageCollections",
+        "ImportCollections",
+        "CreateExhibits",
+        "ViewExhibits",
+        "EditExhibits",
+        "ManageExhibits",
+        "ImportExhibits",
+        "CreateExhibits",
+        "ViewExhibits",
+        "EditExhibits",
+        "ManageExhibits",
+        "ImportExhibits"
+      ]
+    }
+  ],
+  "Users": [
+    {
+      "id": "7493f145-dbcd-4ba8-9020-3aeba55bc2a1",
+      "name": "Admin",
+      "role": {
+        "name": "Administrator"
+      }
+    }
+  ],
+  "Groups": [
+    {
+      "name": "Rangetechs"
     },
     {
-      "Id": "c881417e-02f1-4232-b06b-723901120e20",
-      "Key": "ContentDeveloper",
-      "Value": "true",
-      "Description": "Can create/edit/delete an Exercise/Directory/Workspace/File/Module",
-      "ReadOnly": true
+      "name": "White Cell"
     }
   ],
   "Teams": [
@@ -28,18 +57,6 @@
       "Id": "9106ccaf-3fd1-4023-ad3b-f12bda0040f2",
       "UserId": "9fd3c38e-58b0-4af1-80d1-1895af91f1f9",
       "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1"
-    }
-  ],
-  "Users": [
-    {
-      "Id": "9fd3c38e-58b0-4af1-80d1-1895af91f1f9",
-      "Name": "Admin"
-    }
-  ],
-  "UserPermissions": [
-    {
-      "UserId": "9fd3c38e-58b0-4af1-80d1-1895af91f1f9",
-      "PermissionId": "2f82cb36-4c0a-4b60-857f-c4f2a9e70817"
     }
   ],
   "Collections": [

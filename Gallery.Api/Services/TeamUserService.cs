@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
@@ -53,9 +52,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.TeamUser>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamUsers
                 .Where(tu => tu.Team.ExhibitId == exhibitId)
                 .ToListAsync(ct);
@@ -69,9 +65,6 @@ namespace Gallery.Api.Services
             if (team == null)
                 throw new EntityNotFoundException<Team>();
 
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitUserRequirement((Guid)team.ExhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamUsers
                 .Where(tu => tu.TeamId == teamId)
                 .Include(tu => tu.User)
@@ -82,9 +75,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct)
         {
-            if(!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamUsers
                 .Where(w => w.UserId == _user.GetId())
                 .Select(x => x.Team)
@@ -95,9 +85,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.TeamUsers
                 .Where(w => w.UserId == userId)
                 .Select(x => x.Team)
@@ -108,9 +95,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamUser> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.TeamUsers
                 .Include(tu => tu.User)
                 .Include(tu => tu.Team)
@@ -121,8 +105,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUser teamUser, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
             var exhibitId = await _context.Teams
                 .Where(t => t.Id == teamUser.TeamId)
                 .Select(t => t.ExhibitId)
@@ -149,9 +131,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamUserToUpdate = await _context.TeamUsers
                 .Include(tu => tu.User)
                 .SingleOrDefaultAsync(v => v.Id == id, ct);
@@ -173,11 +152,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamUserToDelete = await _context.TeamUsers.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (teamUserToDelete == null)
                 throw new EntityNotFoundException<TeamUser>();
 
@@ -189,11 +164,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var teamUserToDelete = await _context.TeamUsers.SingleOrDefaultAsync(v => (v.UserId == userId) && (v.TeamId == teamId), ct);
-
             if (teamUserToDelete == null)
                 throw new EntityNotFoundException<TeamUser>();
 
@@ -205,4 +176,3 @@ namespace Gallery.Api.Services
 
     }
 }
-
