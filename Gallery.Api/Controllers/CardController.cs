@@ -41,8 +41,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCards")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
-                !await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections, SystemPermission.ViewExhibits], ct))
                 throw new ForbiddenException();
 
             var list = await _cardService.GetAsync(ct);
@@ -152,9 +151,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createCard")]
         public async Task<IActionResult> Create([FromBody] Card card, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
-               await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
-            )
+            if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                 throw new ForbiddenException();
 
             var createdCard = await _cardService.CreateAsync(card, ct);

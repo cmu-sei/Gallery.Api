@@ -55,8 +55,7 @@ namespace Gallery.Api.Controllers
             if (card == null)
                 throw new EntityNotFoundException<CollectionEntity>();
 
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections], ct) ||
-               !await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+            if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
                 throw new ForbiddenException();
 
             var list = await _articleService.GetByCardAsync(cardId, ct);
@@ -125,7 +124,7 @@ namespace Gallery.Api.Controllers
                 throw new EntityNotFoundException<Article>();
 
             if (!(article.ExhibitId == null && await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
-                !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
             )
                 throw new ForbiddenException();
 
@@ -149,14 +148,12 @@ namespace Gallery.Api.Controllers
         {
             if (article.ExhibitId == null)
             {
-                if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
-                    await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct)))
+                if (!await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                     throw new ForbiddenException();
             }
             else
             {
-                if (!(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
-                    !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))))
+                if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
                     if (!await _articleService.CanUserPostArticlesAsync(article, ct))
                         throw new ForbiddenException();
@@ -186,14 +183,12 @@ namespace Gallery.Api.Controllers
         {
             if (article.ExhibitId == null)
             {
-                if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
-                    await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct)))
+                if (!await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                     throw new ForbiddenException();
             }
             else
             {
-                if (!(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
-                    !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))))
+                if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
                     if (!await _articleService.CanUserPostArticlesAsync(article, ct))
                         throw new ForbiddenException();
@@ -222,14 +217,12 @@ namespace Gallery.Api.Controllers
             var article = await _articleService.GetAsync(id, ct);
             if (article.ExhibitId == null)
             {
-                if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
-                    await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct)))
+                if (!await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                     throw new ForbiddenException();
             }
             else
             {
-                if (!(article.ExhibitId != null && (await _authorizationService.AuthorizeAsync([SystemPermission.EditExhibits], ct) ||
-                    !await _authorizationService.AuthorizeAsync<Collection>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))))
+                if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
                     if (!await _articleService.CanUserPostArticlesAsync(article, ct))
                         throw new ForbiddenException();
