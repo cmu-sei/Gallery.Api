@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -19,9 +20,9 @@ namespace Gallery.Api.Controllers
     public class CardController : BaseController
     {
         private readonly ICardService _cardService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public CardController(ICardService cardService, IAuthorizationService authorizationService)
+        public CardController(ICardService cardService, IGalleryAuthorizationService authorizationService)
         {
             _cardService = cardService;
             _authorizationService = authorizationService;
@@ -40,6 +41,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCards")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections, SystemPermission.ViewExhibits], ct))
+                throw new ForbiddenException();
+
             var list = await _cardService.GetAsync(ct);
             return Ok(list);
         }
@@ -58,6 +62,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getCollectionCards")]
         public async Task<IActionResult> GetByCollection(Guid collectionId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Collection>(collectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
+
             var list = await _cardService.GetByCollectionAsync(collectionId, ct);
             return Ok(list);
         }
@@ -76,6 +83,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitCards")]
         public async Task<IActionResult> GetByExhibit(Guid exhibitId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                throw new ForbiddenException();
+
             var list = await _cardService.GetByExhibitAsync(exhibitId, ct);
             return Ok(list);
         }
@@ -95,6 +105,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitCardsByTeam")]
         public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
             var list = await _cardService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
             return Ok(list);
         }
@@ -114,9 +127,11 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
             var card = await _cardService.GetAsync(id, ct);
-
             if (card == null)
                 throw new EntityNotFoundException<Card>();
+
+            if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
+                throw new ForbiddenException();
 
             return Ok(card);
         }
@@ -136,7 +151,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createCard")]
         public async Task<IActionResult> Create([FromBody] Card card, CancellationToken ct)
         {
-            card.CreatedBy = User.GetId();
+            if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
+                throw new ForbiddenException();
+
             var createdCard = await _cardService.CreateAsync(card, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdCard.Id }, createdCard);
         }
@@ -158,6 +175,11 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateCard")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Card card, CancellationToken ct)
         {
+            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
+            )
+                throw new ForbiddenException();
+
             card.ModifiedBy = User.GetId();
             var updatedCard = await _cardService.UpdateAsync(id, card, ct);
             return Ok(updatedCard);
@@ -178,10 +200,15 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteCard")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            var card = await _cardService.GetAsync(id, ct);
+            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
+               await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
+            )
+                throw new ForbiddenException();
+
             await _cardService.DeleteAsync(id, ct);
             return NoContent();
         }
 
     }
 }
-

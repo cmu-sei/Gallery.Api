@@ -55,9 +55,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             IQueryable<CardEntity> cards = _context.Cards;
 
             return _mapper.Map<IEnumerable<Card>>(await cards.ToListAsync());
@@ -65,9 +62,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Card> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.Cards.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
             return _mapper.Map<Card>(item);
@@ -75,9 +69,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var cards = await _context.Cards
                 .Where(c => c.CollectionId == collectionId)
                 .OrderBy(c => c.Move)
@@ -90,10 +81,7 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            var exhibit = (await _context.Exhibits.FirstAsync(e => e.Id == exhibitId));
+            var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
             var articles = _context.Articles
                 .Where(a => a.CollectionId == exhibit.CollectionId
                             && (a.Move < exhibit.CurrentMove
@@ -111,10 +99,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new TeamUserRequirement(teamId))).Succeeded &&
-                !(await _authorizationService.AuthorizeAsync(_user, null, new ExhibitObserverRequirement(exhibitId))).Succeeded)
-                throw new ForbiddenException();
-
             var exhibit = await _context.Exhibits.FindAsync(exhibitId);
             var cards = await _context.TeamCards
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
@@ -128,13 +112,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            card.DateCreated = DateTime.UtcNow;
-            card.CreatedBy = _user.GetId();
-            card.DateModified = null;
-            card.ModifiedBy = null;
             var cardEntity = _mapper.Map<CardEntity>(card);
             cardEntity.Id = cardEntity.Id != Guid.Empty ? cardEntity.Id : Guid.NewGuid();
 
@@ -147,18 +124,10 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var cardToUpdate = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (cardToUpdate == null)
                 throw new EntityNotFoundException<Card>();
 
-            card.CreatedBy = cardToUpdate.CreatedBy;
-            card.DateCreated = cardToUpdate.DateCreated;
-            card.ModifiedBy = _user.GetId();
-            card.DateModified = DateTime.UtcNow;
             _mapper.Map(card, cardToUpdate);
 
             _context.Cards.Update(cardToUpdate);
@@ -171,14 +140,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var cardToDelete = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);
-
-            if (cardToDelete == null)
-                throw new EntityNotFoundException<Card>();
-
             _context.Cards.Remove(cardToDelete);
             await _context.SaveChangesAsync(ct);
 
@@ -187,4 +149,3 @@ namespace Gallery.Api.Services
 
     }
 }
-

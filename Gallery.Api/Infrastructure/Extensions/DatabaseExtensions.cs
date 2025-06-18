@@ -53,7 +53,7 @@ namespace Gallery.Api.Infrastructure.Extensions
                             databaseOptions.SeedFile
                         );
                         if (File.Exists(seedFile)) {
-                            SeedDataOptions seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(File.ReadAllText(seedFile));
+                            var seedDataOptions = services.GetService<SeedDataOptions>();
                             ProcessSeedDataOptions(seedDataOptions, ctx);
                             MoveExhibitTeamsToIndividualTeams(ctx);
                         }
@@ -75,17 +75,63 @@ namespace Gallery.Api.Infrastructure.Extensions
 
         private static void ProcessSeedDataOptions(SeedDataOptions options, GalleryDbContext context)
         {
-            if (options.Permissions != null && options.Permissions.Any())
+            if (options.Roles?.Any() == true)
             {
-                var dbPermissions = context.Permissions.ToList();
+                var dbRoles = context.SystemRoles.ToHashSet();
 
-                foreach (PermissionEntity permission in options.Permissions)
+                foreach (var role in options.Roles)
                 {
-                    if (!dbPermissions.Where(x => x.Key == permission.Key && x.Value == permission.Value).Any())
+                    if (!dbRoles.Any(x => x.Name == role.Name))
                     {
-                        context.Permissions.Add(permission);
+                        context.SystemRoles.Add(role);
                     }
                 }
+
+                context.SaveChanges();
+            }
+
+            if (options.Users?.Any() == true)
+            {
+                var dbUserIds = context.Users.Select(x => x.Id).ToHashSet();
+
+                foreach (UserEntity user in options.Users)
+                {
+                    if (!dbUserIds.Contains(user.Id))
+                    {
+                        if (user.Role?.Id == Guid.Empty && !string.IsNullOrEmpty(user.Role.Name))
+                        {
+                            var role = context.SystemRoles.FirstOrDefault(x => x.Name == user.Role.Name);
+                            if (role != null)
+                            {
+                                user.RoleId = role.Id;
+                                user.Role = role;
+                            }
+                            else
+                            {
+                                user.RoleId = null;
+                                user.Role = null;
+                            }
+                        }
+
+                        context.Users.Add(user);
+                    }
+                }
+
+                context.SaveChanges();
+            }
+
+            if (options.Groups?.Any() == true)
+            {
+                var dbGroup = context.Groups.ToHashSet();
+
+                foreach (var group in options.Groups)
+                {
+                    if (!dbGroup.Any(x => x.Name == group.Name))
+                    {
+                        context.Groups.Add(group);
+                    }
+                }
+
                 context.SaveChanges();
             }
             if (options.Users != null && options.Users.Any())
@@ -176,19 +222,6 @@ namespace Gallery.Api.Infrastructure.Extensions
                     if (!dbTeamUsers.Where(x => x.UserId == teamUser.UserId && x.TeamId == teamUser.TeamId).Any())
                     {
                         context.TeamUsers.Add(teamUser);
-                    }
-                }
-                context.SaveChanges();
-            }
-            if (options.UserPermissions != null && options.UserPermissions.Any())
-            {
-                var dbUserPermissions = context.UserPermissions.ToList();
-
-                foreach (UserPermissionEntity userPermission in options.UserPermissions)
-                {
-                    if (!dbUserPermissions.Where(x => x.UserId == userPermission.UserId && x.PermissionId == userPermission.PermissionId).Any())
-                    {
-                        context.UserPermissions.Add(userPermission);
                     }
                 }
                 context.SaveChanges();

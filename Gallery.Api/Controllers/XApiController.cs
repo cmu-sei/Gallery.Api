@@ -67,7 +67,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -92,7 +92,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "viewedExhibitWall")]
         public async Task<IActionResult> ViewExhibitWall(Guid exhibitId, CancellationToken ct)
         {
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -121,7 +121,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "viewedExhibitArchive")]
         public async Task<IActionResult> ViewExhibitArchive(Guid exhibitId, CancellationToken ct)
         {
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -162,7 +162,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -199,7 +199,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -224,7 +224,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "observedExhibitWall")]
         public async Task<IActionResult> ObservedExhibitWall(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -257,7 +257,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "observedExhibitArchive")]
         public async Task<IActionResult> ObservedExhibitArchive(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var exhibit = await _exhibitService.GetAsync(exhibitId, ct);
+            var exhibit = await _exhibitService.GetAsync(exhibitId, false, ct);
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
@@ -278,4 +278,3 @@ namespace Gallery.Api.Controllers
 
     }
 }
-

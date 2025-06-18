@@ -23,5 +23,46 @@ namespace Gallery.Api.Data.Enumerations
         Orders = 70
     }
 
-}
+    public enum SystemPermission
+    {
+        CreateCollections,
+        ViewCollections,
+        EditCollections,
+        ManageCollections,
+        CreateExhibits,
+        ViewExhibits,
+        EditExhibits,
+        ManageExhibits,
+        ViewUsers,
+        ManageUsers,
+        ViewRoles,
+        ManageRoles,
+        ViewGroups,
+        ManageGroups
+    }
 
+    public enum ExhibitPermission
+    {
+        ViewExhibit,
+        EditExhibit,
+        ManageExhibit,
+        ParticipateExhibit
+    }
+
+    public enum CollectionPermission
+    {
+        ViewCollection,
+        EditCollection,
+        ManageCollection,
+        ParticipateCollection
+    }
+
+    public enum TeamPermission
+    {
+        ViewTeam,
+        EditTeam,
+        ManageTeam,
+        ParticipateTeam
+    }
+
+}

@@ -2,10 +2,11 @@
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 
 namespace Gallery.Api.ViewModels
 {
-    public class Exhibit : Base
+    public class Exhibit : Base, IAuthorizationType
     {
         public Guid Id { get; set; }
         public int CurrentMove { get; set; }
@@ -14,5 +15,6 @@ namespace Gallery.Api.ViewModels
         public Guid? ScenarioId { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+        public IEnumerable<string> ExhibitPermissions { get; set; }
     }
 }

@@ -34,4 +34,3 @@ namespace Gallery.Api.Data.Models
         }
     }
 }
-

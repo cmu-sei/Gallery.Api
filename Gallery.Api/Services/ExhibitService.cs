@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
@@ -27,12 +26,12 @@ namespace Gallery.Api.Services
 {
     public interface IExhibitService
     {
-        Task<IEnumerable<ViewModels.Exhibit>> GetAsync(CancellationToken ct);
+        Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct);
-        Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
+        Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct);
-        Task<ViewModels.Exhibit> GetAsync(Guid id, CancellationToken ct);
+        Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct);
         Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct);
         Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct);
         Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid exhibitId, CancellationToken ct);
@@ -64,14 +63,23 @@ namespace Gallery.Api.Services
             _userArticleService = userArticleService;
         }
 
-        public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
+            List<ExhibitEntity> exhibits = new List<ExhibitEntity>();
+            if (canViewAll)
+            {
+                exhibits = await _context.Exhibits.ToListAsync();
+            }
+            else
+            {
+                var userId = _user.GetId();
+                exhibits = await _context.ExhibitMemberships
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.Exhibit)
+                    .ToListAsync();
+            }
 
-            IQueryable<ExhibitEntity> exhibits = _context.Exhibits;
-
-            return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
+            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct)
@@ -83,18 +91,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetUserExhibitsAsync(Guid userId, CancellationToken ct)
         {
-            var currentUserId = _user.GetId();
-            if (currentUserId == userId)
-            {
-                if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                    throw new ForbiddenException();
-            }
-            else
-            {
-                if (!(await _authorizationService.AuthorizeAsync(_user, null, new FullRightsRequirement())).Succeeded)
-                    throw new ForbiddenException();
-            }
-
             var exhibits = await _context.Teams
                 .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.ExhibitId != null)
                 .Select(et => et.Exhibit)
@@ -104,33 +100,46 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
-        public async Task<ViewModels.Exhibit> GetAsync(Guid id, CancellationToken ct)
+        public async Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
+            if (checkForTeamMembership)
+            {
+                var userId = _user.GetId();
+                var isMember = await _context.TeamUsers
+                    .AnyAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == id, ct);
+                if(!isMember)
+                    throw new ForbiddenException();
+            }
             var item = await _context.Exhibits.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
             return _mapper.Map<Exhibit>(item);
         }
 
-        public async Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
+        public async Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
+            var exhibits = new List<ExhibitEntity>();
+            if (canViewAll)
+            {
+                exhibits = await _context.Exhibits
+                    .Where(a => a.CollectionId == collectionId)
+                    .OrderByDescending(a => a.DateCreated)
+                    .ToListAsync();
+            }
+            else
+            {
+                var userId = _user.GetId();
+                exhibits = await _context.ExhibitMemberships
+                    .Where(m => m.Exhibit.CollectionId == collectionId && m.UserId == userId)
+                    .Select(m => m.Exhibit)
+                    .OrderByDescending(e => e.DateCreated)
+                    .ToListAsync();
+            }
 
-            IQueryable<ExhibitEntity> exhibits = _context.Exhibits
-                .Where(a => a.CollectionId == collectionId)
-                .OrderByDescending(a => a.DateCreated);
-
-            return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
+            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var userId = _user.GetId();
             IQueryable<ExhibitEntity> exhibits = _context.Teams
                 .Where(t => t.TeamUsers.Any(tu => tu.UserId == userId) && t.Exhibit.CollectionId == collectionId)
@@ -143,9 +152,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
@@ -161,16 +167,13 @@ namespace Gallery.Api.Services
 
             _context.Exhibits.Add(exhibitEntity);
             await _context.SaveChangesAsync(ct);
-            exhibit = await GetAsync(exhibitEntity.Id, ct);
+            exhibit = await GetAsync(exhibitEntity.Id, false, ct);
 
             return exhibit;
         }
 
         public async Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitFileObject = await BuildExhibitFileObject(exhibitId, ct);
             var newExhibitEntity = await privateExhibitCopyAsync(exhibitFileObject, false, ct);
             var exhibit = _mapper.Map<Exhibit>(newExhibitEntity);
@@ -332,10 +335,6 @@ namespace Gallery.Api.Services
 
         public async Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid exhibitId, CancellationToken ct)
         {
-            // user must be a Content Developer
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitFileObject = await BuildExhibitFileObject(exhibitId, ct);
             var createdBy = (await _context.Users.SingleOrDefaultAsync(m => m.Id == exhibitFileObject.Exhibit.CreatedBy, ct)).Name;
             var dateCreated = exhibitFileObject.Exhibit.DateCreated.ToString("-YYYYmmDD-");
@@ -355,10 +354,6 @@ namespace Gallery.Api.Services
 
         public async Task<Exhibit> UploadJsonAsync(FileForm form, CancellationToken ct)
         {
-            // user must be a Content Developer
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var uploadItem = form.ToUpload;
             var exhibitJson = "";
             using (StreamReader reader = new StreamReader(uploadItem.OpenReadStream()))
@@ -379,57 +374,37 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.Exhibit exhibit, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitToUpdate = await _context.Exhibits.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (exhibitToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            exhibit.CreatedBy = exhibitToUpdate.CreatedBy;
-            exhibit.DateCreated = exhibitToUpdate.DateCreated;
-            exhibit.ModifiedBy = _user.GetId();
-            exhibit.DateModified = DateTime.UtcNow;
             _mapper.Map(exhibit, exhibitToUpdate);
             _context.Exhibits.Update(exhibitToUpdate);
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
-            exhibit = await GetAsync(exhibitToUpdate.Id, ct);
+            exhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
 
             return exhibit;
         }
 
         public async Task<ViewModels.Exhibit> SetMoveAndInjectAsync(Guid id, int move, int inject, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitToUpdate = await _context.Exhibits.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (exhibitToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            exhibitToUpdate.ModifiedBy = _user.GetId();
-            exhibitToUpdate.DateModified = DateTime.UtcNow;
-            exhibitToUpdate.CurrentMove = move;
-            exhibitToUpdate.CurrentInject = inject;
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
-            var updatedExhibit = await GetAsync(exhibitToUpdate.Id, ct);
+            var updatedExhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
 
             return updatedExhibit;
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitToDelete = await _context.Exhibits.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (exhibitToDelete == null)
                 throw new EntityNotFoundException<Exhibit>();
 

@@ -6,8 +6,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Services;
@@ -19,9 +20,9 @@ namespace Gallery.Api.Controllers
     public class UserController : BaseController
     {
         private readonly IUserService _userService;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IGalleryAuthorizationService _authorizationService;
 
-        public UserController(IUserService userService, IAuthorizationService authorizationService)
+        public UserController(IUserService userService, IGalleryAuthorizationService authorizationService)
         {
             _userService = userService;
             _authorizationService = authorizationService;
@@ -41,7 +42,16 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getUsers")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var list = await _userService.GetAsync(ct);
+            var list = new List<User>();
+            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewUsers], ct))
+            {
+                list = (List<User>)await _userService.GetAsync(true, ct);
+            }
+            else if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewCollections, SystemPermission.ViewExhibits], ct))
+            {
+                list = (List<User>)await _userService.GetAsync(false, ct);
+            }
+
             return Ok(list);
         }
 
@@ -61,8 +71,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getUser")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            var user = await _userService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewUsers], ct))
+                throw new ForbiddenException();
 
+            var user = await _userService.GetAsync(id, ct);
             if (user == null)
                 throw new EntityNotFoundException<User>();
 
@@ -85,6 +97,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamUsers")]
         public async Task<IActionResult> GetByTeam(Guid teamId, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
+
             var list = await _userService.GetByTeamAsync(teamId, ct);
             return Ok(list);
         }
@@ -104,7 +119,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createUser")]
         public async Task<IActionResult> Create([FromBody] User user, CancellationToken ct)
         {
-            user.CreatedBy = User.GetId();
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ManageUsers], ct))
+                throw new ForbiddenException();
+
             var createdUser = await _userService.CreateAsync(user, ct);
             return CreatedAtAction(nameof(this.Get), new { id = createdUser.Id }, createdUser);
         }
@@ -126,7 +143,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "updateUser")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] User user, CancellationToken ct)
         {
-            user.ModifiedBy = User.GetId();
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ManageUsers], ct))
+                throw new ForbiddenException();
+
             var updatedUser = await _userService.UpdateAsync(id, user, ct);
             return Ok(updatedUser);
         }
@@ -146,11 +165,12 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "deleteUser")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ManageUsers], ct))
+                throw new ForbiddenException();
+
             await _userService.DeleteAsync(id, ct);
             return NoContent();
         }
 
-
     }
 }
-

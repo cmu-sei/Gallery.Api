@@ -207,6 +207,101 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.ToTable("collections");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.CollectionMembershipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<Guid>("RoleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValue(new Guid("f870d8ee-7332-4f7f-8ee0-63bd07cfd7e4"))
+                        .HasColumnName("role_id");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CollectionId", "UserId", "GroupId")
+                        .IsUnique();
+
+                    b.ToTable("collection_memberships");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.CollectionRoleEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<bool>("AllPermissions")
+                        .HasColumnType("boolean")
+                        .HasColumnName("all_permissions");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<int[]>("Permissions")
+                        .HasColumnType("integer[]")
+                        .HasColumnName("permissions");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("collection_roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("1a3f26cd-9d99-4b98-b914-12931e786198"),
+                            AllPermissions = true,
+                            Description = "Can perform all actions on the Collection",
+                            Name = "Manager",
+                            Permissions = new int[0]
+                        },
+                        new
+                        {
+                            Id = new Guid("39aa296e-05ba-4fb0-8d74-c92cf3354c6f"),
+                            AllPermissions = false,
+                            Description = "Has read only access to the Collection",
+                            Name = "Observer",
+                            Permissions = new[] { 0 }
+                        },
+                        new
+                        {
+                            Id = new Guid("f870d8ee-7332-4f7f-8ee0-63bd07cfd7e4"),
+                            AllPermissions = false,
+                            Description = "Has read only access to the Collection",
+                            Name = "Member",
+                            Permissions = new[] { 0, 1 }
+                        });
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -262,6 +357,101 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.ToTable("exhibits");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitMembershipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("ExhibitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("exhibit_id");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<Guid>("RoleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValue(new Guid("f870d8ee-7332-4f7f-8ee0-63bd07cfd7e4"))
+                        .HasColumnName("role_id");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ExhibitId", "UserId", "GroupId")
+                        .IsUnique();
+
+                    b.ToTable("exhibit_memberships");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitRoleEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<bool>("AllPermissions")
+                        .HasColumnType("boolean")
+                        .HasColumnName("all_permissions");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<int[]>("Permissions")
+                        .HasColumnType("integer[]")
+                        .HasColumnName("permissions");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("exhibit_roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("1a3f26cd-9d99-4b98-b914-12931e786198"),
+                            AllPermissions = true,
+                            Description = "Can perform all actions on the Exhibit",
+                            Name = "Manager",
+                            Permissions = new int[0]
+                        },
+                        new
+                        {
+                            Id = new Guid("39aa296e-05ba-4fb0-8d74-c92cf3354c6f"),
+                            AllPermissions = false,
+                            Description = "Has read only access to the Exhibit",
+                            Name = "Observer",
+                            Permissions = new[] { 0 }
+                        },
+                        new
+                        {
+                            Id = new Guid("f870d8ee-7332-4f7f-8ee0-63bd07cfd7e4"),
+                            AllPermissions = false,
+                            Description = "Has read only access to the Exhibit",
+                            Name = "Member",
+                            Permissions = new[] { 0, 1 }
+                        });
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitTeamEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -302,6 +492,53 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .IsUnique();
 
                     b.ToTable("exhibit_teams");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.GroupEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("groups");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.GroupMembershipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GroupId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("group_memberships");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.PermissionEntity", b =>
@@ -350,6 +587,71 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .IsUnique();
 
                     b.ToTable("permissions");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.SystemRoleEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<bool>("AllPermissions")
+                        .HasColumnType("boolean")
+                        .HasColumnName("all_permissions");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("Immutable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("immutable");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<int[]>("Permissions")
+                        .HasColumnType("integer[]")
+                        .HasColumnName("permissions");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("system_roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("f35e8fff-f996-4cba-b303-3ba515ad8d2f"),
+                            AllPermissions = true,
+                            Description = "Can perform all actions",
+                            Immutable = true,
+                            Name = "Administrator",
+                            Permissions = new int[0]
+                        },
+                        new
+                        {
+                            Id = new Guid("d80b73c3-95d7-4468-8650-c62bbd082507"),
+                            AllPermissions = false,
+                            Description = "Can create and manage their own Exhibit Templates and Exhibits.",
+                            Immutable = false,
+                            Name = "Content Developer",
+                            Permissions = new[] { 0, 4, 7 }
+                        },
+                        new
+                        {
+                            Id = new Guid("1da3027e-725d-4753-9455-a836ed9bdb1e"),
+                            AllPermissions = false,
+                            Description = "Can View all Exhibit Templates and Exhibits, but cannot make any changes.",
+                            Immutable = false,
+                            Name = "Observer",
+                            Permissions = new[] { 1, 5, 8, 10, 12 }
+                        });
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
@@ -626,10 +928,16 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<Guid?>("RoleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("role_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Id")
                         .IsUnique();
+
+                    b.HasIndex("RoleId");
 
                     b.ToTable("users");
                 });
@@ -694,6 +1002,37 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("Collection");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.CollectionMembershipEntity", b =>
+                {
+                    b.HasOne("Gallery.Api.Data.Models.CollectionEntity", "Collection")
+                        .WithMany("Memberships")
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.GroupEntity", "Group")
+                        .WithMany("CollectionMemberships")
+                        .HasForeignKey("GroupId");
+
+                    b.HasOne("Gallery.Api.Data.Models.CollectionRoleEntity", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.UserEntity", "User")
+                        .WithMany("CollectionMemberships")
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Collection");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitEntity", b =>
                 {
                     b.HasOne("Gallery.Api.Data.Models.CollectionEntity", "Collection")
@@ -703,6 +1042,37 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .IsRequired();
 
                     b.Navigation("Collection");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitMembershipEntity", b =>
+                {
+                    b.HasOne("Gallery.Api.Data.Models.ExhibitEntity", "Exhibit")
+                        .WithMany("Memberships")
+                        .HasForeignKey("ExhibitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.GroupEntity", "Group")
+                        .WithMany("ExhibitMemberships")
+                        .HasForeignKey("GroupId");
+
+                    b.HasOne("Gallery.Api.Data.Models.ExhibitRoleEntity", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.UserEntity", "User")
+                        .WithMany("ExhibitMemberships")
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Exhibit");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitTeamEntity", b =>
@@ -722,6 +1092,25 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("Exhibit");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.GroupMembershipEntity", b =>
+                {
+                    b.HasOne("Gallery.Api.Data.Models.GroupEntity", "Group")
+                        .WithMany("Memberships")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gallery.Api.Data.Models.UserEntity", "User")
+                        .WithMany("GroupMemberships")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.TeamArticleEntity", b =>
@@ -826,6 +1215,15 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.UserEntity", b =>
+                {
+                    b.HasOne("Gallery.Api.Data.Models.SystemRoleEntity", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.UserPermissionEntity", b =>
                 {
                     b.HasOne("Gallery.Api.Data.Models.PermissionEntity", "Permission")
@@ -835,7 +1233,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .IsRequired();
 
                     b.HasOne("Gallery.Api.Data.Models.UserEntity", "User")
-                        .WithMany("UserPermissions")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -850,9 +1248,25 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                     b.Navigation("TeamArticles");
                 });
 
+            modelBuilder.Entity("Gallery.Api.Data.Models.CollectionEntity", b =>
+                {
+                    b.Navigation("Memberships");
+                });
+
             modelBuilder.Entity("Gallery.Api.Data.Models.ExhibitEntity", b =>
                 {
+                    b.Navigation("Memberships");
+
                     b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("Gallery.Api.Data.Models.GroupEntity", b =>
+                {
+                    b.Navigation("CollectionMemberships");
+
+                    b.Navigation("ExhibitMemberships");
+
+                    b.Navigation("Memberships");
                 });
 
             modelBuilder.Entity("Gallery.Api.Data.Models.PermissionEntity", b =>
@@ -869,9 +1283,13 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
 
             modelBuilder.Entity("Gallery.Api.Data.Models.UserEntity", b =>
                 {
-                    b.Navigation("TeamUsers");
+                    b.Navigation("CollectionMemberships");
 
-                    b.Navigation("UserPermissions");
+                    b.Navigation("ExhibitMemberships");
+
+                    b.Navigation("GroupMemberships");
+
+                    b.Navigation("TeamUsers");
                 });
 #pragma warning restore 612, 618
         }

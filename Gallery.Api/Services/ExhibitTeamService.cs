@@ -47,9 +47,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.ExhibitTeam>> GetAsync(CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var items = await _context.ExhibitTeams
                 .ToListAsync(ct);
 
@@ -58,9 +55,6 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.ExhibitTeam> GetAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var item = await _context.ExhibitTeams
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
 
@@ -69,8 +63,6 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new BaseUserRequirement())).Succeeded)
-                throw new ForbiddenException();
             var items = await _context.ExhibitTeams
                 .Where(et => et.ExhibitId == exhibitId)
                 .ToListAsync(ct);
@@ -80,16 +72,8 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
-            exhibitTeam.DateCreated = DateTime.UtcNow;
-            exhibitTeam.CreatedBy = _user.GetId();
-            exhibitTeam.DateModified = null;
-            exhibitTeam.ModifiedBy = null;
             var exhibitTeamEntity = _mapper.Map<ExhibitTeamEntity>(exhibitTeam);
             exhibitTeamEntity.Id = exhibitTeamEntity.Id != Guid.Empty ? exhibitTeamEntity.Id : Guid.NewGuid();
-
             _context.ExhibitTeams.Add(exhibitTeamEntity);
             await _context.SaveChangesAsync(ct);
 
@@ -98,11 +82,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitTeamToDelete = await _context.ExhibitTeams.SingleOrDefaultAsync(v => v.Id == id, ct);
-
             if (exhibitTeamToDelete == null)
                 throw new EntityNotFoundException<ExhibitTeam>();
 
@@ -114,11 +94,7 @@ namespace Gallery.Api.Services
 
         public async Task<bool> DeleteByIdsAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync(_user, null, new ContentDeveloperRequirement())).Succeeded)
-                throw new ForbiddenException();
-
             var exhibitTeamToDelete = await _context.ExhibitTeams.SingleOrDefaultAsync(v => (v.TeamId == teamId) && (v.ExhibitId == exhibitId), ct);
-
             if (exhibitTeamToDelete == null)
                 throw new EntityNotFoundException<ExhibitTeam>();
 
@@ -130,4 +106,3 @@ namespace Gallery.Api.Services
 
     }
 }
-
