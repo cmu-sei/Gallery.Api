@@ -48,19 +48,22 @@ namespace Gallery.Api.Services
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
+        private readonly IUserClaimsService _userClaimsService;
 
         public ExhibitService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
             IMapper mapper,
-            IUserArticleService userArticleService)
+            IUserArticleService userArticleService,
+            IUserClaimsService userClaimsService)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
             _userArticleService = userArticleService;
+            _userClaimsService = userClaimsService;
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct)
@@ -156,17 +159,25 @@ namespace Gallery.Api.Services
             if (collection == null)
                 throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
 
+            var userId = _user.GetId();
             exhibit.Name = exhibit.Name.IsNullOrEmpty() ? collection.Name : exhibit.Name;
             exhibit.Description = exhibit.Description.IsNullOrEmpty() ? collection.Description : exhibit.Description;
             exhibit.DateCreated = DateTime.UtcNow;
-            exhibit.CreatedBy = _user.GetId();
+            exhibit.CreatedBy = userId;
             exhibit.DateModified = null;
             exhibit.ModifiedBy = null;
             var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
-
             _context.Exhibits.Add(exhibitEntity);
             await _context.SaveChangesAsync(ct);
+            var createOwnerMembership = new ExhibitMembershipEntity() {
+                UserId = userId,
+                ExhibitId = exhibitEntity.Id,
+                RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
+            };
+            await _context.ExhibitMemberships.AddAsync(createOwnerMembership, ct);
+            await _context.SaveChangesAsync(ct);
+            await _userClaimsService.RefreshClaims(userId);
             exhibit = await GetAsync(exhibitEntity.Id, false, ct);
 
             return exhibit;
@@ -325,6 +336,14 @@ namespace Gallery.Api.Services
                 await _context.TeamArticles.AddAsync(teamArticle, ct);
             }
             await _context.SaveChangesAsync(ct);
+            var createOwnerMembership = new ExhibitMembershipEntity() {
+                UserId = currentUserId,
+                ExhibitId = newExhibitId,
+                RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
+            };
+            await _context.ExhibitMemberships.AddAsync(createOwnerMembership, ct);
+            await _context.SaveChangesAsync(ct);
+            await _userClaimsService.RefreshClaims(currentUserId);
 
             // get the new Exhibit to return
             var exhibitEntity = await _context.Exhibits
