@@ -40,18 +40,18 @@ namespace Gallery.Api.Services
     public class CollectionService : ICollectionService
     {
         private readonly GalleryDbContext _context;
-        private readonly IAuthorizationService _authorizationService;
+        private readonly IUserClaimsService _userClaimsService;
         private readonly ClaimsPrincipal _user;
         private readonly IMapper _mapper;
 
         public CollectionService(
             GalleryDbContext context,
-            IAuthorizationService authorizationService,
+            IUserClaimsService userClaimsService,
             IPrincipal user,
             IMapper mapper)
         {
             _context = context;
-            _authorizationService = authorizationService;
+            _userClaimsService = userClaimsService;
             _user = user as ClaimsPrincipal;
             _mapper = mapper;
         }
@@ -97,10 +97,20 @@ namespace Gallery.Api.Services
         public async Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct)
         {
             var collectionEntity = _mapper.Map<CollectionEntity>(collection);
+            var userId = _user.GetId();
             collectionEntity.Id = collectionEntity.Id != Guid.Empty ? collectionEntity.Id : Guid.NewGuid();
+            collectionEntity.CreatedBy = userId;
 
             _context.Collections.Add(collectionEntity);
             await _context.SaveChangesAsync(ct);
+            var createOwnerMembership = new CollectionMembershipEntity() {
+                UserId = _user.GetId(),
+                CollectionId = collectionEntity.Id,
+                RoleId = CollectionRoleEntityDefaults.CollectionCreatorRoleId
+            };
+            await _context.CollectionMemberships.AddAsync(createOwnerMembership, ct);
+            await _context.SaveChangesAsync(ct);
+            await _userClaimsService.RefreshClaims(userId);
             collection = await GetAsync(collectionEntity.Id, ct);
 
             return collection;
@@ -135,7 +145,7 @@ namespace Gallery.Api.Services
             CancellationToken ct)
         {
             var currentUserId = _user.GetId();
-            var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == _user.GetId())).Name;
+            var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == currentUserId)).Name;
             var oldCollectionId = collectionEntity.Id;
             var newCollectionId = Guid.NewGuid();
             var dateCreated = DateTime.UtcNow;
@@ -171,6 +181,14 @@ namespace Gallery.Api.Services
                 await _context.Articles.AddAsync(articleEntity, ct);
             }
             await _context.SaveChangesAsync(ct);
+            var createOwnerMembership = new CollectionMembershipEntity() {
+                UserId = currentUserId,
+                CollectionId = collectionEntity.Id,
+                RoleId = CollectionRoleEntityDefaults.CollectionCreatorRoleId
+            };
+            await _context.CollectionMemberships.AddAsync(createOwnerMembership, ct);
+            await _context.SaveChangesAsync(ct);
+            await _userClaimsService.RefreshClaims(currentUserId);
 
             // get the new Collection to return
             collectionEntity = await _context.Collections
@@ -244,6 +262,7 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<Collection>();
 
             _mapper.Map(collection, collectionToUpdate);
+            collectionToUpdate.ModifiedBy = _user.GetId();
 
             _context.Collections.Update(collectionToUpdate);
             await _context.SaveChangesAsync(ct);
