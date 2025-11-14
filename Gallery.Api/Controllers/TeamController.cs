@@ -57,7 +57,7 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> GetByExhibit([FromRoute] Guid exhibitId, CancellationToken ct)
         {
             var checkForTeamMembership = false;
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
                 checkForTeamMembership = true;
 
             var list = await _teamService.GetByExhibitAsync(exhibitId, checkForTeamMembership, ct);
