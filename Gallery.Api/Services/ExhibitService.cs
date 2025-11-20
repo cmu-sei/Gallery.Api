@@ -160,8 +160,8 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
 
             var userId = _user.GetId();
-            exhibit.Name = exhibit.Name.IsNullOrEmpty() ? collection.Name : exhibit.Name;
-            exhibit.Description = exhibit.Description.IsNullOrEmpty() ? collection.Description : exhibit.Description;
+            exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
+            exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
             exhibit.DateCreated = DateTime.UtcNow;
             exhibit.CreatedBy = userId;
             exhibit.DateModified = null;
