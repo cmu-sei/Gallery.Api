@@ -52,7 +52,8 @@ namespace Gallery.Api.Infrastructure.Extensions
                             env.ContentRootPath,
                             databaseOptions.SeedFile
                         );
-                        if (File.Exists(seedFile)) {
+                        if (File.Exists(seedFile))
+                        {
                             var seedDataOptions = services.GetService<SeedDataOptions>();
                             ProcessSeedDataOptions(seedDataOptions, ctx);
                             MoveExhibitTeamsToIndividualTeams(ctx);
@@ -178,11 +179,12 @@ namespace Gallery.Api.Infrastructure.Extensions
             {
                 var dbArticles = context.Articles.ToList();
 
-                foreach (ArticleEntity articles in options.Articles)
+                foreach (ArticleEntity article in options.Articles)
                 {
-                    if (!dbArticles.Where(x => x.Id == articles.Id).Any())
+                    if (!dbArticles.Where(x => x.Id == article.Id).Any())
                     {
-                        context.Articles.Add(articles);
+                        article.DatePosted = article.DatePosted.Kind == DateTimeKind.Utc ? article.DatePosted : DateTime.SpecifyKind(article.DatePosted, DateTimeKind.Utc);
+                        context.Articles.Add(article);
                     }
                 }
                 context.SaveChanges();
