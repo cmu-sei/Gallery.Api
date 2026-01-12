@@ -17,7 +17,6 @@ using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.VisualBasic;
 
 namespace Gallery.Api.Services
 {
