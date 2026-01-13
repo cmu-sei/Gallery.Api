@@ -58,6 +58,7 @@ namespace Gallery.Api.Data
             }
 
         }
+
         public override int SaveChanges()
         {
             UpdateBaseEntityFields();
