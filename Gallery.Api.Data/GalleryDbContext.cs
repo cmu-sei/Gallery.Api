@@ -8,6 +8,9 @@ using Gallery.Api.Data.Extensions;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Gallery.Api.Data
 {
@@ -15,6 +18,9 @@ namespace Gallery.Api.Data
     {
         // Needed for EventInterceptor
         public IServiceProvider ServiceProvider;
+
+        // Entity Events collected by EventTransactionInterceptor and published in SaveChanges
+        public List<INotification> Events { get; } = [];
 
         public GalleryDbContext(DbContextOptions<GalleryDbContext> options)
             : base(options) { }
@@ -52,7 +58,24 @@ namespace Gallery.Api.Data
             }
 
         }
+
+        public override int SaveChanges()
+        {
+            UpdateBaseEntityFields();
+            var result = base.SaveChanges();
+            PublishEvents().Wait();
+            return result;
+        }
+
         public override async Task<int> SaveChangesAsync(CancellationToken ct = default(CancellationToken))
+        {
+            UpdateBaseEntityFields();
+            var result = await base.SaveChangesAsync(ct);
+            await PublishEvents(ct);
+            return result;
+        }
+
+        private void UpdateBaseEntityFields()
         {
             var addedEntries = ChangeTracker.Entries().Where(x => x.State == EntityState.Added);
             var modifiedEntries = ChangeTracker.Entries().Where(x => x.State == EntityState.Modified);
@@ -80,7 +103,22 @@ namespace Gallery.Api.Data
                 catch
                 { }
             }
-            return await base.SaveChangesAsync(ct);
+        }
+
+        private async Task PublishEvents(CancellationToken cancellationToken = default)
+        {
+            // Publish deferred events after transaction is committed and cleared
+            if (Events.Count > 0 && ServiceProvider is not null)
+            {
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                var eventsToPublish = Events.ToArray();
+                Events.Clear();
+
+                foreach (var evt in eventsToPublish)
+                {
+                    await mediator.Publish(evt, cancellationToken);
+                }
+            }
         }
     }
 }
