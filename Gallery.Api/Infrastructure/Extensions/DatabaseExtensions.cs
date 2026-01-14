@@ -48,13 +48,28 @@ namespace Gallery.Api.Infrastructure.Extensions
                         }
 
                         IHostEnvironment env = services.GetService<IHostEnvironment>();
+                        IConfiguration configuration = services.GetService<IConfiguration>();
                         string seedFile = Path.Combine(
                             env.ContentRootPath,
                             databaseOptions.SeedFile
                         );
+
+                        SeedDataOptions seedDataOptions = null;
+
+                        // Try to load from seed file first
                         if (File.Exists(seedFile))
                         {
-                            var seedDataOptions = services.GetService<SeedDataOptions>();
+                            seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(File.ReadAllText(seedFile));
+                        }
+                        // Fall back to SeedData section in appsettings.json
+                        else
+                        {
+                            seedDataOptions = new SeedDataOptions();
+                            configuration.GetSection("SeedData").Bind(seedDataOptions);
+                        }
+
+                        if (seedDataOptions != null)
+                        {
                             ProcessSeedDataOptions(seedDataOptions, ctx);
                             MoveExhibitTeamsToIndividualTeams(ctx);
                         }
@@ -133,19 +148,6 @@ namespace Gallery.Api.Infrastructure.Extensions
                     }
                 }
 
-                context.SaveChanges();
-            }
-            if (options.Users != null && options.Users.Any())
-            {
-                var dbUsers = context.Users.ToList();
-
-                foreach (UserEntity user in options.Users)
-                {
-                    if (!dbUsers.Where(x => x.Id == user.Id).Any())
-                    {
-                        context.Users.Add(user);
-                    }
-                }
                 context.SaveChanges();
             }
             if (options.Collections != null && options.Collections.Any())

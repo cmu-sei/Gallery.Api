@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
     "title": "Gallery API",
     "version": "v1"
@@ -27,7 +27,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -90,7 +90,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -153,7 +153,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -216,7 +216,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -252,7 +252,7 @@
           "Article"
         ],
         "summary": "Updates an Article",
-        "description": "Updates a Article with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the article parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a Article with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the article parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateArticle",
         "parameters": [
           {
@@ -288,7 +288,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -324,7 +324,7 @@
           "Article"
         ],
         "summary": "Deletes an Article",
-        "description": "Deletes an Article with the specified id\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Deletes an Article with the specified id\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "deleteArticle",
         "parameters": [
           {
@@ -340,7 +340,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -361,7 +361,7 @@
           "Article"
         ],
         "summary": "Creates a new Article",
-        "description": "Creates a new Article with the attributes specified\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Creates a new Article with the attributes specified\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "createArticle",
         "requestBody": {
           "description": "The data used to create the Article",
@@ -385,7 +385,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -427,7 +427,7 @@
         "operationId": "getCards",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -472,7 +472,7 @@
           "Card"
         ],
         "summary": "Creates a new Card",
-        "description": "Creates a new Card with the attributes specified\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Creates a new Card with the attributes specified\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "createCard",
         "requestBody": {
           "description": "The data used to create the Card",
@@ -496,7 +496,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -550,7 +550,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -613,7 +613,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -686,7 +686,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -749,7 +749,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -785,7 +785,7 @@
           "Card"
         ],
         "summary": "Updates a  Card",
-        "description": "Updates a Card with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the card parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a Card with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the card parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateCard",
         "parameters": [
           {
@@ -821,7 +821,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -857,7 +857,7 @@
           "Card"
         ],
         "summary": "Deletes a  Card",
-        "description": "Deletes a  Card with the specified id\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Deletes a  Card with the specified id\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "deleteCard",
         "parameters": [
           {
@@ -873,7 +873,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -898,7 +898,7 @@
         "operationId": "getCollections",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -943,7 +943,7 @@
           "Collection"
         ],
         "summary": "Creates a new Collection",
-        "description": "Creates a new Collection with the attributes specified\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Creates a new Collection with the attributes specified\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "createCollection",
         "requestBody": {
           "description": "The data used to create the Collection",
@@ -967,7 +967,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1009,7 +1009,7 @@
         "operationId": "getMyCollections",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1072,7 +1072,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1108,7 +1108,7 @@
           "Collection"
         ],
         "summary": "Updates a  Collection",
-        "description": "Updates a Collection with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the collection parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a Collection with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the collection parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateCollection",
         "parameters": [
           {
@@ -1144,7 +1144,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1180,7 +1180,7 @@
           "Collection"
         ],
         "summary": "Deletes a  Collection",
-        "description": "Deletes a  Collection with the specified id\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Deletes a  Collection with the specified id\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "deleteCollection",
         "parameters": [
           {
@@ -1196,7 +1196,623 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/{id}/copy": {
+      "post": {
+        "tags": [
+          "Collection"
+        ],
+        "summary": "Creates a new Collection by copying an existing Collection",
+        "description": "Creates a new Collection from the specified existing Collection\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
+        "operationId": "copyCollection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The ID of the Collection to be copied",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/json": {
+      "post": {
+        "tags": [
+          "Collection"
+        ],
+        "summary": "Upload a json Collection file",
+        "operationId": "uploadJsonFiles",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ToUpload": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ToUpload": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/{id}/json": {
+      "get": {
+        "tags": [
+          "Collection"
+        ],
+        "summary": "Download a Collection by id as json file",
+        "operationId": "downloadJson",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the collection",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/memberships/{id}": {
+      "get": {
+        "tags": [
+          "CollectionMemberships"
+        ],
+        "summary": "Get a single CollectionMembership.",
+        "operationId": "GetCollectionMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of a CollectionMembership.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CollectionMemberships"
+        ],
+        "summary": "Updates a CollectionMembership",
+        "description": "Updates a CollectionMembership with the attributes specified",
+        "operationId": "updateCollectionMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The Id of the Exericse to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The updated CollectionMembership values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CollectionMemberships"
+        ],
+        "summary": "Delete a Collection Membership.",
+        "operationId": "DeleteCollectionMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/{id}/memberships": {
+      "get": {
+        "tags": [
+          "CollectionMemberships"
+        ],
+        "summary": "Get all CollectionMemberships.",
+        "operationId": "GetAllCollectionMemberships",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionMembership"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionMembership"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionMembership"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collections/{collectionId}/memberships": {
+      "post": {
+        "tags": [
+          "CollectionMemberships"
+        ],
+        "summary": "Create a new Collection Membership.",
+        "operationId": "CreateCollectionMembership",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionMembership"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collection-permissions": {
+      "get": {
+        "tags": [
+          "CollectionPermissions"
+        ],
+        "summary": "Get all SystemPermissions for the calling User.",
+        "operationId": "GetMyCollectionPermissions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionPermissionClaim"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionPermissionClaim"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionPermissionClaim"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collection-roles/{id}": {
+      "get": {
+        "tags": [
+          "CollectionRoles"
+        ],
+        "summary": "Get a single CollectionRole.",
+        "operationId": "GetCollectionRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of a CollectionRole.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionRole"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionRole"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionRole"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/collection-roles": {
+      "get": {
+        "tags": [
+          "CollectionRoles"
+        ],
+        "summary": "Get all CollectionRoles.",
+        "operationId": "GetAllCollectionRoles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionRole"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionRole"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionRole"
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response",
@@ -1221,7 +1837,7 @@
         "operationId": "getExhibits",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1266,7 +1882,7 @@
           "Exhibit"
         ],
         "summary": "Creates a new Exhibit",
-        "description": "Creates a new Exhibit with the attributes specified\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Creates a new Exhibit with the attributes specified\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "createExhibit",
         "requestBody": {
           "description": "The data used to create the Exhibit",
@@ -1290,7 +1906,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1327,12 +1943,75 @@
         "tags": [
           "Exhibit"
         ],
-        "summary": "Get User's Exhibits",
+        "summary": "Get My Exhibits",
         "description": "Returns a list of Exhibits.",
         "operationId": "getMyExhibits",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exhibit"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/exhibits": {
+      "get": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Get User Exhibits",
+        "description": "Returns a list of Exhibits.",
+        "operationId": "getUserExhibits",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1395,7 +2074,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1458,7 +2137,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1521,7 +2200,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1557,7 +2236,7 @@
           "Exhibit"
         ],
         "summary": "Updates an Exhibit",
-        "description": "Updates an Exhibit with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the exhibit parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates an Exhibit with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the exhibit parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateExhibit",
         "parameters": [
           {
@@ -1593,7 +2272,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1629,7 +2308,7 @@
           "Exhibit"
         ],
         "summary": "Deletes an Exhibit",
-        "description": "Deletes an Exhibit with the specified id\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Deletes an Exhibit with the specified id\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "deleteExhibit",
         "parameters": [
           {
@@ -1645,7 +2324,61 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibits/{id}/copy": {
+      "post": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Creates a new Exhibit by copying an existing Exhibit",
+        "description": "Creates a new Exhibit from the specified existing Exhibit\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
+        "operationId": "copyExhibit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The ID of the Exhibit to be copied",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response",
@@ -1702,7 +2435,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1734,17 +2467,579 @@
         }
       }
     },
+    "/api/exhibits/json": {
+      "post": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Upload a json Exhibit file",
+        "operationId": "uploadJsonFiles",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ToUpload": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ToUpload": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibits/{id}/json": {
+      "get": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Download a Exhibit by id as json file",
+        "operationId": "downloadJson",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the exhibit",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibits/memberships/{id}": {
+      "get": {
+        "tags": [
+          "ExhibitMemberships"
+        ],
+        "summary": "Get a single ExhibitMembership.",
+        "operationId": "GetExhibitMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of a ExhibitMembership.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ExhibitMemberships"
+        ],
+        "summary": "Updates a ExhibitMembership",
+        "description": "Updates a ExhibitMembership with the attributes specified",
+        "operationId": "updateExhibitMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The Id of the Exericse to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The updated ExhibitMembership values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ExhibitMemberships"
+        ],
+        "summary": "Delete a Exhibit Membership.",
+        "operationId": "DeleteExhibitMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibits/{id}/memberships": {
+      "get": {
+        "tags": [
+          "ExhibitMemberships"
+        ],
+        "summary": "Get all ExhibitMemberships.",
+        "operationId": "GetAllExhibitMemberships",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitMembership"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitMembership"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitMembership"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibits/{exhibitId}/memberships": {
+      "post": {
+        "tags": [
+          "ExhibitMemberships"
+        ],
+        "summary": "Create a new Exhibit Membership.",
+        "operationId": "CreateExhibitMembership",
+        "parameters": [
+          {
+            "name": "exhibitId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhibitMembership"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibit-permissions": {
+      "get": {
+        "tags": [
+          "ExhibitPermissions"
+        ],
+        "summary": "Get all SystemPermissions for the calling User.",
+        "operationId": "GetMyExhibitPermissions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitPermissionClaim"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitPermissionClaim"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitPermissionClaim"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibit-roles/{id}": {
+      "get": {
+        "tags": [
+          "ExhibitRoles"
+        ],
+        "summary": "Get a single ExhibitRole.",
+        "operationId": "GetExhibitRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of a ExhibitRole.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitRole"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitRole"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExhibitRole"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibit-roles": {
+      "get": {
+        "tags": [
+          "ExhibitRoles"
+        ],
+        "summary": "Get all ExhibitRoles.",
+        "operationId": "GetAllExhibitRoles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRole"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRole"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRole"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exhibitteams": {
       "get": {
         "tags": [
           "ExhibitTeam"
         ],
         "summary": "Gets all ExhibitTeams in the system",
-        "description": "Returns a list of all of the ExhibitTeams in the system.\r\n<para />\r\nOnly accessible to a SuperTeam",
+        "description": "Returns a list of all of the ExhibitTeams in the system.",
         "operationId": "getExhibitTeams",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1789,7 +3084,7 @@
           "ExhibitTeam"
         ],
         "summary": "Creates a new ExhibitTeam",
-        "description": "Creates a new ExhibitTeam with the attributes specified\r\n<para />\r\nAccessible only to a SuperTeam",
+        "description": "Creates a new ExhibitTeam with the attributes specified\n<para />\nAccessible only to a SuperTeam",
         "operationId": "createExhibitTeam",
         "requestBody": {
           "description": "The data to create the ExhibitTeam with",
@@ -1813,7 +3108,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1851,7 +3146,7 @@
           "ExhibitTeam"
         ],
         "summary": "Gets a specific ExhibitTeam by id",
-        "description": "Returns the ExhibitTeam with the id specified\r\n<para />\r\nOnly accessible to a SuperTeam",
+        "description": "Returns the ExhibitTeam with the id specified\n<para />\nOnly accessible to a SuperTeam",
         "operationId": "getExhibitTeam",
         "parameters": [
           {
@@ -1867,7 +3162,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1903,7 +3198,7 @@
           "ExhibitTeam"
         ],
         "summary": "Deletes a ExhibitTeam",
-        "description": "Deletes a ExhibitTeam with the specified id\r\n<para />\r\nAccessible only to a SuperTeam",
+        "description": "Deletes a ExhibitTeam with the specified id\n<para />\nAccessible only to a SuperTeam",
         "operationId": "deleteExhibitTeam",
         "parameters": [
           {
@@ -1919,7 +3214,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -1956,7 +3251,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2003,7 +3298,7 @@
           "ExhibitTeam"
         ],
         "summary": "Deletes a ExhibitTeam by team ID and exhibit ID",
-        "description": "Deletes a ExhibitTeam with the specified team ID and exhibit ID\r\n<para />\r\nAccessible only to a SuperTeam",
+        "description": "Deletes a ExhibitTeam with the specified team ID and exhibit ID\n<para />\nAccessible only to a SuperTeam",
         "operationId": "deleteExhibitTeamByIds",
         "parameters": [
           {
@@ -2029,7 +3324,489 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups/{id}": {
+      "get": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Get a single group.",
+        "operationId": "getGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of an group.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Update a group.",
+        "operationId": "updateGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Delete a group.",
+        "operationId": "deleteGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of an group.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Get all groups.",
+        "operationId": "getAllGroups",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Create a new group.",
+        "operationId": "createGroup",
+        "requestBody": {
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Group"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups/memberships/{id}": {
+      "get": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Get a single Group Membership.",
+        "operationId": "GetGroupMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Delete a Group Membership.",
+        "operationId": "DeleteGroupMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups/{groupId}/memberships": {
+      "get": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Get all Group Memberships of a Group.",
+        "operationId": "GetGroupMemberships",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupMembership"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupMembership"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupMembership"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Group"
+        ],
+        "summary": "Create a new Group Membership.",
+        "operationId": "CreateGroupMembership",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembership"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembership"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembership"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembership"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response",
@@ -2054,7 +3831,7 @@
         "operationId": "getLiveliness",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2096,7 +3873,7 @@
         "operationId": "getReadiness",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2138,7 +3915,7 @@
         "operationId": "getVersion",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2170,23 +3947,22 @@
         }
       }
     },
-    "/api/permissions": {
+    "/api/me/systempermissions": {
       "get": {
         "tags": [
-          "Permission"
+          "SystemPermissions"
         ],
-        "summary": "Gets all Permission in the system",
-        "description": "Returns a list of all of the Permissions in the system.\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getPermissions",
+        "summary": "Get all SystemPermissions for the calling User.",
+        "operationId": "GetMySystemPermissions",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Permission"
+                    "$ref": "#/components/schemas/SystemPermission"
                   }
                 }
               },
@@ -2194,7 +3970,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Permission"
+                    "$ref": "#/components/schemas/SystemPermission"
                   }
                 }
               },
@@ -2202,118 +3978,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Permission"
-        ],
-        "summary": "Creates a new Permission",
-        "description": "Creates a new Permission with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser or an Administrator",
-        "operationId": "createPermission",
-        "requestBody": {
-          "description": "The data to create the Permission with",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Permission"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Permission"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/Permission"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/Permission"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Permission"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Permission"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/my-permissions": {
-      "get": {
-        "tags": [
-          "Permission"
-        ],
-        "summary": "Gets Permissions for the current user",
-        "description": "Returns a list of the current user's Permissions.",
-        "operationId": "getMyPermissions",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
+                    "$ref": "#/components/schemas/SystemPermission"
                   }
                 }
               }
@@ -2332,81 +3997,18 @@
         }
       }
     },
-    "/api/users/{userId}/permissions": {
+    "/api/system-roles/{id}": {
       "get": {
         "tags": [
-          "Permission"
+          "SystemRoles"
         ],
-        "summary": "Gets Permissions for the specified user",
-        "description": "Returns a list of the specified user's Permissions.\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getPermissionsByUser",
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Permission"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/permissions/{id}": {
-      "get": {
-        "tags": [
-          "Permission"
-        ],
-        "summary": "Gets a specific Permission by id",
-        "description": "Returns the Permission with the id specified\r\n<para />\r\nAccessible to a SuperUser or a User that is a member of a Team within the specified Permission",
-        "operationId": "getPermission",
+        "summary": "Get a single SystemRole.",
+        "operationId": "GetSystemRole",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "The id of the Permission",
+            "description": "ID of a SystemRole.",
             "required": true,
             "schema": {
               "type": "string",
@@ -2416,21 +4018,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               }
             }
@@ -2449,16 +4051,15 @@
       },
       "put": {
         "tags": [
-          "Permission"
+          "SystemRoles"
         ],
-        "summary": "Updates a Permission",
-        "description": "Updates a Permission with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser or a User on an Admin Team within the specified Permission",
-        "operationId": "updatePermission",
+        "summary": "Update a SystemRole.",
+        "operationId": "UpdateSystemRole",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "The Id of the Exericse to update",
+            "description": "ID of an SystemRole.",
             "required": true,
             "schema": {
               "type": "string",
@@ -2467,42 +4068,42 @@
           }
         ],
         "requestBody": {
-          "description": "The updated Permission values",
+          "description": "",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Permission"
+                "$ref": "#/components/schemas/SystemRole"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Permission"
+                "$ref": "#/components/schemas/SystemRole"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Permission"
+                "$ref": "#/components/schemas/SystemRole"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Permission"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               }
             }
@@ -2521,16 +4122,15 @@
       },
       "delete": {
         "tags": [
-          "Permission"
+          "SystemRoles"
         ],
-        "summary": "Deletes a Permission",
-        "description": "Deletes a Permission with the specified id\r\n<para />\r\nAccessible only to a SuperUser or a User on an Admin Team within the specified Permission",
-        "operationId": "deletePermission",
+        "summary": "Delete a SystemRole.",
+        "operationId": "DeleteSystemRole",
         "parameters": [
           {
             "name": "id",
             "in": "path",
-            "description": "The id of the Permission to delete",
+            "description": "ID of an SystemRole.",
             "required": true,
             "schema": {
               "type": "string",
@@ -2540,7 +4140,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -2555,23 +4155,22 @@
         }
       }
     },
-    "/api/teams": {
+    "/api/system-roles": {
       "get": {
         "tags": [
-          "Team"
+          "SystemRoles"
         ],
-        "summary": "Gets all Team in the system",
-        "description": "Returns a list of all of the Teams in the system.\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getTeams",
+        "summary": "Get all SystemRoles.",
+        "operationId": "GetAllSystemRoles",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Team"
+                    "$ref": "#/components/schemas/SystemRole"
                   }
                 }
               },
@@ -2579,7 +4178,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Team"
+                    "$ref": "#/components/schemas/SystemRole"
                   }
                 }
               },
@@ -2587,7 +4186,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Team"
+                    "$ref": "#/components/schemas/SystemRole"
                   }
                 }
               }
@@ -2607,48 +4206,47 @@
       },
       "post": {
         "tags": [
-          "Team"
+          "SystemRoles"
         ],
-        "summary": "Creates a new Team",
-        "description": "Creates a new Team with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser or an Administrator",
-        "operationId": "createTeam",
+        "summary": "Create a new SystemRole.",
+        "operationId": "CreateSystemRole",
         "requestBody": {
-          "description": "The data to create the Team with",
+          "description": "",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/SystemRole"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/SystemRole"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/SystemRole"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Team"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Team"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Team"
+                  "$ref": "#/components/schemas/SystemRole"
                 }
               }
             }
@@ -2687,131 +4285,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/{userId}/teams": {
-      "get": {
-        "tags": [
-          "Team"
-        ],
-        "summary": "Gets Teams for the specified user",
-        "description": "Returns a list of the specified user's Teams.\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getTeamsByUser",
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Team"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/cards/{cardId}/teams": {
-      "get": {
-        "tags": [
-          "Team"
-        ],
-        "summary": "Gets Teams for the specified card",
-        "description": "Returns a list of the specified card's Teams.",
-        "operationId": "getTeamsByCard",
-        "parameters": [
-          {
-            "name": "cardId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2873,7 +4347,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2920,7 +4394,7 @@
           "Team"
         ],
         "summary": "Gets a specific Team by id",
-        "description": "Returns the Team with the id specified\r\n<para />\r\nAccessible to a SuperUser or a User that is a member of a Team within the specified Team",
+        "description": "Returns the Team with the id specified\n<para />\nAccessible to a SuperUser or a User that is a member of a Team within the specified Team",
         "operationId": "getTeam",
         "parameters": [
           {
@@ -2936,7 +4410,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -2972,7 +4446,7 @@
           "Team"
         ],
         "summary": "Updates a Team",
-        "description": "Updates a Team with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser or a User on an Admin Team within the specified Team",
+        "description": "Updates a Team with the attributes specified",
         "operationId": "updateTeam",
         "parameters": [
           {
@@ -3008,7 +4482,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3044,7 +4518,7 @@
           "Team"
         ],
         "summary": "Deletes a Team",
-        "description": "Deletes a Team with the specified id\r\n<para />\r\nAccessible only to a SuperUser or a User on an Admin Team within the specified Team",
+        "description": "Deletes a Team with the specified id\n<para />\nAccessible only to a SuperUser or a User on an Admin Team within the specified Team",
         "operationId": "deleteTeam",
         "parameters": [
           {
@@ -3060,7 +4534,69 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams": {
+      "post": {
+        "tags": [
+          "Team"
+        ],
+        "summary": "Creates a new Team",
+        "description": "Creates a new Team with the attributes specified\n<para />\nAccessible only to a SuperUser or an Administrator",
+        "operationId": "createTeam",
+        "requestBody": {
+          "description": "The data to create the Team with",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Team"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Team"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Team"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response",
@@ -3097,7 +4633,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3160,7 +4696,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3207,7 +4743,7 @@
           "TeamArticle"
         ],
         "summary": "Gets a specific TeamArticle by id",
-        "description": "Returns the TeamArticle with the id specified\r\n<para />\r\nOnly accessible to a SuperArticle",
+        "description": "Returns the TeamArticle with the id specified\n<para />\nOnly accessible to a SuperArticle",
         "operationId": "getTeamArticle",
         "parameters": [
           {
@@ -3223,7 +4759,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3259,7 +4795,7 @@
           "TeamArticle"
         ],
         "summary": "Updates an TeamArticle",
-        "description": "Updates a TeamArticle with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the teamArticle parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a TeamArticle with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the teamArticle parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateTeamArticle",
         "parameters": [
           {
@@ -3295,7 +4831,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3331,7 +4867,7 @@
           "TeamArticle"
         ],
         "summary": "Deletes a TeamArticle",
-        "description": "Deletes a TeamArticle with the specified id\r\n<para />\r\nAccessible only to a SuperArticle",
+        "description": "Deletes a TeamArticle with the specified id\n<para />\nAccessible only to a SuperArticle",
         "operationId": "deleteTeamArticle",
         "parameters": [
           {
@@ -3347,7 +4883,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -3368,7 +4904,7 @@
           "TeamArticle"
         ],
         "summary": "Creates a new TeamArticle",
-        "description": "Creates a new TeamArticle with the attributes specified\r\n<para />\r\nAccessible only to a SuperArticle",
+        "description": "Creates a new TeamArticle with the attributes specified",
         "operationId": "createTeamArticle",
         "requestBody": {
           "description": "The data to create the TeamArticle with",
@@ -3392,7 +4928,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3430,7 +4966,7 @@
           "TeamArticle"
         ],
         "summary": "Deletes a TeamArticle by article ID and team ID",
-        "description": "Deletes a TeamArticle with the specified article ID and team ID\r\n<para />\r\nAccessible only to a SuperArticle",
+        "description": "Deletes a TeamArticle with the specified article ID and team ID",
         "operationId": "deleteTeamArticleByIds",
         "parameters": [
           {
@@ -3456,7 +4992,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -3477,11 +5013,11 @@
           "TeamCard"
         ],
         "summary": "Gets all TeamCards in the system",
-        "description": "Returns a list of all of the TeamCards in the system.\r\n<para />\r\nOnly accessible to a SuperCard",
+        "description": "Returns a list of all of the TeamCards in the system.",
         "operationId": "getTeamCards",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3526,7 +5062,7 @@
           "TeamCard"
         ],
         "summary": "Creates a new TeamCard",
-        "description": "Creates a new TeamCard with the attributes specified\r\n<para />\r\nAccessible only to a SuperCard",
+        "description": "Creates a new TeamCard with the attributes specified\n<para />\nAccessible only to a SuperCard",
         "operationId": "createTeamCard",
         "requestBody": {
           "description": "The data to create the TeamCard with",
@@ -3550,7 +5086,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3604,70 +5140,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TeamCard"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TeamCard"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TeamCard"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/cards/{cardId}/teamcards": {
-      "get": {
-        "tags": [
-          "TeamCard"
-        ],
-        "summary": "Gets all TeamCards for a card",
-        "description": "Returns a list of all of the TeamCards for the card.",
-        "operationId": "getCardTeamCards",
-        "parameters": [
-          {
-            "name": "cardId",
-            "in": "path",
-            "description": "The id of the TeamCard",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3740,7 +5213,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3787,7 +5260,7 @@
           "TeamCard"
         ],
         "summary": "Gets a specific TeamCard by id",
-        "description": "Returns the TeamCard with the id specified\r\n<para />\r\nOnly accessible to a SuperCard",
+        "description": "Returns the TeamCard with the id specified",
         "operationId": "getTeamCard",
         "parameters": [
           {
@@ -3803,7 +5276,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3839,7 +5312,7 @@
           "TeamCard"
         ],
         "summary": "Updates an TeamCard",
-        "description": "Updates a TeamCard with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the teamCard parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a TeamCard with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the teamCard parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateTeamCard",
         "parameters": [
           {
@@ -3875,7 +5348,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -3911,7 +5384,7 @@
           "TeamCard"
         ],
         "summary": "Deletes a TeamCard",
-        "description": "Deletes a TeamCard with the specified id\r\n<para />\r\nAccessible only to a SuperCard",
+        "description": "Deletes a TeamCard with the specified id\n<para />\nAccessible only to a SuperCard",
         "operationId": "deleteTeamCard",
         "parameters": [
           {
@@ -3927,7 +5400,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -3948,7 +5421,7 @@
           "TeamCard"
         ],
         "summary": "Deletes a TeamCard by card ID and team ID",
-        "description": "Deletes a TeamCard with the specified card ID and team ID\r\n<para />\r\nAccessible only to a SuperCard",
+        "description": "Deletes a TeamCard with the specified card ID and team ID\n<para />\nAccessible only to a SuperCard",
         "operationId": "deleteTeamCardByIds",
         "parameters": [
           {
@@ -3974,7 +5447,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -3995,7 +5468,7 @@
           "TeamUser"
         ],
         "summary": "Gets TeamUsers for the specified exhibit",
-        "description": "Returns a list of the specified exhibit's TeamUsers.\r\n<para />\r\nOnly accessible to an exhibit user",
+        "description": "Returns a list of the specified exhibit's TeamUsers.\n<para />\nOnly accessible to an exhibit user",
         "operationId": "getExhibitTeamUsers",
         "parameters": [
           {
@@ -4010,7 +5483,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4057,7 +5530,7 @@
           "TeamUser"
         ],
         "summary": "Gets TeamUsers for the specified team",
-        "description": "Returns a list of the specified team's TeamUsers.\r\n<para />\r\nOnly accessible to an exhibit user",
+        "description": "Returns a list of the specified team's TeamUsers.\n<para />\nOnly accessible to an exhibit user",
         "operationId": "getTeamTeamUsers",
         "parameters": [
           {
@@ -4072,7 +5545,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4119,7 +5592,7 @@
           "TeamUser"
         ],
         "summary": "Gets a specific TeamUser by id",
-        "description": "Returns the TeamUser with the id specified\r\n<para />\r\nOnly accessible to a SuperUser",
+        "description": "Returns the TeamUser with the id specified",
         "operationId": "getTeamUser",
         "parameters": [
           {
@@ -4135,7 +5608,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4171,7 +5644,7 @@
           "TeamUser"
         ],
         "summary": "Deletes a TeamUser",
-        "description": "Deletes a TeamUser with the specified id\r\n<para />\r\nAccessible only to a SuperUser",
+        "description": "Deletes a TeamUser with the specified id\n<para />\nAccessible only to a SuperUser",
         "operationId": "deleteTeamUser",
         "parameters": [
           {
@@ -4187,7 +5660,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -4208,7 +5681,7 @@
           "TeamUser"
         ],
         "summary": "Creates a new TeamUser",
-        "description": "Creates a new TeamUser with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser",
+        "description": "Creates a new TeamUser with the attributes specified\n<para />\nAccessible only to a SuperUser",
         "operationId": "createTeamUser",
         "requestBody": {
           "description": "The data to create the TeamUser with",
@@ -4232,7 +5705,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4286,7 +5759,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4340,7 +5813,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4378,7 +5851,7 @@
           "TeamUser"
         ],
         "summary": "Deletes a TeamUser by user ID and team ID",
-        "description": "Deletes a TeamUser with the specified user ID and team ID\r\n<para />\r\nAccessible only to a SuperUser",
+        "description": "Deletes a TeamUser with the specified user ID and team ID\n<para />\nAccessible only to a SuperUser",
         "operationId": "deleteTeamUserByIds",
         "parameters": [
           {
@@ -4404,7 +5877,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -4425,11 +5898,11 @@
           "User"
         ],
         "summary": "Gets all Users in the system",
-        "description": "Returns a list of all of the Users in the system.\r\n<para />\r\nOnly accessible to a SuperUser",
+        "description": "Returns a list of all of the Users in the system.\n<para />\nOnly accessible to a SuperUser",
         "operationId": "getUsers",
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4474,7 +5947,7 @@
           "User"
         ],
         "summary": "Creates a new User",
-        "description": "Creates a new User with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser",
+        "description": "Creates a new User with the attributes specified\n<para />\nAccessible only to a SuperUser",
         "operationId": "createUser",
         "requestBody": {
           "description": "The data to create the User with",
@@ -4498,7 +5971,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4536,7 +6009,7 @@
           "User"
         ],
         "summary": "Gets a specific User by id",
-        "description": "Returns the User with the id specified\r\n<para />\r\nOnly accessible to a SuperUser",
+        "description": "Returns the User with the id specified\n<para />\nOnly accessible to a SuperUser",
         "operationId": "getUser",
         "parameters": [
           {
@@ -4552,7 +6025,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4588,7 +6061,7 @@
           "User"
         ],
         "summary": "Updates a  User",
-        "description": "Updates a User with the attributes specified.\r\nThe ID from the route MUST MATCH the ID contained in the user parameter\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Updates a User with the attributes specified.\nThe ID from the route MUST MATCH the ID contained in the user parameter\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "updateUser",
         "parameters": [
           {
@@ -4624,7 +6097,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4660,7 +6133,7 @@
           "User"
         ],
         "summary": "Deletes a User",
-        "description": "Deletes a User with the specified id\r\n<para />\r\nAccessible only to a SuperUser",
+        "description": "Deletes a User with the specified id\n<para />\nAccessible only to a SuperUser",
         "operationId": "deleteUser",
         "parameters": [
           {
@@ -4676,7 +6149,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -4697,7 +6170,7 @@
           "User"
         ],
         "summary": "Gets all Users for a team",
-        "description": "Returns a list of all of the Users on the team.\r\n<para />\r\nOnly accessible to a SuperUser",
+        "description": "Returns a list of all of the Users on the team.\n<para />\nOnly accessible to a SuperUser",
         "operationId": "getTeamUsers",
         "parameters": [
           {
@@ -4713,7 +6186,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4760,7 +6233,7 @@
           "UserArticle"
         ],
         "summary": "Gets UserArticles for an Exhibit",
-        "description": "Returns a list of UserArticles based on the exhibit's current move and current inject.",
+        "description": "Returns a list of UserArticles for the exhibit.",
         "operationId": "getExhibitUserArticles",
         "parameters": [
           {
@@ -4776,7 +6249,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4849,7 +6322,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4922,7 +6395,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -4960,7 +6433,7 @@
           "UserArticle"
         ],
         "summary": "Creates a new UserArticle",
-        "description": "Creates a new UserArticle with the attributes specified\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Creates a new UserArticle with the attributes specified",
         "operationId": "createUserArticle",
         "requestBody": {
           "description": "The data used to create the UserArticle",
@@ -4984,7 +6457,7 @@
         },
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "Created",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5058,7 +6531,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5132,7 +6605,7 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5170,7 +6643,7 @@
           "UserArticle"
         ],
         "summary": "Deletes a UserArticle",
-        "description": "Deletes a UserArticle with the specified id\r\n<para />\r\nAccessible only to a ContentDeveloper or an Administrator",
+        "description": "Deletes a UserArticle with the specified id\n<para />\nAccessible only to a ContentDeveloper or an Administrator",
         "operationId": "deleteUserArticle",
         "parameters": [
           {
@@ -5186,254 +6659,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Success"
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/userpermissions": {
-      "get": {
-        "tags": [
-          "UserPermission"
-        ],
-        "summary": "Gets all UserPermissions in the system",
-        "description": "Returns a list of all of the UserPermissions in the system.\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getUserPermissions",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserPermission"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserPermission"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserPermission"
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "UserPermission"
-        ],
-        "summary": "Creates a new UserPermission",
-        "description": "Creates a new UserPermission with the attributes specified\r\n<para />\r\nAccessible only to a SuperUser",
-        "operationId": "createUserPermission",
-        "requestBody": {
-          "description": "The data to create the UserPermission with",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserPermission"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserPermission"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserPermission"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/userpermissions/{id}": {
-      "get": {
-        "tags": [
-          "UserPermission"
-        ],
-        "summary": "Gets a specific UserPermission by id",
-        "description": "Returns the UserPermission with the id specified\r\n<para />\r\nOnly accessible to a SuperUser",
-        "operationId": "getUserPermission",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The id of the UserPermission",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermission"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "UserPermission"
-        ],
-        "summary": "Deletes a UserPermission",
-        "description": "Deletes a UserPermission with the specified id\r\n<para />\r\nAccessible only to a SuperUser",
-        "operationId": "deleteUserPermission",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The id of the UserPermission to delete",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Success"
-          },
-          "default": {
-            "description": "Problem response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/{userId}/permissions/{permissionId}": {
-      "delete": {
-        "tags": [
-          "UserPermission"
-        ],
-        "summary": "Deletes a UserPermission by user ID and permission ID",
-        "description": "Deletes a UserPermission with the specified user ID and permission ID\r\n<para />\r\nAccessible only to a SuperUser",
-        "operationId": "deleteUserPermissionByIds",
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "description": "ID of a user.",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "permissionId",
-            "in": "path",
-            "description": "ID of a permission.",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Success"
+            "description": "No Content"
           },
           "default": {
             "description": "Problem response",
@@ -5480,7 +6706,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5517,7 +6743,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5554,7 +6780,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5601,7 +6827,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5648,7 +6874,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5695,7 +6921,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5742,7 +6968,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "OK"
           },
           "default": {
             "description": "Problem response",
@@ -5872,7 +7098,8 @@
           "codeBase": {
             "type": "string",
             "nullable": true,
-            "readOnly": true
+            "readOnly": true,
+            "deprecated": true
           },
           "entryPoint": {
             "$ref": "#/components/schemas/MethodInfo"
@@ -5919,7 +7146,8 @@
           "escapedCodeBase": {
             "type": "string",
             "nullable": true,
-            "readOnly": true
+            "readOnly": true,
+            "deprecated": true
           },
           "manifestModule": {
             "$ref": "#/components/schemas/Module"
@@ -6037,6 +7265,91 @@
           },
           "description": {
             "type": "string",
+            "nullable": true
+          },
+          "collectionPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CollectionMembership": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CollectionPermission": {
+        "enum": [
+          "ViewCollection",
+          "EditCollection",
+          "ManageCollection",
+          "ParticipateCollection"
+        ],
+        "type": "string"
+      },
+      "CollectionPermissionClaim": {
+        "type": "object",
+        "properties": {
+          "collectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectionPermission"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CollectionRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "allPermissions": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectionPermission"
+            },
             "nullable": true
           }
         },
@@ -6314,7 +7627,8 @@
           },
           "message": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "readOnly": true
           },
           "data": {
             "type": "object",
@@ -6385,6 +7699,99 @@
           "scenarioId": {
             "type": "string",
             "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "exhibitPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExhibitMembership": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExhibitPermission": {
+        "enum": [
+          "ViewExhibit",
+          "EditExhibit",
+          "ManageExhibit",
+          "ParticipateExhibit"
+        ],
+        "type": "string"
+      },
+      "ExhibitPermissionClaim": {
+        "type": "object",
+        "properties": {
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExhibitPermission"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExhibitRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "allPermissions": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExhibitPermission"
+            },
             "nullable": true
           }
         },
@@ -6509,7 +7916,8 @@
           },
           "isNotSerialized": {
             "type": "boolean",
-            "readOnly": true
+            "readOnly": true,
+            "deprecated": true
           },
           "isPinvokeImpl": {
             "type": "boolean",
@@ -6574,9 +7982,46 @@
           "ReferenceTypeConstraint",
           "NotNullableValueTypeConstraint",
           "DefaultConstructorConstraint",
-          "SpecialConstraintMask"
+          "SpecialConstraintMask",
+          "AllowByRefLike"
         ],
         "type": "string"
+      },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID of the group.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the group.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GroupMembership": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupId": {
+            "type": "string",
+            "description": "ID of the group.",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Id of the User.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
       },
       "HealthReport": {
         "type": "object",
@@ -6592,7 +8037,8 @@
             "$ref": "#/components/schemas/HealthStatus"
           },
           "totalDuration": {
-            "$ref": "#/components/schemas/TimeSpan"
+            "type": "string",
+            "format": "date-span"
           }
         },
         "additionalProperties": false
@@ -6610,7 +8056,8 @@
             "nullable": true
           },
           "duration": {
-            "$ref": "#/components/schemas/TimeSpan"
+            "type": "string",
+            "format": "date-span"
           },
           "exception": {
             "$ref": "#/components/schemas/Exception"
@@ -6623,7 +8070,8 @@
             "items": {
               "type": "string"
             },
-            "nullable": true
+            "nullable": true,
+            "readOnly": true
           }
         },
         "additionalProperties": false
@@ -6668,16 +8116,16 @@
           "memberType": {
             "$ref": "#/components/schemas/MemberTypes"
           },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
           "declaringType": {
             "$ref": "#/components/schemas/Type"
           },
           "reflectedType": {
             "$ref": "#/components/schemas/Type"
-          },
-          "name": {
-            "type": "string",
-            "nullable": true,
-            "readOnly": true
           },
           "module": {
             "$ref": "#/components/schemas/Module"
@@ -6718,7 +8166,7 @@
       },
       "MethodAttributes": {
         "enum": [
-          "ReuseSlot",
+          "PrivateScope",
           "Private",
           "FamANDAssem",
           "Assembly",
@@ -6880,8 +8328,8 @@
           "IL",
           "Native",
           "OPTIL",
-          "Runtime",
-          "Unmanaged",
+          "CodeTypeMask",
+          "ManagedMask",
           "NoInlining",
           "ForwardRef",
           "Synchronized",
@@ -6890,6 +8338,7 @@
           "AggressiveInlining",
           "AggressiveOptimization",
           "InternalCall",
+          "Async",
           "MaxMethodImplVal"
         ],
         "type": "string"
@@ -7415,6 +8864,52 @@
         },
         "additionalProperties": false
       },
+      "SystemPermission": {
+        "enum": [
+          "CreateCollections",
+          "ViewCollections",
+          "EditCollections",
+          "ManageCollections",
+          "CreateExhibits",
+          "ViewExhibits",
+          "EditExhibits",
+          "ManageExhibits",
+          "ViewUsers",
+          "ManageUsers",
+          "ViewRoles",
+          "ManageRoles",
+          "ViewGroups",
+          "ManageGroups"
+        ],
+        "type": "string"
+      },
+      "SystemRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "allPermissions": {
+            "type": "boolean"
+          },
+          "immutable": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemPermission"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "Team": {
         "type": "object",
         "properties": {
@@ -7612,61 +9107,6 @@
         },
         "additionalProperties": false
       },
-      "TimeSpan": {
-        "type": "object",
-        "properties": {
-          "ticks": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "days": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "hours": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "milliseconds": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "minutes": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "seconds": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "totalDays": {
-            "type": "number",
-            "format": "double",
-            "readOnly": true
-          },
-          "totalHours": {
-            "type": "number",
-            "format": "double",
-            "readOnly": true
-          },
-          "totalMilliseconds": {
-            "type": "number",
-            "format": "double",
-            "readOnly": true
-          },
-          "totalMinutes": {
-            "type": "number",
-            "format": "double",
-            "readOnly": true
-          },
-          "totalSeconds": {
-            "type": "number",
-            "format": "double",
-            "readOnly": true
-          }
-        },
-        "additionalProperties": false
-      },
       "Type": {
         "type": "object",
         "properties": {
@@ -7692,10 +9132,6 @@
             "format": "int32",
             "readOnly": true
           },
-          "isInterface": {
-            "type": "boolean",
-            "readOnly": true
-          },
           "memberType": {
             "$ref": "#/components/schemas/MemberTypes"
           },
@@ -7719,6 +9155,10 @@
           },
           "module": {
             "$ref": "#/components/schemas/Module"
+          },
+          "isInterface": {
+            "type": "boolean",
+            "readOnly": true
           },
           "isNested": {
             "type": "boolean",
@@ -7785,6 +9225,14 @@
             "readOnly": true
           },
           "isByRefLike": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isFunctionPointer": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isUnmanagedFunctionPointer": {
             "type": "boolean",
             "readOnly": true
           },
@@ -7946,7 +9394,8 @@
           },
           "isSerializable": {
             "type": "boolean",
-            "readOnly": true
+            "readOnly": true,
+            "deprecated": true
           },
           "containsGenericParameters": {
             "type": "boolean",
@@ -7968,7 +9417,7 @@
           "NestedFamily",
           "NestedAssembly",
           "NestedFamANDAssem",
-          "NestedFamORAssem",
+          "VisibilityMask",
           "SequentialLayout",
           "ExplicitLayout",
           "LayoutMask",
@@ -7982,7 +9431,7 @@
           "WindowsRuntime",
           "UnicodeClass",
           "AutoClass",
-          "CustomFormatClass",
+          "StringFormatMask",
           "HasSecurity",
           "ReservedMask",
           "BeforeFieldInit",
@@ -8015,10 +9464,6 @@
             "format": "int32",
             "readOnly": true
           },
-          "isInterface": {
-            "type": "boolean",
-            "readOnly": true
-          },
           "memberType": {
             "$ref": "#/components/schemas/MemberTypes"
           },
@@ -8042,6 +9487,10 @@
           },
           "module": {
             "$ref": "#/components/schemas/Module"
+          },
+          "isInterface": {
+            "type": "boolean",
+            "readOnly": true
           },
           "isNested": {
             "type": "boolean",
@@ -8108,6 +9557,14 @@
             "readOnly": true
           },
           "isByRefLike": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isFunctionPointer": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isUnmanagedFunctionPointer": {
             "type": "boolean",
             "readOnly": true
           },
@@ -8269,7 +9726,8 @@
           },
           "isSerializable": {
             "type": "boolean",
-            "readOnly": true
+            "readOnly": true,
+            "deprecated": true
           },
           "containsGenericParameters": {
             "type": "boolean",
@@ -8405,6 +9863,11 @@
             "type": "string",
             "nullable": true
           },
+          "roleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -8464,42 +9927,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "UserPermission": {
-        "type": "object",
-        "properties": {
-          "dateCreated": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "dateModified": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "createdBy": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "modifiedBy": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "permissionId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "additionalProperties": false
       }
     },
     "securitySchemes": {
@@ -8507,8 +9934,8 @@
         "type": "oauth2",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "http://localhost:5000/connect/authorize",
-            "tokenUrl": "http://localhost:5000/connect/token",
+            "authorizationUrl": "http://localhost:8080/realms/crucible/protocol/openid-connect/auth",
+            "tokenUrl": "http://localhost:8080/realms/crucible/protocol/openid-connect/token",
             "scopes": {
               "gallery": "public api access"
             }
@@ -8522,6 +9949,74 @@
       "oauth2": [
         "gallery"
       ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "Article"
+    },
+    {
+      "name": "Card"
+    },
+    {
+      "name": "Collection"
+    },
+    {
+      "name": "CollectionMemberships"
+    },
+    {
+      "name": "CollectionPermissions"
+    },
+    {
+      "name": "CollectionRoles"
+    },
+    {
+      "name": "Exhibit"
+    },
+    {
+      "name": "ExhibitMemberships"
+    },
+    {
+      "name": "ExhibitPermissions"
+    },
+    {
+      "name": "ExhibitRoles"
+    },
+    {
+      "name": "ExhibitTeam"
+    },
+    {
+      "name": "Group"
+    },
+    {
+      "name": "HealthCheck"
+    },
+    {
+      "name": "SystemPermissions"
+    },
+    {
+      "name": "SystemRoles"
+    },
+    {
+      "name": "Team"
+    },
+    {
+      "name": "TeamArticle"
+    },
+    {
+      "name": "TeamCard"
+    },
+    {
+      "name": "TeamUser"
+    },
+    {
+      "name": "User"
+    },
+    {
+      "name": "UserArticle"
+    },
+    {
+      "name": "XApi"
     }
   ]
 }

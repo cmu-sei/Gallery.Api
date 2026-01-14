@@ -19,7 +19,7 @@ Permissions can be applied to Users by grouping them into Roles. There are two t
 - System Roles - Each User can have a System Role applied to them that gives global Permissions across all of Gallery. The three default System Roles are:
 
   - Administrator - Has all Permissions within the system.
-  - Content Developer - Has the `CreateCollections`, `CreateExhibits`, `ExecuteExhibits`, `ManageTasks`, `ViewUsers`, and `ViewGroups` Permissions. Users in this Role can create and manage their own Collections and Exhibits, but not affect any global settings or other User's Collections and Exhibits.
+  - Content Developer - Has the `CreateCollections`, `CreateExhibits` and `ManageExhibits` Permissions. Users in this Role can create and manage their own Collections and Exhibits, but not affect any global settings or other User's Collections and Exhibits.
   - Observer - Has the `ViewCollections` and `ViewExhibits` Permissions.  Users in this role can view all Collections and Exhibits, but cannot make any changes.
 
   Custom System Roles can be created by Users with the `ManageRoles` Permission that include whatever Permissions are desired for that Role. This can be done in the Roles section of the Administration area.
@@ -63,9 +63,9 @@ If you are using Keycloak as your Identity Provider, Roles should work by defaul
 
 # Migration
 
-When moving from a version prior to 3.8.0, the database will be migrated from the old Permissions sytem to the new one. The end result should be no change in access to any existing Users.
+When moving from a version prior to 1.8.0, the database will be migrated from the old Permissions system to the new one. The end result should be no change in access to any existing Users.
 
 - Any existing Users with the old `SystemAdmin` Permission will be migrated to the new `Administrator` Role
-- Any existing Users with the old `ContentDeveloper` Permissions will be migrated to the new `ContentDeveloper` Role
+- Any existing Users with the old `ContentDeveloper` Permissions will be migrated to the new `Content Developer` Role
 
 Be sure to double check all of your Roles and Team Memberships once the migration is complete.
