@@ -54,8 +54,8 @@
   ],
   "TeamUsers": [
     {
-      "Id": "9106ccaf-3fd1-4023-ad3b-f12bda0040f2",
-      "UserId": "9fd3c38e-58b0-4af1-80d1-1895af91f1f9",
+      "Id": "6019ccaf-3fd1-4023-ad3b-f12bda002f04",
+      "UserId": "7493f145-dbcd-4ba8-9020-3aeba55bc2a1",
       "TeamId": "9ce05164-e47b-4dfb-8c5d-b05d76402cd1"
     }
   ],
@@ -63,7 +63,7 @@
     {
       "Id": "e3a41f39-0feb-4eaf-bc1c-6b020b0e934b",
       "Name": "DefaultCollection",
-      "Description":"This is the default collection"
+      "Description": "This is the default collection"
     }
   ],
   "Cards": [
