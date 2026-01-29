@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
 using Gallery.Api.Infrastructure.Options;
 using Gallery.Api.Data;
@@ -59,7 +60,14 @@ namespace Gallery.Api.Infrastructure.Extensions
                         // Try to load from seed file first
                         if (File.Exists(seedFile))
                         {
-                            seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(File.ReadAllText(seedFile));
+                            var jsonOptions = new JsonSerializerOptions
+                            {
+                                Converters = { new JsonStringEnumConverter() }
+                            };
+                            seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(
+                                File.ReadAllText(seedFile),
+                                jsonOptions
+                            );
                         }
                         // Fall back to SeedData section in appsettings.json
                         else
