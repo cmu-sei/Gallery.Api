@@ -32,6 +32,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.JsonWebTokens;
 using AutoMapper.Internal;
+using Crucible.Common.ServiceDefaults;
 
 namespace Gallery.Api;
 
@@ -43,9 +44,11 @@ public class Startup
     private const string _routePrefix = "api";
     private string _pathbase;
     private readonly SignalROptions _signalROptions = new();
+    private readonly IWebHostEnvironment _env;
 
-    public Startup(IConfiguration configuration)
+    public Startup(IConfiguration configuration, IWebHostEnvironment env)
     {
+        _env = env;
         Configuration = configuration;
         Configuration.GetSection("Authorization").Bind(_authOptions);
         Configuration.GetSection("XApiOptions").Bind(_xApiOptions);
@@ -233,6 +236,17 @@ public class Startup
             .AddScoped(config => config.GetService<IOptionsMonitor<ResourceOwnerAuthorizationOptions>>().CurrentValue);
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Startup).Assembly));
+
+        // add Crucible Common Service Defaults with configuration from appsettings
+        services.AddServiceDefaults(_env, Configuration, openTelemetryOptions =>
+        {
+            // Bind configuration from appsettings.json "OpenTelemetry" section
+            var telemetrySection = Configuration.GetSection("OpenTelemetry");
+            if (telemetrySection.Exists())
+            {
+                telemetrySection.Bind(openTelemetryOptions);
+            }
+        });
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
