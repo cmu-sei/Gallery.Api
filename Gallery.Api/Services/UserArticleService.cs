@@ -565,6 +565,7 @@ namespace Gallery.Api.Services
 
                 var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
                 var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
+                var exhibit = await _context.Exhibits.Where(e => e.Id == exhibitId).FirstAsync();
 
                 var teamId = (await _context.TeamUsers
                     .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId)).TeamId;
@@ -594,19 +595,41 @@ namespace Gallery.Api.Services
                 category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
                 //category.Add("moreInfo", "");
 
-                var grouping = new Dictionary<String,String>();
-                grouping.Add("id", card.Id.ToString());
-                grouping.Add("name", card.Name);
-                grouping.Add("description", card.Description);
-                grouping.Add("type", "card");
-                grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+                // Use grouping for move/inject context (scenario phase) - separate entries for each
+                var grouping = new List<Dictionary<String,String>>();
 
+                // Move grouping entry
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", article.Move.ToString());
+                moveGrouping.Add("name", $"Move {article.Move}");
+                moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
+                moveGrouping.Add("type", "move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                // Inject grouping entry
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", article.Inject.ToString());
+                injectGrouping.Add("name", $"Inject {article.Inject}");
+                injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
+                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+
+                // Move card to other context
                 var other = new Dictionary<String,String>();
+                other.Add("id", card.Id.ToString());
+                other.Add("name", card.Name);
+                other.Add("description", card.Description);
+                other.Add("type", "card");
+                other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
 
                 // TODO determine if we should log exhibit as registration
                 return await _xApiService.CreateAsync(
-                    verb, activity, parent, category, grouping, other, teamId, ct);
+                    verb, activity, category, grouping, parent, other, teamId, ct);
 
             }
             return false;

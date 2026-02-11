@@ -270,19 +270,20 @@ namespace Gallery.Api.Services
                 category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
                 category.Add("moreInfo", "");
 
-                var grouping = new Dictionary<String,String>();
-                grouping.Add("id", card.Id.ToString());
-                grouping.Add("name", card.Name);
-                grouping.Add("description", card.Description);
-                grouping.Add("type", "card");
-                grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                grouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+                var cardGrouping = new Dictionary<String,String>();
+                cardGrouping.Add("id", card.Id.ToString());
+                cardGrouping.Add("name", card.Name);
+                cardGrouping.Add("description", card.Description);
+                cardGrouping.Add("type", "card");
+                cardGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                cardGrouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
 
+                var grouping = new List<Dictionary<String,String>> { cardGrouping };
                 var other = new Dictionary<String,String>();
 
                 // TODO determine if we should log exhibit as registration
                 return await _xApiService.CreateAsync(
-                    verb, activity, parent, category, grouping, other, teamId, ct);
+                    verb, activity, category, grouping, parent, other, teamId, ct);
 
             }
             return false;
