@@ -35,7 +35,7 @@ namespace Gallery.Api.Services
             Uri verb,
             Dictionary<String,String> activityData,
             Dictionary<String,String> categoryData,
-            Dictionary<String,String> groupingData,
+            List<Dictionary<String,String>> groupingData,
             Dictionary<String,String> parentData,
             Dictionary<String,String> otherData,
             Guid teamId,
@@ -132,18 +132,40 @@ namespace Gallery.Api.Services
             category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
             category.Add("moreInfo", "");
 
-            var grouping = new Dictionary<String,String>();
-            grouping.Add("id", card.Id.ToString());
-            grouping.Add("name", card.Name);
-            grouping.Add("description", card.Description);
-            grouping.Add("type", "card");
-            grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-            grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
+            // Use grouping for move/inject context (scenario phase) - separate entries for each
+            var grouping = new List<Dictionary<String,String>>();
 
+            // Move grouping entry
+            var moveGrouping = new Dictionary<String,String>();
+            moveGrouping.Add("id", article.Move.ToString());
+            moveGrouping.Add("name", $"Move {article.Move}");
+            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
+            moveGrouping.Add("type", "move");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("moreInfo", "");
+            grouping.Add(moveGrouping);
+
+            // Inject grouping entry
+            var injectGrouping = new Dictionary<String,String>();
+            injectGrouping.Add("id", article.Inject.ToString());
+            injectGrouping.Add("name", $"Inject {article.Inject}");
+            injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
+            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            injectGrouping.Add("moreInfo", "");
+            grouping.Add(injectGrouping);
+
+            // Move card to other context
             var other = new Dictionary<String,String>();
+            other.Add("id", card.Id.ToString());
+            other.Add("name", card.Name);
+            other.Add("description", card.Description);
+            other.Add("type", "card");
+            other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+            other.Add("moreInfo", "/?section=archive&exhibit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
@@ -178,18 +200,40 @@ namespace Gallery.Api.Services
             category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
             category.Add("moreInfo", "");
 
-            var grouping = new Dictionary<String,String>();
-            grouping.Add("id", card.Id.ToString());
-            grouping.Add("name", card.Name);
-            grouping.Add("description", card.Description);
-            grouping.Add("type", "card");
-            grouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-            grouping.Add("moreInfo", "/?section=archive&exhibit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
+            // Use grouping for move/inject context (scenario phase) - separate entries for each
+            var grouping = new List<Dictionary<String,String>>();
 
+            // Move grouping entry
+            var moveGrouping = new Dictionary<String,String>();
+            moveGrouping.Add("id", article.Move.ToString());
+            moveGrouping.Add("name", $"Move {article.Move}");
+            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
+            moveGrouping.Add("type", "move");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("moreInfo", "");
+            grouping.Add(moveGrouping);
+
+            // Inject grouping entry
+            var injectGrouping = new Dictionary<String,String>();
+            injectGrouping.Add("id", article.Inject.ToString());
+            injectGrouping.Add("name", $"Inject {article.Inject}");
+            injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
+            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            injectGrouping.Add("moreInfo", "");
+            grouping.Add(injectGrouping);
+
+            // Move card to other context
             var other = new Dictionary<String,String>();
+            other.Add("id", card.Id.ToString());
+            other.Add("name", card.Name);
+            other.Add("description", card.Description);
+            other.Add("type", "card");
+            other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+            other.Add("moreInfo", "/?section=archive&exhibit=" + exhibit.Id.ToString() + "&card=" + card.Id.ToString());
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
@@ -219,11 +263,11 @@ namespace Gallery.Api.Services
             parent.Add("moreInfo", "/?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
-            var grouping = new Dictionary<String,String>();
+            var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
@@ -253,11 +297,11 @@ namespace Gallery.Api.Services
             parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
-            var grouping = new Dictionary<String,String>();
+            var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
@@ -287,11 +331,11 @@ namespace Gallery.Api.Services
             parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
-            var grouping = new Dictionary<String,String>();
+            var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
         public async Task<Boolean> ExhibitArchiveObservedAsync(Exhibit exhibit,Collection collection, Team team, CancellationToken ct)
@@ -319,11 +363,11 @@ namespace Gallery.Api.Services
             parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
-            var grouping = new Dictionary<String,String>();
+            var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
@@ -352,21 +396,22 @@ namespace Gallery.Api.Services
             parent.Add("moreInfo", "?exhibit=" + exhibit.Id.ToString());
 
             var category = new Dictionary<String,String>();
-            var grouping = new Dictionary<String,String>();
+            var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
             return await CreateAsync(
-                verb, activity, parent, category, grouping, other, teamId, ct);
+                verb, activity, category, grouping, parent, other, teamId, ct);
 
         }
 
 
 
         public async Task<Boolean> CreateAsync(
-            Uri verbUri, Dictionary<String,String> activityData,
-            Dictionary<String,String> parentData,
+            Uri verbUri,
+            Dictionary<String,String> activityData,
             Dictionary<String,String> categoryData,
-            Dictionary<String,String> groupingData,
+            List<Dictionary<String,String>> groupingData,
+            Dictionary<String,String> parentData,
             Dictionary<String,String> otherData,
             Guid teamId,
             CancellationToken ct)
@@ -453,20 +498,24 @@ namespace Gallery.Api.Services
             //var extensions = new Extensions();
             //context.extensions = new TinCan.Extensions();
 
-            if (groupingData.Count() > 0) {
-                var grouping = new TinCan.Activity();
-                grouping.id = _xApiOptions.ApiUrl  + groupingData["type"] + "/" + groupingData["id"];
-                grouping.definition = new ActivityDefinition();
-                grouping.definition.name = new LanguageMap();
-                grouping.definition.name.Add("en-US", groupingData["name"]);
-                grouping.definition.description = new LanguageMap();
-                grouping.definition.description.Add("en-US", groupingData["description"]);
-                grouping.definition.type = new Uri(groupingData["activityType"]);
-                if (groupingData.ContainsKey("moreInfo")) {
-                    grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingData["moreInfo"]);
-                }
+            if (groupingData != null && groupingData.Count() > 0) {
                 contextActivities.grouping = new List<Activity>();
-                context.contextActivities.grouping.Add(grouping);
+                foreach (var groupingItem in groupingData) {
+                    if (groupingItem.Count() > 0) {
+                        var grouping = new TinCan.Activity();
+                        grouping.id = _xApiOptions.ApiUrl  + groupingItem["type"] + "/" + groupingItem["id"];
+                        grouping.definition = new ActivityDefinition();
+                        grouping.definition.name = new LanguageMap();
+                        grouping.definition.name.Add("en-US", groupingItem["name"]);
+                        grouping.definition.description = new LanguageMap();
+                        grouping.definition.description.Add("en-US", groupingItem["description"]);
+                        grouping.definition.type = new Uri(groupingItem["activityType"]);
+                        if (groupingItem.ContainsKey("moreInfo") && !string.IsNullOrEmpty(groupingItem["moreInfo"])) {
+                            grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingItem["moreInfo"]);
+                        }
+                        context.contextActivities.grouping.Add(grouping);
+                    }
+                }
             }
 
             if (categoryData.Count() > 0) {
