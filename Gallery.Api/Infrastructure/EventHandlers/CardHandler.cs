@@ -14,7 +14,6 @@ using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
 using Gallery.Api.Hubs;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
@@ -38,13 +37,10 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _mainHub = mainHub;
         }
 
-        protected async Task<Guid[]> GetGroups(CardEntity cardEntity, CancellationToken cancellationToken)
+        protected async Task<string[]> GetGroups(CardEntity cardEntity, CancellationToken cancellationToken)
         {
-            var groupIds = new List<Guid>();
-            groupIds.Add(cardEntity.Id);
-            // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
-            groupIds.Add(systemAdminPermissionId);
+            var groupIds = new List<string>();
+            groupIds.Add(cardEntity.Id.ToString());
             // add this card's users
             var exhibitIdList = (IQueryable<Guid>)_db.Exhibits
                 .Where(e => e.CollectionId == cardEntity.CollectionId)
@@ -58,7 +54,12 @@ namespace Gallery.Api.Infrastructure.EventHandlers
                 .ToListAsync();
             foreach (var userId in userIdList)
             {
-                groupIds.Add(userId);
+                groupIds.Add(userId.ToString());
+            }
+            groupIds.Add(MainHub.COLLECTION_GROUP);
+            if (exhibitIdList.Count() > 0)
+            {
+                groupIds.Add(MainHub.EXHIBIT_GROUP);
             }
 
             return groupIds.ToArray();
@@ -76,7 +77,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
             foreach (var groupId in groupIds)
             {
-                tasks.Add(_mainHub.Clients.Group(groupId.ToString()).SendAsync(method, card, modifiedProperties, cancellationToken));
+                tasks.Add(_mainHub.Clients.Group(groupId).SendAsync(method, card, modifiedProperties, cancellationToken));
             }
 
             await Task.WhenAll(tasks);

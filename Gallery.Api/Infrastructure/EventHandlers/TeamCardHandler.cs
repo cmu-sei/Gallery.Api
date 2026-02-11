@@ -1,7 +1,6 @@
 // Copyright 2022 Carnegie Mellon University. All Rights Reserved.
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -14,7 +13,6 @@ using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
 using Gallery.Api.Hubs;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
@@ -38,13 +36,11 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _mainHub = mainHub;
         }
 
-        protected async Task<Guid[]> GetGroups(TeamCardEntity teamCardEntity, CancellationToken cancellationToken)
+        protected async Task<string[]> GetGroups(TeamCardEntity teamCardEntity, CancellationToken cancellationToken)
         {
-            var groupIds = new List<Guid>();
-            groupIds.Add(teamCardEntity.Id);
-            // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
-            groupIds.Add(systemAdminPermissionId);
+            var groupIds = new List<string>();
+            groupIds.Add(teamCardEntity.Id.ToString());
+            groupIds.Add(MainHub.EXHIBIT_GROUP);
             // add this teamCard's users
             var exhibitUserIdList = await _db.TeamUsers
                 .Where(tu => tu.TeamId == teamCardEntity.TeamId)
@@ -52,7 +48,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
                 .ToListAsync();
             foreach (var exhibitUserId in exhibitUserIdList)
             {
-                groupIds.Add(exhibitUserId);
+                groupIds.Add(exhibitUserId.ToString());
             }
 
             return groupIds.ToArray();
@@ -126,7 +122,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
             foreach (var groupId in groupIds)
             {
-                tasks.Add(_mainHub.Clients.Group(groupId.ToString()).SendAsync(MainHubMethods.TeamCardDeleted, notification.Entity.Id, cancellationToken));
+                tasks.Add(_mainHub.Clients.Group(groupId).SendAsync(MainHubMethods.TeamCardDeleted, notification.Entity.Id, cancellationToken));
             }
 
             await Task.WhenAll(tasks);

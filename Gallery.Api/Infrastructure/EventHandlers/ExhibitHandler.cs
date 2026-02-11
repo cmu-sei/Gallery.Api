@@ -48,9 +48,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
         {
             var groupIds = new List<string>();
             groupIds.Add(exhibitEntity.Id.ToString());
-            // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id.ToString();
-            groupIds.Add(systemAdminPermissionId);
+            groupIds.Add(MainHub.EXHIBIT_GROUP);
 
             return groupIds;
         }
@@ -175,7 +173,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
             foreach (var groupId in groupIds)
             {
-                tasks.Add(_mainHub.Clients.Group(groupId.ToString()).SendAsync(MainHubMethods.ExhibitDeleted, notification.Entity.Id, cancellationToken));
+                tasks.Add(_mainHub.Clients.Group(groupId).SendAsync(MainHubMethods.ExhibitDeleted, notification.Entity.Id, cancellationToken));
             }
 
             await Task.WhenAll(tasks);
