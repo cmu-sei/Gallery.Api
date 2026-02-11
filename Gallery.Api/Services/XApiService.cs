@@ -443,6 +443,14 @@ namespace Gallery.Api.Services
             context.platform = _xApiContext.platform;
             context.language = _xApiContext.language;
 
+            // Set registration to exhibit ID if available (groups statements by exhibit session)
+            if (parentData.Count() > 0 && parentData.ContainsKey("type") && parentData.ContainsKey("id")) {
+                var parentType = parentData["type"].ToLower();
+                if (parentType == "exhibit" || parentType == "exhibits") {
+                    context.registration = Guid.Parse(parentData["id"]);
+                }
+            }
+
             if (teamId.ToString() !=  "") {
                 var team = _context.Teams.Find(teamId);
                 var group = new TinCan.Group();
