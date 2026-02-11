@@ -533,7 +533,7 @@ namespace Gallery.Api.Services
 
         private async Task<UnreadArticles> GetUnreadArticlesAsync(Guid exhibitId, Guid userId, CancellationToken ct)
         {
-            var exhibit = await _context.Exhibits.FirstAsync(e => e.Id == exhibitId);
+            var exhibit = await _context.Exhibits.FirstOrDefaultAsync(e => e.Id == exhibitId);
             if (exhibit == null)
                 throw new EntityNotFoundException<ExhibitEntity>("Exhibit " + exhibitId + " was not found.");
 
