@@ -38,14 +38,12 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _mainHub = mainHub;
         }
 
-        protected async Task<Guid[]> GetGroups(TeamEntity teamEntity, CancellationToken cancellationToken)
+        protected async Task<string[]> GetGroups(TeamEntity teamEntity, CancellationToken cancellationToken)
         {
-            var groupIds = new List<Guid>();
+            var groupIds = new List<string>();
             // add the team
-            groupIds.Add(teamEntity.Id);
-            // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
-            groupIds.Add(systemAdminPermissionId);
+            groupIds.Add(teamEntity.Id.ToString());
+            groupIds.Add(MainHub.EXHIBIT_GROUP);
 
             return groupIds.ToArray();
         }
@@ -118,7 +116,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
             foreach (var groupId in groupIds)
             {
-                tasks.Add(_mainHub.Clients.Group(groupId.ToString()).SendAsync(MainHubMethods.TeamDeleted, notification.Entity.Id, cancellationToken));
+                tasks.Add(_mainHub.Clients.Group(groupId).SendAsync(MainHubMethods.TeamDeleted, notification.Entity.Id, cancellationToken));
             }
 
             await Task.WhenAll(tasks);
