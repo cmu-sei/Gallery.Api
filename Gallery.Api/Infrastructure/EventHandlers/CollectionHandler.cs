@@ -14,7 +14,6 @@ using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
 using Gallery.Api.Hubs;
-using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
@@ -38,13 +37,11 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _mainHub = mainHub;
         }
 
-        protected async Task<Guid[]> GetGroups(CollectionEntity collectionEntity, CancellationToken cancellationToken)
+        protected async Task<string[]> GetGroups(CollectionEntity collectionEntity, CancellationToken cancellationToken)
         {
-            var groupIds = new List<Guid>();
-            groupIds.Add(collectionEntity.Id);
-            // add System Admins
-            var systemAdminPermissionId = (await _db.Permissions.Where(p => p.Key == UserClaimTypes.SystemAdmin.ToString()).FirstOrDefaultAsync()).Id;
-            groupIds.Add(systemAdminPermissionId);
+            var groupIds = new List<string>();
+            groupIds.Add(collectionEntity.Id.ToString());
+            groupIds.Add(MainHub.COLLECTION_GROUP);
             // add this collection's users
             var exhibitIdList = (IQueryable<Guid>)_db.Exhibits
                 .Where(e => e.CollectionId == collectionEntity.Id)
@@ -58,7 +55,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
                 .ToListAsync();
             foreach (var userId in userIdList)
             {
-                groupIds.Add(userId);
+                groupIds.Add(userId.ToString());
             }
 
             return groupIds.ToArray();
@@ -76,7 +73,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
             foreach (var groupId in groupIds)
             {
-                tasks.Add(_mainHub.Clients.Group(groupId.ToString()).SendAsync(method, collection, modifiedProperties, cancellationToken));
+                tasks.Add(_mainHub.Clients.Group(groupId).SendAsync(method, collection, modifiedProperties, cancellationToken));
             }
 
             await Task.WhenAll(tasks);
