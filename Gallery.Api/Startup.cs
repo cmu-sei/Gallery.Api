@@ -197,6 +197,7 @@ public class Startup
         services.AddMemoryCache();
 
         services.AddScoped<IXApiService, XApiService>();
+        services.AddScoped<IXApiQueueService, XApiQueueService>();
         services.AddScoped<IArticleService, ArticleService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<IClaimsTransformation, AuthorizationClaimsTransformer>();
@@ -221,6 +222,9 @@ public class Startup
         services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddScoped<IPrincipal>(p => p.GetService<IHttpContextAccessor>()?.HttpContext?.User);
         services.AddHttpClient();
+
+        // Register xAPI Background Service
+        services.AddHostedService<Services.XApiBackgroundService>();
 
         ApplyPolicies(services);
 

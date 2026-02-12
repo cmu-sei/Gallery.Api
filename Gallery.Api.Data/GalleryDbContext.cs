@@ -45,6 +45,7 @@ namespace Gallery.Api.Data
         public DbSet<CollectionMembershipEntity> CollectionMemberships { get; set; }
         public DbSet<GroupEntity> Groups { get; set; }
         public DbSet<GroupMembershipEntity> GroupMemberships { get; set; }
+        public DbSet<XApiQueuedStatementEntity> XApiQueuedStatements { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

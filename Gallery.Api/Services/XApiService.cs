@@ -48,7 +48,7 @@ namespace Gallery.Api.Services
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
         private readonly XApiOptions _xApiOptions;
-        private readonly RemoteLRS _lrs;
+        private readonly IXApiQueueService _queueService;
         private readonly Agent _agent;
         private readonly AgentAccount _account;
         private readonly Context _xApiContext;
@@ -59,18 +59,17 @@ namespace Gallery.Api.Services
             IPrincipal user,
             IAuthorizationService authorizationService,
             XApiOptions xApiOptions,
+            IXApiQueueService queueService,
             ILogger<XApiService> logger)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
             _authorizationService = authorizationService;
             _xApiOptions = xApiOptions;
+            _queueService = queueService;
             _logger = logger;
 
             if (IsConfigured()) {
-                // configure LRS
-                _lrs = new TinCan.RemoteLRS(_xApiOptions.Endpoint, _xApiOptions.Username, _xApiOptions.Password);
-
                 // configure AgentAccount
                 _account = new TinCan.AgentAccount();
                 _account.name = _user.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
@@ -556,15 +555,20 @@ namespace Gallery.Api.Services
                 statement.result = result;
             }
 
-            TinCan.LRSResponses.StatementLRSResponse lrsStatementResponse = _lrs.SaveStatement(statement);
-            if (lrsStatementResponse.success)
+            // Serialize statement to JSON and enqueue for background processing
+            var statementJson = statement.ToJSON();
+
+            var queuedStatement = new Data.Models.XApiQueuedStatementEntity
             {
-                // List of statements available
-                _logger.LogInformation("LRS saved statement from xAPI Service");
-            } else {
-                _logger.LogError("ERROR FROM LRS VIA XAPI SERVICE: " + lrsStatementResponse.errMsg);
-                return false;
-            }
+                Id = Guid.NewGuid(),
+                StatementJson = statementJson,
+                Verb = verb.id.Segments.Last(),
+                ActivityId = activity.id,
+                TeamId = teamId != Guid.Empty ? teamId : null
+            };
+
+            await _queueService.EnqueueAsync(queuedStatement, ct);
+            _logger.LogInformation("Enqueued xAPI statement for verb {Verb}", verb.id.Segments.Last());
 
             return true;
         }
