@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Gallery.Api.Infrastructure.EventHandlers;
 using Gallery.Api.Infrastructure.Extensions;
+using Crucible.Common.EntityEvents.Extensions;
 using Gallery.Api.Data;
 using Gallery.Api.Infrastructure.Identity;
 using Gallery.Api.Infrastructure.JsonConverters;
@@ -71,25 +71,21 @@ public class Startup
         switch (provider)
         {
             case "InMemory":
-                services.AddPooledDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
-                    .AddInterceptors(serviceProvider.GetRequiredService<EventInterceptor>())
+                services.AddEventPublishingDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
                     .UseInMemoryDatabase("api"));
                 break;
             case "Sqlite":
-                services.AddPooledDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
-                    .AddInterceptors(serviceProvider.GetRequiredService<EventInterceptor>())
+                services.AddEventPublishingDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
                     .UseConfiguredDatabase(Configuration))
                     .AddHealthChecks().AddSqlite(connectionString, tags: new[] { "ready", "live" });
                 break;
             case "SqlServer":
-                services.AddPooledDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
-                    .AddInterceptors(serviceProvider.GetRequiredService<EventInterceptor>())
+                services.AddEventPublishingDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
                     .UseConfiguredDatabase(Configuration))
                     .AddHealthChecks().AddSqlServer(connectionString, tags: new[] { "ready", "live" });
                 break;
             case "PostgreSQL":
-                services.AddPooledDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
-                    .AddInterceptors(serviceProvider.GetRequiredService<EventInterceptor>())
+                services.AddEventPublishingDbContextFactory<GalleryDbContext>((serviceProvider, optionsBuilder) => optionsBuilder
                     .UseConfiguredDatabase(Configuration))
                     .AddHealthChecks().AddNpgSql(connectionString, tags: new[] { "ready", "live" });
                 break;
@@ -110,9 +106,6 @@ public class Startup
         services
             .Configure<ClientOptions>(Configuration.GetSection("ClientSettings"))
             .AddScoped(config => config.GetService<IOptionsMonitor<ClientOptions>>().CurrentValue);
-
-        services.AddScoped<GalleryDbContextFactory>();
-        services.AddScoped(sp => sp.GetRequiredService<GalleryDbContextFactory>().CreateDbContext());
 
         services.AddScoped<IClaimsTransformation, AuthorizationClaimsTransformer>();
         services.AddScoped<IUserClaimsService, UserClaimsService>();
@@ -228,7 +221,6 @@ public class Startup
 
         ApplyPolicies(services);
 
-        services.AddTransient<EventInterceptor>();
         services.AddAutoMapper(cfg =>
         {
             cfg.Internal().ForAllPropertyMaps(

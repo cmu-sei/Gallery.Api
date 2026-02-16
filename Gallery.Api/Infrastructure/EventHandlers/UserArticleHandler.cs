@@ -14,6 +14,8 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
+using Crucible.Common.EntityEvents.Events;
+
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
