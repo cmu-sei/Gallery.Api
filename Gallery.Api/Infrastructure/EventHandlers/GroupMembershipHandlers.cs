@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Hubs;
+using Crucible.Common.EntityEvents.Events;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {

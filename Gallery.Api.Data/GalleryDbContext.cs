@@ -11,16 +11,14 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Crucible.Common.EntityEvents;
+using Crucible.Common.EntityEvents.Abstractions;
 
 namespace Gallery.Api.Data
 {
-    public class GalleryDbContext : DbContext
+    [GenerateEntityEventInterfaces(typeof(INotification))]
+    public class GalleryDbContext : EventPublishingDbContext
     {
-        // Needed for EventInterceptor
-        public IServiceProvider ServiceProvider;
-
-        // Entity Events collected by EventTransactionInterceptor and published in SaveChanges
-        public List<INotification> Events { get; } = [];
 
         public GalleryDbContext(DbContextOptions<GalleryDbContext> options)
             : base(options) { }
@@ -63,17 +61,13 @@ namespace Gallery.Api.Data
         public override int SaveChanges()
         {
             UpdateBaseEntityFields();
-            var result = base.SaveChanges();
-            PublishEvents().Wait();
-            return result;
+            return base.SaveChanges();
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken ct = default(CancellationToken))
         {
             UpdateBaseEntityFields();
-            var result = await base.SaveChangesAsync(ct);
-            await PublishEvents(ct);
-            return result;
+            return await base.SaveChangesAsync(ct);
         }
 
         private void UpdateBaseEntityFields()
@@ -106,16 +100,12 @@ namespace Gallery.Api.Data
             }
         }
 
-        private async Task PublishEvents(CancellationToken cancellationToken = default)
+        protected override async Task PublishEventsAsync(CancellationToken cancellationToken)
         {
-            // Publish deferred events after transaction is committed and cleared
-            if (Events.Count > 0 && ServiceProvider is not null)
+            if (EntityEvents.Count > 0 && ServiceProvider is not null)
             {
                 var mediator = ServiceProvider.GetRequiredService<IMediator>();
-                var eventsToPublish = Events.ToArray();
-                Events.Clear();
-
-                foreach (var evt in eventsToPublish)
+                foreach (var evt in EntityEvents.Cast<INotification>())
                 {
                     await mediator.Publish(evt, cancellationToken);
                 }
