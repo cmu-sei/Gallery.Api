@@ -21,6 +21,9 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace Gallery.Api.Services
 {
@@ -45,6 +48,7 @@ namespace Gallery.Api.Services
         private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
         private readonly IXApiService _xApiService;
+        private readonly ILogger<IArticleService> _logger;
 
         public ArticleService(
             GalleryDbContext context,
@@ -52,7 +56,8 @@ namespace Gallery.Api.Services
             IPrincipal user,
             IMapper mapper,
             IXApiService xApiService,
-            IUserArticleService userArticleService)
+            IUserArticleService userArticleService,
+            ILogger<IArticleService> logger)
         {
             _context = context;
             _authorizationService = authorizationService;
@@ -60,6 +65,7 @@ namespace Gallery.Api.Services
             _mapper = mapper;
             _userArticleService = userArticleService;
             _xApiService = xApiService;
+            _logger = logger;
         }
 
         public async Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct)
@@ -106,38 +112,123 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.Article article, CancellationToken ct)
         {
-            var articleEntity = _mapper.Map<ArticleEntity>(article);
-            articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
-            articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
-
-            _context.Articles.Add(articleEntity);
-            await _context.SaveChangesAsync(ct);
-            article = await GetAsync(articleEntity.Id, ct);
-
-            // add ArticleTeams and UserArticles, if this is a user article for an Exhibit
-            if (article.ExhibitId != null)
+            try
             {
-                // ArticleTeams
-                var teamCards = await _context.TeamCards
-                    .Where(tc => tc.CardId == article.CardId && tc.Team.ExhibitId == article.ExhibitId)
-                    .ToListAsync(ct);
-                foreach (var teamCard in teamCards)
+                // Validate required fields
+                if (article.CollectionId == Guid.Empty)
                 {
-                    var teamArticle = new TeamArticleEntity() {
-                        TeamId = teamCard.TeamId,
-                        ArticleId = article.Id,
-                        ExhibitId = (Guid)article.ExhibitId
-                    };
-                    _context.TeamArticles.Add(teamArticle);
-                    await _context.SaveChangesAsync(ct);
-                    // UserArticles
-                    await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
+                    _logger.LogError("Article creation failed: CollectionId is required");
+                    throw new ArgumentException("CollectionId is required");
                 }
-                var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created");
-                await LogXApiAsync(verb, article, ct);
-            }
 
-            return article;
+                // Validate that the collection exists
+                var collectionExists = await _context.Collections.AnyAsync(c => c.Id == article.CollectionId, ct);
+                if (!collectionExists)
+                {
+                    _logger.LogError($"Article creation failed: Collection {article.CollectionId} not found");
+                    throw new EntityNotFoundException<Collection>($"Collection {article.CollectionId} not found");
+                }
+
+                // Validate CardId if specified
+                if (article.CardId.HasValue && article.CardId.Value != Guid.Empty)
+                {
+                    var cardExists = await _context.Cards.AnyAsync(c => c.Id == article.CardId.Value, ct);
+                    if (!cardExists)
+                    {
+                        _logger.LogError($"Article creation failed: Card {article.CardId.Value} not found");
+                        throw new EntityNotFoundException<Card>($"Card {article.CardId.Value} not found");
+                    }
+                }
+
+                var articleEntity = _mapper.Map<ArticleEntity>(article);
+                articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
+                articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
+
+                _logger.LogInformation($"Creating article ({articleEntity.Id}) in Collection {article.CollectionId}");
+
+                _context.Articles.Add(articleEntity);
+                await _context.SaveChangesAsync(ct);
+                article = await GetAsync(articleEntity.Id, ct);
+
+                // add ArticleTeams and UserArticles, if this is a user article for an Exhibit
+                if (article.ExhibitId != null)
+                {
+                    // ArticleTeams
+                    var teamCards = await _context.TeamCards
+                        .Where(tc => tc.CardId == article.CardId && tc.Team.ExhibitId == article.ExhibitId)
+                        .ToListAsync(ct);
+                    foreach (var teamCard in teamCards)
+                    {
+                        var teamArticle = new TeamArticleEntity() {
+                            TeamId = teamCard.TeamId,
+                            ArticleId = article.Id,
+                            ExhibitId = (Guid)article.ExhibitId
+                        };
+                        _context.TeamArticles.Add(teamArticle);
+                        await _context.SaveChangesAsync(ct);
+                        // UserArticles
+                        await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
+                    }
+                    var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created");
+                    await LogXApiAsync(verb, article, ct);
+                }
+
+                _logger.LogInformation($"Article ({articleEntity.Id}) created in Collection {article.CollectionId}");
+
+                return article;
+            }
+            catch (DbUpdateException ex)
+            {
+                var message = $"Database error creating article in Collection {article.CollectionId}: {ex.Message}";
+                _logger.LogError(ex, message);
+
+                if (ex.InnerException is PostgresException pgEx)
+                {
+                    switch (pgEx.SqlState)
+                    {
+                        case "23505": // unique_violation
+                            throw new InvalidOperationException($"An article with this ID already exists");
+                        case "23503": // foreign_key_violation
+                            throw new InvalidOperationException($"Invalid reference: {pgEx.MessageText}");
+                        case "23514": // check_violation
+                            throw new InvalidOperationException($"Data validation failed: {pgEx.MessageText}");
+                        default:
+                            throw new InvalidOperationException($"Database constraint violation: {pgEx.MessageText}", ex);
+                    }
+                }
+                else if (ex.InnerException is SqlException sqlEx)
+                {
+                    switch (sqlEx.Number)
+                    {
+                        case 2601:
+                        case 2627: // unique constraint violation
+                            throw new InvalidOperationException($"An article with this ID already exists");
+                        case 547: // foreign key violation
+                            throw new InvalidOperationException($"Invalid foreign key reference");
+                        default:
+                            throw new InvalidOperationException($"Database error: {sqlEx.Message}", ex);
+                    }
+                }
+
+                throw new InvalidOperationException(message, ex);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"Article creation cancelled in Collection {article.CollectionId}");
+                throw;
+            }
+            catch (TimeoutException ex)
+            {
+                var message = $"Timeout creating article in Collection {article.CollectionId}";
+                _logger.LogError(ex, message);
+                throw new InvalidOperationException(message, ex);
+            }
+            catch (Exception ex) when (ex is not ArgumentException && ex is not EntityNotFoundException<Collection> && ex is not EntityNotFoundException<Card> && ex is not InvalidOperationException)
+            {
+                var message = $"Unexpected error creating article in Collection {article.CollectionId}";
+                _logger.LogError(ex, message);
+                throw new InvalidOperationException(message, ex);
+            }
         }
 
         public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct)

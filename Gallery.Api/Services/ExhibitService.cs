@@ -21,6 +21,9 @@ using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace Gallery.Api.Services
 {
@@ -49,6 +52,7 @@ namespace Gallery.Api.Services
         private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
         private readonly IUserClaimsService _userClaimsService;
+        private readonly ILogger<IExhibitService> _logger;
 
         public ExhibitService(
             GalleryDbContext context,
@@ -56,7 +60,8 @@ namespace Gallery.Api.Services
             IPrincipal user,
             IMapper mapper,
             IUserArticleService userArticleService,
-            IUserClaimsService userClaimsService)
+            IUserClaimsService userClaimsService,
+            ILogger<IExhibitService> logger)
         {
             _context = context;
             _authorizationService = authorizationService;
@@ -64,6 +69,7 @@ namespace Gallery.Api.Services
             _mapper = mapper;
             _userArticleService = userArticleService;
             _userClaimsService = userClaimsService;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetAsync(bool canViewAll, CancellationToken ct)
@@ -155,32 +161,104 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct)
         {
-            var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId);
-            if (collection == null)
-                throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
+            try
+            {
+                // Validate required fields
+                if (exhibit.CollectionId == Guid.Empty)
+                {
+                    _logger.LogError("Exhibit creation failed: CollectionId is required");
+                    throw new ArgumentException("CollectionId is required");
+                }
 
-            var userId = _user.GetId();
-            exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
-            exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
-            exhibit.DateCreated = DateTime.UtcNow;
-            exhibit.CreatedBy = userId;
-            exhibit.DateModified = null;
-            exhibit.ModifiedBy = null;
-            var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
-            exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
-            _context.Exhibits.Add(exhibitEntity);
-            await _context.SaveChangesAsync(ct);
-            var createOwnerMembership = new ExhibitMembershipEntity() {
-                UserId = userId,
-                ExhibitId = exhibitEntity.Id,
-                RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
-            };
-            await _context.ExhibitMemberships.AddAsync(createOwnerMembership, ct);
-            await _context.SaveChangesAsync(ct);
-            await _userClaimsService.RefreshClaims(userId);
-            exhibit = await GetAsync(exhibitEntity.Id, false, ct);
+                // Validate that the collection exists
+                var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId, ct);
+                if (collection == null)
+                {
+                    _logger.LogError($"Exhibit creation failed: Collection {exhibit.CollectionId} not found");
+                    throw new EntityNotFoundException<Collection>($"Collection {exhibit.CollectionId} not found");
+                }
 
-            return exhibit;
+                var userId = _user.GetId();
+                exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
+                exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
+                exhibit.DateCreated = DateTime.UtcNow;
+                exhibit.CreatedBy = userId;
+                exhibit.DateModified = null;
+                exhibit.ModifiedBy = null;
+                var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
+                exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
+
+                _logger.LogInformation($"Creating exhibit {exhibit.Name} ({exhibitEntity.Id}) in Collection {exhibit.CollectionId}");
+
+                _context.Exhibits.Add(exhibitEntity);
+                await _context.SaveChangesAsync(ct);
+                var createOwnerMembership = new ExhibitMembershipEntity() {
+                    UserId = userId,
+                    ExhibitId = exhibitEntity.Id,
+                    RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
+                };
+                await _context.ExhibitMemberships.AddAsync(createOwnerMembership, ct);
+                await _context.SaveChangesAsync(ct);
+                await _userClaimsService.RefreshClaims(userId);
+
+                _logger.LogInformation($"Exhibit {exhibit.Name} ({exhibitEntity.Id}) created by {userId}");
+
+                exhibit = await GetAsync(exhibitEntity.Id, false, ct);
+
+                return exhibit;
+            }
+            catch (DbUpdateException ex)
+            {
+                var message = $"Database error creating exhibit {exhibit.Name} in Collection {exhibit.CollectionId}: {ex.Message}";
+                _logger.LogError(ex, message);
+
+                if (ex.InnerException is PostgresException pgEx)
+                {
+                    switch (pgEx.SqlState)
+                    {
+                        case "23505": // unique_violation
+                            throw new InvalidOperationException($"An exhibit with this name already exists in the collection");
+                        case "23503": // foreign_key_violation
+                            throw new InvalidOperationException($"Invalid reference: {pgEx.MessageText}");
+                        case "23514": // check_violation
+                            throw new InvalidOperationException($"Data validation failed: {pgEx.MessageText}");
+                        default:
+                            throw new InvalidOperationException($"Database constraint violation: {pgEx.MessageText}", ex);
+                    }
+                }
+                else if (ex.InnerException is SqlException sqlEx)
+                {
+                    switch (sqlEx.Number)
+                    {
+                        case 2601:
+                        case 2627: // unique constraint violation
+                            throw new InvalidOperationException($"An exhibit with this name already exists in the collection");
+                        case 547: // foreign key violation
+                            throw new InvalidOperationException($"Invalid foreign key reference");
+                        default:
+                            throw new InvalidOperationException($"Database error: {sqlEx.Message}", ex);
+                    }
+                }
+
+                throw new InvalidOperationException(message, ex);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning($"Exhibit creation cancelled for {exhibit.Name} in Collection {exhibit.CollectionId}");
+                throw;
+            }
+            catch (TimeoutException ex)
+            {
+                var message = $"Timeout creating exhibit {exhibit.Name} in Collection {exhibit.CollectionId}";
+                _logger.LogError(ex, message);
+                throw new InvalidOperationException(message, ex);
+            }
+            catch (Exception ex) when (ex is not ArgumentException && ex is not EntityNotFoundException<Collection> && ex is not InvalidOperationException)
+            {
+                var message = $"Unexpected error creating exhibit {exhibit.Name} in Collection {exhibit.CollectionId}";
+                _logger.LogError(ex, message);
+                throw new InvalidOperationException(message, ex);
+            }
         }
 
         public async Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct)
