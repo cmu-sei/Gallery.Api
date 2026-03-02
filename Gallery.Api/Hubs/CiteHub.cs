@@ -15,16 +15,13 @@ namespace Gallery.Api.Hubs
     [Authorize(AuthenticationSchemes = "Bearer")]
     public class CiteHub : Hub
     {
-        private readonly GalleryDbContext _context;
         private readonly CancellationToken _ct;
         private readonly ILogger<CiteHub> _logger;
 
         public CiteHub(
-            GalleryDbContext context,
             ILogger<CiteHub> logger
         )
         {
-            _context = context;
             CancellationTokenSource source = new CancellationTokenSource();
             _ct = source.Token;
             _logger = logger;

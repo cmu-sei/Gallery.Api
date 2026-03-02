@@ -155,9 +155,14 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct)
         {
-            var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId);
+            // Validate required fields
+            if (exhibit.CollectionId == Guid.Empty)
+                throw new ArgumentException("CollectionId is required");
+
+            // Validate that the collection exists
+            var collection = await _context.Collections.FirstOrDefaultAsync(m => m.Id == exhibit.CollectionId, ct);
             if (collection == null)
-                throw new EntityNotFoundException<Collection>("Collection not found while trying to create an exhibit.");
+                throw new EntityNotFoundException<Collection>($"Collection {exhibit.CollectionId} not found");
 
             var userId = _user.GetId();
             exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
@@ -168,6 +173,7 @@ namespace Gallery.Api.Services
             exhibit.ModifiedBy = null;
             var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
+
             _context.Exhibits.Add(exhibitEntity);
             await _context.SaveChangesAsync(ct);
             var createOwnerMembership = new ExhibitMembershipEntity() {
@@ -178,6 +184,7 @@ namespace Gallery.Api.Services
             await _context.ExhibitMemberships.AddAsync(createOwnerMembership, ct);
             await _context.SaveChangesAsync(ct);
             await _userClaimsService.RefreshClaims(userId);
+
             exhibit = await GetAsync(exhibitEntity.Id, false, ct);
 
             return exhibit;

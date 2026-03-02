@@ -113,13 +113,21 @@ namespace Gallery.Api.Services
             if (id == _user.GetId())
                 throw new ForbiddenException("You cannot delete your own account");
 
-            var userToDelete = await _context.Users.SingleOrDefaultAsync(v => v.Id == id, ct);
+            var userToDelete = await _context.Users
+                .Include(u => u.CollectionMemberships)
+                .SingleOrDefaultAsync(v => v.Id == id, ct);
             if (userToDelete == null)
                 throw new EntityNotFoundException<User>();
 
+            // Remove collection memberships first to avoid FK constraint violations
+            if (userToDelete.CollectionMemberships != null && userToDelete.CollectionMemberships.Any())
+            {
+                _context.CollectionMemberships.RemoveRange(userToDelete.CollectionMemberships);
+            }
+
             _context.Users.Remove(userToDelete);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"User {userToDelete.Name} ({userToDelete.Id}) deleted by {_user.GetId()}");
+            _logger.LogWarning($"User ({userToDelete.Id}) deleted by {_user.GetId()}");
             return true;
         }
 

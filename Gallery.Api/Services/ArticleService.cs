@@ -106,6 +106,14 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.Article article, CancellationToken ct)
         {
+            // Validate required fields
+            if (article.CollectionId == Guid.Empty)
+                throw new ArgumentException("CollectionId is required");
+
+            // Skip expensive validation queries - rely on database foreign key constraints
+            // This significantly improves performance when creating many articles from the same collection
+            // Database will throw if collection or card doesn't exist
+
             var articleEntity = _mapper.Map<ArticleEntity>(article);
             articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
             articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
@@ -121,18 +129,32 @@ namespace Gallery.Api.Services
                 var teamCards = await _context.TeamCards
                     .Where(tc => tc.CardId == article.CardId && tc.Team.ExhibitId == article.ExhibitId)
                     .ToListAsync(ct);
+
+                // Add all team articles and batch save instead of saving each one
+                var teamArticleIds = new List<Guid>();
                 foreach (var teamCard in teamCards)
                 {
+                    var teamArticleId = Guid.NewGuid();
                     var teamArticle = new TeamArticleEntity() {
+                        Id = teamArticleId,
                         TeamId = teamCard.TeamId,
                         ArticleId = article.Id,
                         ExhibitId = (Guid)article.ExhibitId
                     };
                     _context.TeamArticles.Add(teamArticle);
-                    await _context.SaveChangesAsync(ct);
-                    // UserArticles
-                    await _userArticleService.LoadUserArticlesAsync(teamArticle.Id, ct);
+                    teamArticleIds.Add(teamArticleId);
                 }
+                // Batch save all team articles
+                if (teamArticleIds.Count > 0)
+                {
+                    await _context.SaveChangesAsync(ct);
+                    // Load UserArticles for all team articles
+                    foreach (var teamArticleId in teamArticleIds)
+                    {
+                        await _userArticleService.LoadUserArticlesAsync(teamArticleId, ct);
+                    }
+                }
+
                 var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/created");
                 await LogXApiAsync(verb, article, ct);
             }
