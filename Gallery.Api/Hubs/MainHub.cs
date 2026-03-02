@@ -7,6 +7,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Threading;
 using System.Threading.Tasks;
 using Gallery.Api.Data;
@@ -21,11 +22,7 @@ namespace Gallery.Api.Hubs
     [Authorize(AuthenticationSchemes = "Bearer")]
     public class MainHub : Hub
     {
-        private readonly ITeamService _teamService;
-        private readonly IExhibitService _exhibitService;
-        private readonly GalleryDbContext _context;
-        private readonly DatabaseOptions _options;
-        private readonly CancellationToken _ct;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IGalleryAuthorizationService _authorizationService;
         public const string EXHIBIT_GROUP = "AdminExhibitGroup";
         public const string COLLECTION_GROUP = "AdminCollectionGroup";
@@ -34,19 +31,11 @@ namespace Gallery.Api.Hubs
         public const string USER_GROUP = "AdminUserGroup";
 
         public MainHub(
-            ITeamService teamService,
-            IExhibitService exhibitService,
-            GalleryDbContext context,
-            DatabaseOptions options,
+            IServiceScopeFactory scopeFactory,
             IGalleryAuthorizationService authorizationService
         )
         {
-            _teamService = teamService;
-            _exhibitService = exhibitService;
-            _context = context;
-            _options = options;
-            CancellationTokenSource source = new CancellationTokenSource();
-            _ct = source.Token;
+            _scopeFactory = scopeFactory;
             _authorizationService = authorizationService;
         }
 
@@ -107,7 +96,10 @@ namespace Gallery.Api.Hubs
             // add the user's ID
             var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
             // make sure that the user has access to the requested team
-            var team = await _context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<GalleryDbContext>();
+
+            var team = await context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
             if (team != null)
             {
                 var canSee = await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], Context.ConnectionAborted);
@@ -127,13 +119,17 @@ namespace Gallery.Api.Hubs
             var idList = new List<string>();
             var userId = Context.User.Identities.First().Claims.First(c => c.Type == "sub")?.Value;
             idList.Add(userId);
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<GalleryDbContext>();
+
             if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
             {
                 idList.Add(EXHIBIT_GROUP);
             }
             else
             {
-                var exhibitIds = await _context.ExhibitMemberships
+                var exhibitIds = await context.ExhibitMemberships
                     .Where(x => x.UserId.ToString() == userId)
                     .Select(x => x.ExhibitId)
                     .ToListAsync(ct);
@@ -148,7 +144,7 @@ namespace Gallery.Api.Hubs
             }
             else
             {
-                var collectionIds = await _context.CollectionMemberships
+                var collectionIds = await context.CollectionMemberships
                     .Where(x => x.UserId.ToString() == userId)
                     .Select(x => x.CollectionId)
                     .ToListAsync(ct);
