@@ -88,10 +88,9 @@ Uses real AutoMapper when service internally calls `ProjectTo<T>()` which requir
 
 ## Dependencies
 
-- **xUnit** - Test framework
+- **TUnit** 1.19.22 - Test framework
 - **FakeItEasy** - Mocking framework
 - **AutoFixture** - Test data generation
-- **Shouldly** - Fluent assertions (implicitly via patterns)
 - **Crucible.Common.Testing** - `TestDbContextFactory.Create<GalleryDbContext>()`
 - **Gallery.Api.Tests.Shared** - `GalleryCustomization` fixture
 - **EF Core InMemory** - In-memory database provider
@@ -122,6 +121,6 @@ dotnet test Gallery.Api.Tests.Unit --collect:"XPlat Code Coverage"
 
 - **DbContext:** Tests use `GalleryDbContext` (not `GalleryContext`) as per Gallery naming conventions
 - **Mocking:** FakeItEasy used for all dependencies except when real implementations required (AutoMapper `ProjectTo<T>()`)
-- **Assertions:** Standard xUnit assertions (`Assert.Equal`, `Assert.NotNull`, `Assert.ThrowsAsync`)
+- **Assertions:** TUnit assertions (`await Assert.That(result).IsEqualTo(expected)`, `await Assert.That(result).IsNotNull()`, `await Assert.That(result).IsNull()`)
 - **Test Isolation:** Per-test factory pattern or constructor-based fixtures prevent test interdependencies
 - **Entity Tracking:** Fresh contexts per test avoid EF Core tracking conflicts when multiple tests modify same entity IDs

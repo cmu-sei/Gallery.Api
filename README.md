@@ -26,3 +26,28 @@ Content Developer permission required for:
 Authenticated User
     * No access to Admin pages
 
+## Testing
+
+This project uses [TUnit](https://tunit.dev/) as its test framework with FakeItEasy for mocking.
+
+### Test Projects
+
+| Project | Description |
+|---------|-------------|
+| `Gallery.Api.Tests.Unit` | Unit tests for services using in-memory EF Core and FakeItEasy |
+| `Gallery.Api.Tests.Integration` | Integration tests with WebApplicationFactory and Testcontainers PostgreSQL |
+| `Gallery.Api.Tests.Shared` | Shared AutoFixture customizations for entity types |
+
+### Running Tests
+
+```bash
+# Run all tests
+dotnet test
+
+# Run unit tests only
+dotnet test Gallery.Api.Tests.Unit
+
+# Run integration tests (requires Docker)
+dotnet test Gallery.Api.Tests.Integration
+```
+

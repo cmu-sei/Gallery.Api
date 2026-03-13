@@ -13,7 +13,7 @@ Integration tests for Gallery API endpoints using real HTTP clients, Testcontain
 - **`Fixtures/GalleryTestContext.cs`** - WebApplicationFactory-based test context
   - Extends `WebApplicationFactory<Program>` for in-process hosting
   - Uses **Testcontainers PostgreSQL 16-alpine** for real database integration
-  - Implements `IAsyncLifetime` for container lifecycle management
+  - Implements `IAsyncInitializer + IAsyncDisposable` for container lifecycle management
   - Provides `TestUserClaimsService` with `SetCurrentClaimsPrincipal` for actor impersonation
   - Replaces production services with test implementations:
     - `TestAuthenticationHandler` - Test authentication scheme
@@ -34,14 +34,14 @@ Integration tests for Gallery API endpoints using real HTTP clients, Testcontain
   - `GetUsers_ReturnsSuccessStatusCode` - Verifies `/api/users` returns HTTP 200
   - `GetUser_WhenUserExists_ReturnsUser` - Seeds user via `GalleryDbContext`, verifies GET `/api/users/{id}` returns user with correct ID
   - `GetUser_WhenUserDoesNotExist_ReturnsNotFound` - Verifies GET with non-existent ID returns 404 or 200 (implementation-dependent)
-  - **Pattern:** Injects dependencies via `IClassFixture<GalleryTestContext>`, seeds test data via scoped `GalleryDbContext`
+  - **Pattern:** Injects dependencies via `[ClassDataSource<GalleryTestContext>(Shared = SharedType.PerTestSession)]`, seeds test data via scoped `GalleryDbContext`
 
 ## Key Patterns
 
 ### Test Context Setup
 
 ```csharp
-public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncLifetime
+public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncInitializer, IAsyncDisposable
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
@@ -60,16 +60,11 @@ public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncLifetime
 ### Test Fixture Usage
 
 ```csharp
-public class UserControllerTests : IClassFixture<GalleryTestContext>
+[ClassDataSource<GalleryTestContext>(Shared = SharedType.PerTestSession)]
+public class UserControllerTests(GalleryTestContext factory)
 {
-    private readonly GalleryTestContext _factory;
-    private readonly HttpClient _client;
-
-    public UserControllerTests(GalleryTestContext factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+    private readonly GalleryTestContext _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 }
 ```
 
@@ -88,16 +83,16 @@ using (var scope = _factory.Services.CreateScope())
 
 ```csharp
 var response = await _client.GetAsync("/api/users");
-Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
 var user = await response.Content.ReadFromJsonAsync<Gallery.Api.ViewModels.User>();
-Assert.NotNull(user);
-Assert.Equal(expectedId, user.Id);
+await Assert.That(user).IsNotNull();
+await Assert.That(user.Id).IsEqualTo(expectedId);
 ```
 
 ## Dependencies
 
-- **xUnit** - Test framework
+- **TUnit** 1.19.22 - Test framework
 - **Testcontainers.PostgreSql** - Ephemeral PostgreSQL containers for isolated test databases
 - **Microsoft.AspNetCore.Mvc.Testing** - `WebApplicationFactory<T>` for in-process hosting
 - **Crucible.Common.Testing** - `TestAuthenticationHandler`, `TestAuthorizationService`, `TestClaimsTransformation`
@@ -128,13 +123,13 @@ dotnet test Gallery.Api.Tests.Integration --logger "console;verbosity=detailed"
 
 ## Architecture Notes
 
-- **Database:** Each test class shares a Testcontainers PostgreSQL instance via `IClassFixture<GalleryTestContext>`
+- **Database:** Each test class shares a Testcontainers PostgreSQL instance via `[ClassDataSource<GalleryTestContext>(Shared = SharedType.PerTestSession)]`
 - **Isolation:** Testcontainers creates ephemeral databases that are destroyed after test execution
 - **Authentication:** `TestAuthenticationHandler` uses `GalleryTestContext.Actor` to impersonate users (default: `TestAuthenticationUser.DefaultUserId`)
 - **Authorization:** `TestAuthorizationService` bypasses policy checks (always authorized) for testing business logic without permission constraints
 - **DbContext:** Tests use `GalleryDbContext` (not `GalleryContext`) as per Gallery naming conventions
 - **Port Binding:** Testcontainers handles dynamic port allocation; no port conflicts
-- **Container Lifecycle:** PostgreSQL container starts once per test class (`InitializeAsync`) and stops after all tests complete (`DisposeAsync`)
+- **Container Lifecycle:** PostgreSQL container starts once per test session (`InitializeAsync`) and stops after all tests complete (`DisposeAsync`)
 - **Migration Strategy:** Uses `EnsureCreatedAsync` to apply migrations without requiring migration files in test project
 
 ## TestUserClaimsService
