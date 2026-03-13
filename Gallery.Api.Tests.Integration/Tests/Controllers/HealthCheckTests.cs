@@ -3,37 +3,33 @@
 
 using System.Net;
 using Gallery.Api.Tests.Integration.Fixtures;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Integration.Tests.Controllers;
 
-[Trait("Category", "Integration")]
-public class HealthCheckTests : IClassFixture<GalleryTestContext>
+[Category("Integration")]
+[ClassDataSource<GalleryTestContext>(Shared = SharedType.PerTestSession)]
+public class HealthCheckTests(GalleryTestContext factory)
 {
-    private readonly HttpClient _client;
+    private readonly HttpClient _client = factory.CreateClient();
 
-    public HealthCheckTests(GalleryTestContext factory)
-    {
-        _client = factory.CreateClient();
-    }
-
-    [Fact]
+    [Test]
     public async Task LiveHealthCheck_WhenHealthy_ReturnsOk()
     {
         // Act
         var response = await _client.GetAsync("/api/health/live");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
-    [Fact]
+    [Test]
     public async Task ReadyHealthCheck_WhenHealthy_ReturnsOk()
     {
         // Act
         var response = await _client.GetAsync("/api/health/ready");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 }

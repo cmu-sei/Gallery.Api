@@ -13,11 +13,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using Xunit;
+using TUnit.Core;
+using TUnit.Core.Interfaces;
 
 namespace Gallery.Api.Tests.Integration.Fixtures;
 
-public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncLifetime
+public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncInitializer, IAsyncDisposable
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
@@ -87,7 +88,7 @@ public class GalleryTestContext : WebApplicationFactory<Program>, IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
     }
 
-    public new async Task DisposeAsync()
+    public new async ValueTask DisposeAsync()
     {
         await _postgres.DisposeAsync();
     }

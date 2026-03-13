@@ -15,11 +15,11 @@ using Gallery.Api.Tests.Shared.Fixtures;
 using Gallery.Api.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
-[Trait("Category", "Unit")]
+[Category("Unit")]
 public class UserServiceTests
 {
     private readonly IFixture _fixture;
@@ -51,23 +51,25 @@ public class UserServiceTests
         _sut = new UserService(_context, _user, _authorizationService, _logger, _mapper);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenUserDoesNotExist_ThrowsEntityNotFoundException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException<ViewModels.User>>(
-            () => _sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None))
+            .ThrowsExactly<EntityNotFoundException<ViewModels.User>>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenDeletingSelf_ThrowsForbiddenException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<ForbiddenException>(
-            () => _sut.DeleteAsync(_userId, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.DeleteAsync(_userId, CancellationToken.None))
+            .ThrowsExactly<ForbiddenException>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenUserExists_ReturnsTrue()
     {
         // Arrange
@@ -86,22 +88,23 @@ public class UserServiceTests
         var result = await _sut.DeleteAsync(entity.Id, CancellationToken.None);
 
         // Assert
-        Assert.True(result);
-        Assert.Null(await _context.Users.FindAsync(entity.Id));
+        await Assert.That(result).IsTrue();
+        await Assert.That(await _context.Users.FindAsync(entity.Id)).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WhenIdMismatch_ThrowsForbiddenException()
     {
         // Arrange
         var user = new ViewModels.User { Id = Guid.NewGuid() };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ForbiddenException>(
-            () => _sut.UpdateAsync(Guid.NewGuid(), user, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.UpdateAsync(Guid.NewGuid(), user, CancellationToken.None))
+            .ThrowsExactly<ForbiddenException>();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WhenUserDoesNotExist_ThrowsEntityNotFoundException()
     {
         // Arrange
@@ -109,11 +112,12 @@ public class UserServiceTests
         var user = new ViewModels.User { Id = userId };
 
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException<ViewModels.User>>(
-            () => _sut.UpdateAsync(userId, user, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.UpdateAsync(userId, user, CancellationToken.None))
+            .ThrowsExactly<EntityNotFoundException<ViewModels.User>>();
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithValidUser_AddsUserToContext()
     {
         // This test needs a real mapper because CreateAsync internally calls GetAsync
@@ -132,7 +136,7 @@ public class UserServiceTests
 
         // Assert
         var saved = await context.Users.FindAsync(userVm.Id);
-        Assert.NotNull(saved);
-        Assert.Equal("Test User", saved.Name);
+        await Assert.That(saved).IsNotNull();
+        await Assert.That(saved.Name).IsEqualTo("Test User");
     }
 }

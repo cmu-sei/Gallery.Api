@@ -8,40 +8,34 @@ using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Integration.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Integration.Tests.Controllers;
 
-[Trait("Category", "Integration")]
-public class UserControllerTests : IClassFixture<GalleryTestContext>
+[Category("Integration")]
+[ClassDataSource<GalleryTestContext>(Shared = SharedType.PerTestSession)]
+public class UserControllerTests(GalleryTestContext factory)
 {
-    private readonly GalleryTestContext _factory;
-    private readonly HttpClient _client;
+    private readonly HttpClient _client = factory.CreateClient();
 
-    public UserControllerTests(GalleryTestContext factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
-
-    [Fact]
+    [Test]
     public async Task GetUsers_WhenCalled_ReturnsSuccessStatusCode()
     {
         // Act
         var response = await _client.GetAsync("/api/users");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
-    [Fact]
+    [Test]
     public async Task GetUser_WhenUserExists_ReturnsUser()
     {
         // Arrange
         var userId = TestAuthenticationUser.DefaultUserId;
 
         // Seed the user into the database
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = factory.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<GalleryDbContext>();
             if (!context.Users.Any(u => u.Id == userId))
@@ -60,13 +54,13 @@ public class UserControllerTests : IClassFixture<GalleryTestContext>
         var response = await _client.GetAsync($"/api/users/{userId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         var user = await response.Content.ReadFromJsonAsync<Gallery.Api.ViewModels.User>();
-        Assert.NotNull(user);
-        Assert.Equal(userId, user.Id);
+        await Assert.That(user).IsNotNull();
+        await Assert.That(user.Id).IsEqualTo(userId);
     }
 
-    [Fact]
+    [Test]
     public async Task GetUser_WhenUserDoesNotExist_ReturnsNotFound()
     {
         // Arrange
@@ -77,9 +71,9 @@ public class UserControllerTests : IClassFixture<GalleryTestContext>
 
         // Assert
         // The API may return 404 or return null with 200 depending on implementation
-        Assert.True(
+        await Assert.That(
             response.StatusCode == HttpStatusCode.NotFound ||
-            response.StatusCode == HttpStatusCode.OK,
-            $"Expected NotFound or OK, got {response.StatusCode}");
+            response.StatusCode == HttpStatusCode.OK)
+            .IsTrue();
     }
 }

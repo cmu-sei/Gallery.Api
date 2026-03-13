@@ -4,15 +4,15 @@
 using AutoMapper;
 using AutoMapper.Internal;
 using Gallery.Api.Infrastructure.Mapping;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Category("Unit")]
 public class MappingConfigurationTests
 {
-    [Fact]
-    public void AutoMapper_WhenConfigured_IsValid()
+    [Test]
+    public async Task AutoMapper_WhenConfigured_IsValid()
     {
         // Arrange
         var configuration = new MapperConfiguration(cfg =>
@@ -28,6 +28,6 @@ public class MappingConfigurationTests
         var mapper = configuration.CreateMapper();
 
         // Assert
-        Assert.NotNull(mapper);
+        await Assert.That(mapper).IsNotNull();
     }
 }

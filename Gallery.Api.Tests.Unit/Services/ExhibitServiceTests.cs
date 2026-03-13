@@ -14,11 +14,11 @@ using Gallery.Api.Services;
 using Gallery.Api.Tests.Shared.Fixtures;
 using Gallery.Api.ViewModels;
 using Microsoft.AspNetCore.Authorization;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
-[Trait("Category", "Unit")]
+[Category("Unit")]
 public class ExhibitServiceTests
 {
     private readonly IFixture _fixture;
@@ -58,7 +58,7 @@ public class ExhibitServiceTests
             _userClaimsService);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAsync_WhenCanViewAll_ReturnsAllExhibits()
     {
         // Arrange
@@ -82,10 +82,10 @@ public class ExhibitServiceTests
         var result = await _sut.GetAsync(true, CancellationToken.None);
 
         // Assert
-        Assert.Equal(3, result.Count());
+        await Assert.That(result.Count()).IsEqualTo(3);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAsync_ById_ReturnsExhibit()
     {
         // Arrange
@@ -109,33 +109,35 @@ public class ExhibitServiceTests
         var result = await _sut.GetAsync(entity.Id, false, CancellationToken.None);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(entity.Id, result.Id);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Id).IsEqualTo(entity.Id);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithMissingCollectionId_ThrowsArgumentException()
     {
         // Arrange
         var exhibit = new ViewModels.Exhibit { CollectionId = Guid.Empty };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => _sut.CreateAsync(exhibit, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.CreateAsync(exhibit, CancellationToken.None))
+            .ThrowsExactly<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithNonExistentCollection_ThrowsEntityNotFoundException()
     {
         // Arrange
         var exhibit = new ViewModels.Exhibit { CollectionId = Guid.NewGuid() };
 
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException<ViewModels.Collection>>(
-            () => _sut.CreateAsync(exhibit, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.CreateAsync(exhibit, CancellationToken.None))
+            .ThrowsExactly<EntityNotFoundException<ViewModels.Collection>>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenExhibitExists_ReturnsTrue()
     {
         // Arrange
@@ -155,26 +157,28 @@ public class ExhibitServiceTests
         var result = await _sut.DeleteAsync(entity.Id, CancellationToken.None);
 
         // Assert
-        Assert.True(result);
-        Assert.Null(await _context.Exhibits.FindAsync(entity.Id));
+        await Assert.That(result).IsTrue();
+        await Assert.That(await _context.Exhibits.FindAsync(entity.Id)).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenExhibitDoesNotExist_ThrowsEntityNotFoundException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException<ViewModels.Exhibit>>(
-            () => _sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None))
+            .ThrowsExactly<EntityNotFoundException<ViewModels.Exhibit>>();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WhenExhibitDoesNotExist_ThrowsEntityNotFoundException()
     {
         // Arrange
         var exhibit = _fixture.Create<ViewModels.Exhibit>();
 
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException<ViewModels.Exhibit>>(
-            () => _sut.UpdateAsync(Guid.NewGuid(), exhibit, CancellationToken.None));
+        await Assert.That(async () =>
+            await _sut.UpdateAsync(Guid.NewGuid(), exhibit, CancellationToken.None))
+            .ThrowsExactly<EntityNotFoundException<ViewModels.Exhibit>>();
     }
 }

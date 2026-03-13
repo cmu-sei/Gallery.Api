@@ -12,11 +12,11 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
 using Gallery.Api.Tests.Shared.Fixtures;
 using Gallery.Api.ViewModels;
-using Xunit;
+using TUnit.Core;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
-[Trait("Category", "Unit")]
+[Category("Unit")]
 public class CollectionServiceTests
 {
     private static (GalleryDbContext context, CollectionService sut, IMapper mapper, IFixture fixture) CreateTestContext()
@@ -38,7 +38,7 @@ public class CollectionServiceTests
         return (context, sut, mapper, fixture);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAsync_WhenCanViewAll_ReturnsAllCollections()
     {
         var (context, sut, mapper, fixture) = CreateTestContext();
@@ -58,10 +58,10 @@ public class CollectionServiceTests
 
         var result = await sut.GetAsync(true, CancellationToken.None);
 
-        Assert.Equal(3, result.Count());
+        await Assert.That(result.Count()).IsEqualTo(3);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAsync_ById_ReturnsCollection()
     {
         var (context, sut, mapper, fixture) = CreateTestContext();
@@ -76,11 +76,11 @@ public class CollectionServiceTests
 
         var result = await sut.GetAsync(entity.Id, CancellationToken.None);
 
-        Assert.NotNull(result);
-        Assert.Equal(entity.Id, result.Id);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Id).IsEqualTo(entity.Id);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenCollectionExists_ReturnsTrue()
     {
         var (context, sut, _, fixture) = CreateTestContext();
@@ -91,27 +91,29 @@ public class CollectionServiceTests
 
         var result = await sut.DeleteAsync(entity.Id, CancellationToken.None);
 
-        Assert.True(result);
-        Assert.Null(await context.Collections.FindAsync(entity.Id));
+        await Assert.That(result).IsTrue();
+        await Assert.That(await context.Collections.FindAsync(entity.Id)).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenCollectionDoesNotExist_ThrowsEntityNotFoundException()
     {
         var (_, sut, _, _) = CreateTestContext();
 
-        await Assert.ThrowsAsync<Gallery.Api.Infrastructure.Exceptions.EntityNotFoundException<ViewModels.Collection>>(
-            () => sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None));
+        await Assert.That(async () =>
+            await sut.DeleteAsync(Guid.NewGuid(), CancellationToken.None))
+            .ThrowsExactly<Gallery.Api.Infrastructure.Exceptions.EntityNotFoundException<ViewModels.Collection>>();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WhenCollectionDoesNotExist_ThrowsEntityNotFoundException()
     {
         var (_, sut, _, fixture) = CreateTestContext();
 
         var collection = fixture.Create<ViewModels.Collection>();
 
-        await Assert.ThrowsAsync<Gallery.Api.Infrastructure.Exceptions.EntityNotFoundException<ViewModels.Collection>>(
-            () => sut.UpdateAsync(Guid.NewGuid(), collection, CancellationToken.None));
+        await Assert.That(async () =>
+            await sut.UpdateAsync(Guid.NewGuid(), collection, CancellationToken.None))
+            .ThrowsExactly<Gallery.Api.Infrastructure.Exceptions.EntityNotFoundException<ViewModels.Collection>>();
     }
 }
