@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Gallery.Api.Tests.Integration</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gallery.Api\Gallery.Api.csproj" />
+    <ProjectReference Include="..\Gallery.Api.Data\Gallery.Api.Data.csproj" />
+    <ProjectReference Include="..\Gallery.Api.Tests.Shared\Gallery.Api.Tests.Shared.csproj" />
+    <ProjectReference Include="..\..\..\libraries\crucible-common-dotnet\src\Crucible.Common.Testing\Crucible.Common.Testing.csproj" />
+  </ItemGroup>
+
+</Project>
