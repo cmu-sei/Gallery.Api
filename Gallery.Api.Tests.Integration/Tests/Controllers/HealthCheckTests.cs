@@ -7,6 +7,7 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Integration.Tests.Controllers;
 
+[Trait("Category", "Integration")]
 public class HealthCheckTests : IClassFixture<GalleryTestContext>
 {
     private readonly HttpClient _client;
@@ -17,7 +18,7 @@ public class HealthCheckTests : IClassFixture<GalleryTestContext>
     }
 
     [Fact]
-    public async Task LiveHealthCheck_ReturnsOk()
+    public async Task LiveHealthCheck_WhenHealthy_ReturnsOk()
     {
         // Act
         var response = await _client.GetAsync("/api/health/live");
@@ -27,7 +28,7 @@ public class HealthCheckTests : IClassFixture<GalleryTestContext>
     }
 
     [Fact]
-    public async Task ReadyHealthCheck_ReturnsOk()
+    public async Task ReadyHealthCheck_WhenHealthy_ReturnsOk()
     {
         // Act
         var response = await _client.GetAsync("/api/health/ready");

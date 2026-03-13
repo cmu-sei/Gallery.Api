@@ -8,10 +8,11 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Unit;
 
+[Trait("Category", "Unit")]
 public class MappingConfigurationTests
 {
     [Fact]
-    public void AutoMapper_ConfigurationIsValid()
+    public void AutoMapper_WhenConfigured_IsValid()
     {
         // Arrange
         var configuration = new MapperConfiguration(cfg =>

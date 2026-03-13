@@ -16,6 +16,7 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
+[Trait("Category", "Unit")]
 public class CollectionServiceTests
 {
     private static (GalleryDbContext context, CollectionService sut, IMapper mapper, IFixture fixture) CreateTestContext()

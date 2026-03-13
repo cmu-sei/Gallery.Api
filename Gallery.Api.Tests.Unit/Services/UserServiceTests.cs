@@ -19,6 +19,7 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
+[Trait("Category", "Unit")]
 public class UserServiceTests
 {
     private readonly IFixture _fixture;
@@ -113,7 +114,7 @@ public class UserServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_AddsUserToContext()
+    public async Task CreateAsync_WithValidUser_AddsUserToContext()
     {
         // This test needs a real mapper because CreateAsync internally calls GetAsync
         // which uses ProjectTo<User>() requiring a real IConfigurationProvider

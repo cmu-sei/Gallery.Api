@@ -18,6 +18,7 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Unit.Services;
 
+[Trait("Category", "Unit")]
 public class ExhibitServiceTests
 {
     private readonly IFixture _fixture;

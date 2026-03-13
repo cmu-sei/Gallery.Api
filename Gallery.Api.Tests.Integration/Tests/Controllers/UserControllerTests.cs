@@ -12,6 +12,7 @@ using Xunit;
 
 namespace Gallery.Api.Tests.Integration.Tests.Controllers;
 
+[Trait("Category", "Integration")]
 public class UserControllerTests : IClassFixture<GalleryTestContext>
 {
     private readonly GalleryTestContext _factory;
@@ -24,7 +25,7 @@ public class UserControllerTests : IClassFixture<GalleryTestContext>
     }
 
     [Fact]
-    public async Task GetUsers_ReturnsSuccessStatusCode()
+    public async Task GetUsers_WhenCalled_ReturnsSuccessStatusCode()
     {
         // Act
         var response = await _client.GetAsync("/api/users");
