@@ -55,6 +55,10 @@ public class SystemRoleEntityConfiguration : IEntityTypeConfiguration<SystemRole
                 AllPermissions = false,
                 Immutable = false,
                 Permissions = [
+                    SystemPermission.ViewCollections,
+                    SystemPermission.ViewExhibits,
+                    SystemPermission.ViewRoles,
+                    SystemPermission.ViewGroups,
                     SystemPermission.CreateCollections,
                     SystemPermission.CreateExhibits,
                     SystemPermission.ManageExhibits
