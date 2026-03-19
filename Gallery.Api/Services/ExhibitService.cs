@@ -110,7 +110,7 @@ namespace Gallery.Api.Services
                 var userId = _user.GetId();
                 var isMember = await _context.TeamUsers
                     .AnyAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == id, ct);
-                if(!isMember)
+                if (!isMember)
                     throw new ForbiddenException();
             }
             var item = await _context.Exhibits.SingleOrDefaultAsync(sm => sm.Id == id, ct);
@@ -176,7 +176,8 @@ namespace Gallery.Api.Services
 
             _context.Exhibits.Add(exhibitEntity);
             await _context.SaveChangesAsync(ct);
-            var createOwnerMembership = new ExhibitMembershipEntity() {
+            var createOwnerMembership = new ExhibitMembershipEntity()
+            {
                 UserId = userId,
                 ExhibitId = exhibitEntity.Id,
                 RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
@@ -233,7 +234,8 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(m => m.Article.CollectionId == exhibitEntity.CollectionId && m.Team.ExhibitId == exhibitEntity.Id)
                 .ToListAsync(ct);
-            var exhibitFileObject = new ExhibitFileFormat() {
+            var exhibitFileObject = new ExhibitFileFormat()
+            {
                 Collection = collection,
                 Cards = cards,
                 Articles = articles,
@@ -343,7 +345,8 @@ namespace Gallery.Api.Services
                 await _context.TeamArticles.AddAsync(teamArticle, ct);
             }
             await _context.SaveChangesAsync(ct);
-            var createOwnerMembership = new ExhibitMembershipEntity() {
+            var createOwnerMembership = new ExhibitMembershipEntity()
+            {
                 UserId = currentUserId,
                 ExhibitId = newExhibitId,
                 RoleId = ExhibitRoleDefaults.ExhibitCreatorRoleId
@@ -420,6 +423,8 @@ namespace Gallery.Api.Services
             if (exhibitToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
 
+            exhibitToUpdate.CurrentMove = move;
+            exhibitToUpdate.CurrentInject = inject;
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
