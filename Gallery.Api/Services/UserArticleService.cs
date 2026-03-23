@@ -358,7 +358,7 @@ namespace Gallery.Api.Services
 
             if (newUserArticles.Count > 0)
             {
-                await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
+                _context.UserArticles.AddRange(newUserArticles);
                 await _context.SaveChangesAsync(ct);
             }
 
@@ -400,7 +400,7 @@ namespace Gallery.Api.Services
 
             if (newUserArticles.Count > 0)
             {
-                await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
+                _context.UserArticles.AddRange(newUserArticles);
                 await _context.SaveChangesAsync(ct);
             }
 
@@ -449,7 +449,7 @@ namespace Gallery.Api.Services
                     newUserArticles.Add(newUserArticle);
                 }
             }
-            await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
+            _context.UserArticles.AddRange(newUserArticles);
             await _context.SaveChangesAsync(ct);
 
             return true;
