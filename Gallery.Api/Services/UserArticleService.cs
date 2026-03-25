@@ -325,27 +325,41 @@ namespace Gallery.Api.Services
                 )
                 .AsSplitQuery()
                 .ToListAsync(ct);
+
+            // Batch-query all existing UserArticles for this exhibit in a single query
+            var existingUserArticles = await _context.UserArticles
+                .Where(ua => ua.ExhibitId == exhibit.Id)
+                .Select(ua => new { ua.ArticleId, ua.UserId })
+                .ToListAsync(ct);
+            var existingSet = new HashSet<(Guid ArticleId, Guid UserId)>(
+                existingUserArticles.Select(ua => (ua.ArticleId, ua.UserId))
+            );
+
+            // Build all new UserArticles in memory, skipping those that already exist
+            var newUserArticles = new List<UserArticleEntity>();
             foreach (var teamArticle in teamArticleList)
             {
                 foreach (var teamUser in teamArticle.Team.TeamUsers)
                 {
-                    var userArticleExists = await _context.UserArticles
-                        .Where(m => (m.ArticleId == teamArticle.ArticleId) && (m.UserId == teamUser.UserId))
-                        .AnyAsync(ct);
-                    if (!userArticleExists)
+                    if (!existingSet.Contains((teamArticle.ArticleId, teamUser.UserId)))
                     {
-                        var newUserArticle = new UserArticleEntity() {
+                        newUserArticles.Add(new UserArticleEntity() {
                             Id = Guid.NewGuid(),
                             ArticleId = teamArticle.ArticleId,
                             ExhibitId = exhibit.Id,
                             UserId = teamUser.UserId,
                             ActualDatePosted = actualTime,
                             IsRead = false
-                        };
-                        await _context.UserArticles.AddAsync(newUserArticle, ct);
-                        await _context.SaveChangesAsync(ct);
+                        });
+                        existingSet.Add((teamArticle.ArticleId, teamUser.UserId));
                     }
                 }
+            }
+
+            if (newUserArticles.Count > 0)
+            {
+                _context.UserArticles.AddRange(newUserArticles);
+                await _context.SaveChangesAsync(ct);
             }
 
             return true;
@@ -359,32 +373,35 @@ namespace Gallery.Api.Services
                 .SingleOrDefaultAsync(ta => ta.Id == teamArticleId);
             var exhibit = await _context.Exhibits
                 .SingleOrDefaultAsync(e => e.Id == teamArticle.ExhibitId, ct);
-            var currentMove = exhibit.CurrentMove;
-            var currentInject = exhibit.CurrentInject;
             var actualTime = DateTime.UtcNow;
+
+            // Batch-query existing UserArticles for this article in a single query
+            var existingUserIds = await _context.UserArticles
+                .Where(ua => ua.ExhibitId == exhibit.Id && ua.ArticleId == teamArticle.ArticleId)
+                .Select(ua => ua.UserId)
+                .ToListAsync(ct);
+            var existingSet = new HashSet<Guid>(existingUserIds);
+
+            var newUserArticles = new List<UserArticleEntity>();
             foreach (var teamUser in teamArticle.Team.TeamUsers)
             {
-                try
+                if (!existingSet.Contains(teamUser.UserId))
                 {
-                    var newUserArticle = new UserArticleEntity() {
+                    newUserArticles.Add(new UserArticleEntity() {
                         Id = Guid.NewGuid(),
                         ArticleId = teamArticle.ArticleId,
                         ExhibitId = exhibit.Id,
                         UserId = teamUser.UserId,
                         ActualDatePosted = actualTime,
                         IsRead = false
-                    };
-                    await _context.UserArticles.AddAsync(newUserArticle, ct);
-                    await _context.SaveChangesAsync(ct);
+                    });
                 }
-                catch (Exception ex)
-                {
-                    if (ex.InnerException == null
-                        || !ex.InnerException.Message.Contains("IX_user_articles_exhibit_id_user_id_article_id"))
-                    {
-                        throw ex;
-                    }
-                }
+            }
+
+            if (newUserArticles.Count > 0)
+            {
+                _context.UserArticles.AddRange(newUserArticles);
+                await _context.SaveChangesAsync(ct);
             }
 
             return true;
@@ -432,7 +449,7 @@ namespace Gallery.Api.Services
                     newUserArticles.Add(newUserArticle);
                 }
             }
-            await _context.UserArticles.AddRangeAsync(newUserArticles, ct);
+            _context.UserArticles.AddRange(newUserArticles);
             await _context.SaveChangesAsync(ct);
 
             return true;
