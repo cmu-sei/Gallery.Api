@@ -13,6 +13,7 @@ namespace Gallery.Api.ViewModels
         public int CurrentInject { get; set; }
         public Guid CollectionId { get; set; }
         public Guid? ScenarioId { get; set; }
+        public bool ShowAdvanceButton { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
         public IEnumerable<string> ExhibitPermissions { get; set; }
