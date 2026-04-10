@@ -18,6 +18,7 @@ namespace Gallery.Api.Data.Models
         public Guid CollectionId { get; set; }
         public CollectionEntity Collection { get; set; }
         public Guid? ScenarioId { get; set; }
+        public bool ShowAdvanceButton { get; set; }
         public ICollection<TeamEntity> Teams { get; set; } = new List<TeamEntity>();
         public string Name { get; set; }
         public string Description { get; set; }
