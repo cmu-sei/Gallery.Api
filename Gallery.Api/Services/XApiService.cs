@@ -145,10 +145,10 @@ namespace Gallery.Api.Services
             // Move grouping entry
             var moveGrouping = new Dictionary<String,String>();
             moveGrouping.Add("id", article.Move.ToString());
-            moveGrouping.Add("name", $"Move {article.Move}");
-            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
+            moveGrouping.Add("name", article.Name);
+            moveGrouping.Add("description", article.Summary);
             moveGrouping.Add("type", "move");
-            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
 
@@ -213,10 +213,10 @@ namespace Gallery.Api.Services
             // Move grouping entry
             var moveGrouping = new Dictionary<String,String>();
             moveGrouping.Add("id", article.Move.ToString());
-            moveGrouping.Add("name", $"Move {article.Move}");
-            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
+            moveGrouping.Add("name", article.Name);
+            moveGrouping.Add("description", article.Summary);
             moveGrouping.Add("type", "move");
-            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
 
@@ -307,6 +307,27 @@ namespace Gallery.Api.Services
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", "Current Move");
+                moveGrouping.Add("description", $"Current exhibit move: {exhibit.CurrentMove}");
+                moveGrouping.Add("type", "move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", $"Current exhibit inject: {exhibit.CurrentInject}");
+                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
+
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
 
@@ -341,6 +362,27 @@ namespace Gallery.Api.Services
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", "Current Move");
+                moveGrouping.Add("description", $"Current exhibit move: {exhibit.CurrentMove}");
+                moveGrouping.Add("type", "move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", $"Current exhibit inject: {exhibit.CurrentInject}");
+                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
+
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
 
@@ -372,6 +414,27 @@ namespace Gallery.Api.Services
             var category = new Dictionary<String,String>();
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
+
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", "Current Move");
+                moveGrouping.Add("description", $"Current exhibit move: {exhibit.CurrentMove}");
+                moveGrouping.Add("type", "move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", $"Current exhibit inject: {exhibit.CurrentInject}");
+                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
 
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
@@ -405,6 +468,27 @@ namespace Gallery.Api.Services
             var category = new Dictionary<String,String>();
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
+
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", "Current Move");
+                moveGrouping.Add("description", $"Current exhibit move: {exhibit.CurrentMove}");
+                moveGrouping.Add("type", "move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", $"Current exhibit inject: {exhibit.CurrentInject}");
+                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
 
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
