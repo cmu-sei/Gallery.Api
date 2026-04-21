@@ -531,7 +531,9 @@ namespace Gallery.Api.Services
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
             activity.definition.description = new LanguageMap();
-            activity.definition.description.Add("en-US", activityData["description"]);
+            if (!string.IsNullOrEmpty(activityData["description"])) {
+                activity.definition.description.Add("en-US", activityData["description"]);
+            }
 
             var context = new Context();
             context.platform = _xApiContext.platform;
@@ -573,7 +575,9 @@ namespace Gallery.Api.Services
                 parent.definition.name = new LanguageMap();
                 parent.definition.name.Add("en-US", parentData["name"]);
                 parent.definition.description = new LanguageMap();
-                parent.definition.description.Add("en-US", parentData["description"]);
+                if (!string.IsNullOrEmpty(parentData["description"])) {
+                    parent.definition.description.Add("en-US", parentData["description"]);
+                }
                 parent.definition.type = new Uri(parentData["activityType"]);
                 if (parentData.ContainsKey("moreInfo")) {
                     parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
@@ -589,7 +593,9 @@ namespace Gallery.Api.Services
                 other.definition.name = new LanguageMap();
                 other.definition.name.Add("en-US", otherData["name"]);
                 other.definition.description = new LanguageMap();
-                other.definition.description.Add("en-US", otherData["description"]);
+                if (!string.IsNullOrEmpty(otherData["description"])) {
+                    other.definition.description.Add("en-US", otherData["description"]);
+                }
                 other.definition.type = new Uri(otherData["activityType"]);
                 if (otherData.ContainsKey("moreInfo")) {
                     other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
@@ -610,7 +616,9 @@ namespace Gallery.Api.Services
                         grouping.definition.name = new LanguageMap();
                         grouping.definition.name.Add("en-US", groupingItem["name"]);
                         grouping.definition.description = new LanguageMap();
-                        grouping.definition.description.Add("en-US", groupingItem["description"]);
+                        if (!string.IsNullOrEmpty(groupingItem["description"])) {
+                            grouping.definition.description.Add("en-US", groupingItem["description"]);
+                        }
                         grouping.definition.type = new Uri(groupingItem["activityType"]);
                         if (groupingItem.ContainsKey("moreInfo") && !string.IsNullOrEmpty(groupingItem["moreInfo"])) {
                             grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingItem["moreInfo"]);
@@ -627,7 +635,9 @@ namespace Gallery.Api.Services
                 category.definition.name = new LanguageMap();
                 category.definition.name.Add("en-US", categoryData["name"]);
                 category.definition.description = new LanguageMap();
-                category.definition.description.Add("en-US", categoryData["description"]);
+                if (!string.IsNullOrEmpty(categoryData["description"])) {
+                    category.definition.description.Add("en-US", categoryData["description"]);
+                }
                 category.definition.type = new Uri(categoryData["activityType"]);
                 if (categoryData.ContainsKey("moreInfo")) {
                     category.definition.moreInfo = new Uri(_xApiOptions.UiUrl + categoryData["moreInfo"]);
