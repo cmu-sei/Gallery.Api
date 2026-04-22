@@ -147,7 +147,7 @@ namespace Gallery.Api.Services
             moveGrouping.Add("id", article.Move.ToString());
             moveGrouping.Add("name", $"Move {article.Move}");
             moveGrouping.Add("description", "");
-            moveGrouping.Add("type", "move");
+            moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
             moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
@@ -157,7 +157,7 @@ namespace Gallery.Api.Services
             injectGrouping.Add("id", article.Inject.ToString());
             injectGrouping.Add("name", $"Inject {article.Inject}");
             injectGrouping.Add("description", "");
-            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
             injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
             injectGrouping.Add("moreInfo", "");
             grouping.Add(injectGrouping);
@@ -215,7 +215,7 @@ namespace Gallery.Api.Services
             moveGrouping.Add("id", article.Move.ToString());
             moveGrouping.Add("name", $"Move {article.Move}");
             moveGrouping.Add("description", "");
-            moveGrouping.Add("type", "move");
+            moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
             moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
@@ -225,7 +225,7 @@ namespace Gallery.Api.Services
             injectGrouping.Add("id", article.Inject.ToString());
             injectGrouping.Add("name", $"Inject {article.Inject}");
             injectGrouping.Add("description", "");
-            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
             injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
             injectGrouping.Add("moreInfo", "");
             grouping.Add(injectGrouping);
@@ -313,7 +313,7 @@ namespace Gallery.Api.Services
                 moveGrouping.Add("id", exhibit.CurrentMove.ToString());
                 moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
                 moveGrouping.Add("description", "");
-                moveGrouping.Add("type", "move");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
                 moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                 moveGrouping.Add("moreInfo", "");
                 grouping.Add(moveGrouping);
@@ -322,7 +322,7 @@ namespace Gallery.Api.Services
                 injectGrouping.Add("id", exhibit.CurrentInject.ToString());
                 injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
                 injectGrouping.Add("description", "");
-                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
                 injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
@@ -368,7 +368,7 @@ namespace Gallery.Api.Services
                 moveGrouping.Add("id", exhibit.CurrentMove.ToString());
                 moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
                 moveGrouping.Add("description", "");
-                moveGrouping.Add("type", "move");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
                 moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                 moveGrouping.Add("moreInfo", "");
                 grouping.Add(moveGrouping);
@@ -377,7 +377,7 @@ namespace Gallery.Api.Services
                 injectGrouping.Add("id", exhibit.CurrentInject.ToString());
                 injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
                 injectGrouping.Add("description", "");
-                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
                 injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
@@ -421,7 +421,7 @@ namespace Gallery.Api.Services
                 moveGrouping.Add("id", exhibit.CurrentMove.ToString());
                 moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
                 moveGrouping.Add("description", "");
-                moveGrouping.Add("type", "move");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
                 moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                 moveGrouping.Add("moreInfo", "");
                 grouping.Add(moveGrouping);
@@ -430,7 +430,7 @@ namespace Gallery.Api.Services
                 injectGrouping.Add("id", exhibit.CurrentInject.ToString());
                 injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
                 injectGrouping.Add("description", "");
-                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
                 injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
@@ -475,7 +475,7 @@ namespace Gallery.Api.Services
                 moveGrouping.Add("id", exhibit.CurrentMove.ToString());
                 moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
                 moveGrouping.Add("description", "");
-                moveGrouping.Add("type", "move");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
                 moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                 moveGrouping.Add("moreInfo", "");
                 grouping.Add(moveGrouping);
@@ -484,7 +484,7 @@ namespace Gallery.Api.Services
                 injectGrouping.Add("id", exhibit.CurrentInject.ToString());
                 injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
                 injectGrouping.Add("description", "");
-                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
                 injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
@@ -526,7 +526,7 @@ namespace Gallery.Api.Services
             activity.definition = new TinCan.ActivityDefinition();
             activity.definition.type = new Uri(activityData["activityType"]);
             if (activityData.ContainsKey("moreInfo")) {
-                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + activityData["moreInfo"]);
+                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + activityData["moreInfo"]);
             }
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
@@ -580,7 +580,7 @@ namespace Gallery.Api.Services
                 }
                 parent.definition.type = new Uri(parentData["activityType"]);
                 if (parentData.ContainsKey("moreInfo")) {
-                    parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
+                    parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + parentData["moreInfo"]);
                 }
                 contextActivities.parent = new List<Activity>();
                 contextActivities.parent.Add(parent);
@@ -598,7 +598,7 @@ namespace Gallery.Api.Services
                 }
                 other.definition.type = new Uri(otherData["activityType"]);
                 if (otherData.ContainsKey("moreInfo")) {
-                    other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
+                    other.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + otherData["moreInfo"]);
                 }
                 contextActivities.other = new List<Activity>();
                 context.contextActivities.other.Add(other);
@@ -621,7 +621,7 @@ namespace Gallery.Api.Services
                         }
                         grouping.definition.type = new Uri(groupingItem["activityType"]);
                         if (groupingItem.ContainsKey("moreInfo") && !string.IsNullOrEmpty(groupingItem["moreInfo"])) {
-                            grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingItem["moreInfo"]);
+                            grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + groupingItem["moreInfo"]);
                         }
                         context.contextActivities.grouping.Add(grouping);
                     }
@@ -640,7 +640,7 @@ namespace Gallery.Api.Services
                 }
                 category.definition.type = new Uri(categoryData["activityType"]);
                 if (categoryData.ContainsKey("moreInfo")) {
-                    category.definition.moreInfo = new Uri(_xApiOptions.UiUrl + categoryData["moreInfo"]);
+                    category.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + categoryData["moreInfo"]);
                 }
                 contextActivities.category = new List<Activity>();
                 context.contextActivities.category.Add(category);
