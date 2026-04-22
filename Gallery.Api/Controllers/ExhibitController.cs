@@ -255,6 +255,38 @@ namespace Gallery.Api.Controllers
         }
 
         /// <summary>
+        /// Advances an Exhibit to the next move/inject
+        /// </summary>
+        /// <remarks>
+        /// Looks at all articles for unique moves and injects, sorts by move then inject,
+        /// finds the current position, and advances to the next higher inject or
+        /// the next higher move if at the highest inject for the current move.
+        /// Returns an error if already at the last move/inject.
+        /// </remarks>
+        /// <param name="id">The Id of the Exhibit to advance</param>
+        /// <param name="ct"></param>
+        [HttpPut("exhibits/{id}/advance")]
+        [ProducesResponseType(typeof(Exhibit), (int)HttpStatusCode.OK)]
+        [ProducesResponseType(typeof(ProblemDetails), (int)HttpStatusCode.BadRequest)]
+        [SwaggerOperation(OperationId = "advanceExhibit")]
+        public async Task<IActionResult> AdvanceExhibit([FromRoute] Guid id, CancellationToken ct)
+        {
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+                throw new ForbiddenException();
+
+            var updatedExhibit = await _exhibitService.AdvanceAsync(id, ct);
+            if (updatedExhibit == null)
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Cannot advance.",
+                    Detail = "Already at the last move/inject. There are no further moves or injects to advance to.",
+                    Status = (int)HttpStatusCode.BadRequest
+                });
+
+            return Ok(updatedExhibit);
+        }
+
+        /// <summary>
         /// Deletes an Exhibit
         /// </summary>
         /// <remarks>
