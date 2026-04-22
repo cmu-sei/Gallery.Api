@@ -146,9 +146,9 @@ namespace Gallery.Api.Services
             var moveGrouping = new Dictionary<String,String>();
             moveGrouping.Add("id", article.Move.ToString());
             moveGrouping.Add("name", $"Move {article.Move}");
-            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
-            moveGrouping.Add("type", "move");
-            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("description", "");
+            moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
 
@@ -156,8 +156,8 @@ namespace Gallery.Api.Services
             var injectGrouping = new Dictionary<String,String>();
             injectGrouping.Add("id", article.Inject.ToString());
             injectGrouping.Add("name", $"Inject {article.Inject}");
-            injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
-            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("description", "");
+            injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
             injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
             injectGrouping.Add("moreInfo", "");
             grouping.Add(injectGrouping);
@@ -214,9 +214,9 @@ namespace Gallery.Api.Services
             var moveGrouping = new Dictionary<String,String>();
             moveGrouping.Add("id", article.Move.ToString());
             moveGrouping.Add("name", $"Move {article.Move}");
-            moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
-            moveGrouping.Add("type", "move");
-            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+            moveGrouping.Add("description", "");
+            moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+            moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
             moveGrouping.Add("moreInfo", "");
             grouping.Add(moveGrouping);
 
@@ -224,8 +224,8 @@ namespace Gallery.Api.Services
             var injectGrouping = new Dictionary<String,String>();
             injectGrouping.Add("id", article.Inject.ToString());
             injectGrouping.Add("name", $"Inject {article.Inject}");
-            injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
-            injectGrouping.Add("type", "inject");
+            injectGrouping.Add("description", "");
+            injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
             injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
             injectGrouping.Add("moreInfo", "");
             grouping.Add(injectGrouping);
@@ -307,6 +307,27 @@ namespace Gallery.Api.Services
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
+
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
 
@@ -341,6 +362,27 @@ namespace Gallery.Api.Services
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
 
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
+
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
 
@@ -372,6 +414,27 @@ namespace Gallery.Api.Services
             var category = new Dictionary<String,String>();
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
+
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
 
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
@@ -405,6 +468,27 @@ namespace Gallery.Api.Services
             var category = new Dictionary<String,String>();
             var grouping = new List<Dictionary<String,String>>();
             var other = new Dictionary<String,String>();
+
+            if (exhibit.CurrentMove >= 0 || exhibit.CurrentInject >= 0)
+            {
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", exhibit.CurrentMove.ToString());
+                moveGrouping.Add("name", $"Move {exhibit.CurrentMove}");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", exhibit.CurrentInject.ToString());
+                injectGrouping.Add("name", $"Inject {exhibit.CurrentInject}");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+            }
 
             return await CreateAsync(
                 verb, activity, category, grouping, parent, other, teamId, ct);
@@ -442,12 +526,14 @@ namespace Gallery.Api.Services
             activity.definition = new TinCan.ActivityDefinition();
             activity.definition.type = new Uri(activityData["activityType"]);
             if (activityData.ContainsKey("moreInfo")) {
-                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl + activityData["moreInfo"]);
+                activity.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + activityData["moreInfo"]);
             }
             activity.definition.name = new LanguageMap();
             activity.definition.name.Add("en-US", activityData["name"]);
             activity.definition.description = new LanguageMap();
-            activity.definition.description.Add("en-US", activityData["description"]);
+            if (!string.IsNullOrEmpty(activityData["description"])) {
+                activity.definition.description.Add("en-US", activityData["description"]);
+            }
 
             var context = new Context();
             context.platform = _xApiContext.platform;
@@ -489,10 +575,12 @@ namespace Gallery.Api.Services
                 parent.definition.name = new LanguageMap();
                 parent.definition.name.Add("en-US", parentData["name"]);
                 parent.definition.description = new LanguageMap();
-                parent.definition.description.Add("en-US", parentData["description"]);
+                if (!string.IsNullOrEmpty(parentData["description"])) {
+                    parent.definition.description.Add("en-US", parentData["description"]);
+                }
                 parent.definition.type = new Uri(parentData["activityType"]);
                 if (parentData.ContainsKey("moreInfo")) {
-                    parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl + parentData["moreInfo"]);
+                    parent.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + parentData["moreInfo"]);
                 }
                 contextActivities.parent = new List<Activity>();
                 contextActivities.parent.Add(parent);
@@ -505,10 +593,12 @@ namespace Gallery.Api.Services
                 other.definition.name = new LanguageMap();
                 other.definition.name.Add("en-US", otherData["name"]);
                 other.definition.description = new LanguageMap();
-                other.definition.description.Add("en-US", otherData["description"]);
+                if (!string.IsNullOrEmpty(otherData["description"])) {
+                    other.definition.description.Add("en-US", otherData["description"]);
+                }
                 other.definition.type = new Uri(otherData["activityType"]);
                 if (otherData.ContainsKey("moreInfo")) {
-                    other.definition.moreInfo = new Uri(_xApiOptions.UiUrl + otherData["moreInfo"]);
+                    other.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + otherData["moreInfo"]);
                 }
                 contextActivities.other = new List<Activity>();
                 context.contextActivities.other.Add(other);
@@ -526,10 +616,12 @@ namespace Gallery.Api.Services
                         grouping.definition.name = new LanguageMap();
                         grouping.definition.name.Add("en-US", groupingItem["name"]);
                         grouping.definition.description = new LanguageMap();
-                        grouping.definition.description.Add("en-US", groupingItem["description"]);
+                        if (!string.IsNullOrEmpty(groupingItem["description"])) {
+                            grouping.definition.description.Add("en-US", groupingItem["description"]);
+                        }
                         grouping.definition.type = new Uri(groupingItem["activityType"]);
                         if (groupingItem.ContainsKey("moreInfo") && !string.IsNullOrEmpty(groupingItem["moreInfo"])) {
-                            grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl + groupingItem["moreInfo"]);
+                            grouping.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + groupingItem["moreInfo"]);
                         }
                         context.contextActivities.grouping.Add(grouping);
                     }
@@ -543,10 +635,12 @@ namespace Gallery.Api.Services
                 category.definition.name = new LanguageMap();
                 category.definition.name.Add("en-US", categoryData["name"]);
                 category.definition.description = new LanguageMap();
-                category.definition.description.Add("en-US", categoryData["description"]);
+                if (!string.IsNullOrEmpty(categoryData["description"])) {
+                    category.definition.description.Add("en-US", categoryData["description"]);
+                }
                 category.definition.type = new Uri(categoryData["activityType"]);
                 if (categoryData.ContainsKey("moreInfo")) {
-                    category.definition.moreInfo = new Uri(_xApiOptions.UiUrl + categoryData["moreInfo"]);
+                    category.definition.moreInfo = new Uri(_xApiOptions.UiUrl.TrimEnd('/') + categoryData["moreInfo"]);
                 }
                 contextActivities.category = new List<Activity>();
                 context.contextActivities.category.Add(category);
