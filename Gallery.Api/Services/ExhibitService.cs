@@ -38,6 +38,7 @@ namespace Gallery.Api.Services
         Task<Exhibit> UploadJsonAsync(FileForm form, CancellationToken ct);
         Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.Exhibit exhibit, CancellationToken ct);
         Task<ViewModels.Exhibit> SetMoveAndInjectAsync(Guid id, int move, int inject, CancellationToken ct);
+        Task<ViewModels.Exhibit> AdvanceAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
     }
 
@@ -425,6 +426,45 @@ namespace Gallery.Api.Services
 
             exhibitToUpdate.CurrentMove = move;
             exhibitToUpdate.CurrentInject = inject;
+            await _context.SaveChangesAsync(ct);
+            await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
+
+            var updatedExhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
+
+            return updatedExhibit;
+        }
+
+        public async Task<ViewModels.Exhibit> AdvanceAsync(Guid id, CancellationToken ct)
+        {
+            var exhibitToUpdate = await _context.Exhibits.SingleOrDefaultAsync(v => v.Id == id, ct);
+            if (exhibitToUpdate == null)
+                throw new EntityNotFoundException<Exhibit>();
+
+            // Get all unique move/inject pairs from articles in this exhibit's collection
+            var moveInjectPairs = await _context.Articles
+                .Where(a => a.CollectionId == exhibitToUpdate.CollectionId
+                    && (a.ExhibitId == null || a.ExhibitId == id))
+                .Select(a => new { a.Move, a.Inject })
+                .Distinct()
+                .OrderBy(a => a.Move)
+                .ThenBy(a => a.Inject)
+                .ToListAsync(ct);
+
+            var currentMove = exhibitToUpdate.CurrentMove;
+            var currentInject = exhibitToUpdate.CurrentInject;
+
+            // Find the next move/inject pair after the current position
+            var nextPair = moveInjectPairs
+                .Where(p => p.Move > currentMove || (p.Move == currentMove && p.Inject > currentInject))
+                .OrderBy(p => p.Move)
+                .ThenBy(p => p.Inject)
+                .FirstOrDefault();
+
+            if (nextPair == null)
+                return null;
+
+            exhibitToUpdate.CurrentMove = nextPair.Move;
+            exhibitToUpdate.CurrentInject = nextPair.Inject;
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
