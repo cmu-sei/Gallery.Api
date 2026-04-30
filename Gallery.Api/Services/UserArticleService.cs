@@ -619,9 +619,9 @@ namespace Gallery.Api.Services
                 var moveGrouping = new Dictionary<String,String>();
                 moveGrouping.Add("id", article.Move.ToString());
                 moveGrouping.Add("name", $"Move {article.Move}");
-                moveGrouping.Add("description", $"Article move: {article.Move}. Current exhibit move: {exhibit.CurrentMove}");
-                moveGrouping.Add("type", "move");
-                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
                 moveGrouping.Add("moreInfo", "");
                 grouping.Add(moveGrouping);
 
@@ -629,8 +629,8 @@ namespace Gallery.Api.Services
                 var injectGrouping = new Dictionary<String,String>();
                 injectGrouping.Add("id", article.Inject.ToString());
                 injectGrouping.Add("name", $"Inject {article.Inject}");
-                injectGrouping.Add("description", $"Article inject: {article.Inject}. Current exhibit inject: {exhibit.CurrentInject}");
-                injectGrouping.Add("type", "inject");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
                 injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
