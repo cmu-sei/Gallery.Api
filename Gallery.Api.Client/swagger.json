@@ -2467,6 +2467,80 @@
         }
       }
     },
+    "/api/exhibits/{id}/advance": {
+      "put": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Advances an Exhibit to the next move/inject",
+        "description": "Looks at all articles for unique moves and injects, sorts by move then inject,\nfinds the current position, and advances to the next higher inject or\nthe next higher move if at the highest inject for the current move.\nReturns an error if already at the last move/inject.",
+        "operationId": "advanceExhibit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The Id of the Exhibit to advance",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exhibits/json": {
       "post": {
         "tags": [
@@ -3011,6 +3085,57 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ExhibitRole"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exhibit-roles/lookup": {
+      "get": {
+        "tags": [
+          "ExhibitRoles"
+        ],
+        "summary": "Get all ExhibitRoles as lightweight {Id, Name} lookups.",
+        "description": "Intended for clients that only need a name-to-id mapping and cannot consume the\nfull ExhibitRole shape (avoids deserialization issues with the Permissions enum collection).",
+        "operationId": "GetAllExhibitRoleLookups",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRoleLookup"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRoleLookup"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExhibitRoleLookup"
                   }
                 }
               }
@@ -7701,6 +7826,9 @@
             "format": "uuid",
             "nullable": true
           },
+          "showAdvanceButton": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string",
             "nullable": true
@@ -7792,6 +7920,20 @@
             "items": {
               "$ref": "#/components/schemas/ExhibitPermission"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExhibitRoleLookup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
             "nullable": true
           }
         },

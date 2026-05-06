@@ -59,4 +59,24 @@ public class ExhibitRolesController : BaseController
         var result = await _exhibitRoleService.GetAsync(ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Get all ExhibitRoles as lightweight {Id, Name} lookups.
+    /// </summary>
+    /// <remarks>
+    /// Intended for clients that only need a name-to-id mapping and cannot consume the
+    /// full ExhibitRole shape (avoids deserialization issues with the Permissions enum collection).
+    /// </remarks>
+    /// <returns></returns>
+    [HttpGet("exhibit-roles/lookup")]
+    [ProducesResponseType(typeof(IEnumerable<ExhibitRoleLookup>), (int)HttpStatusCode.OK)]
+    [SwaggerOperation(OperationId = "GetAllExhibitRoleLookups")]
+    public async Task<IActionResult> GetLookup(CancellationToken ct)
+    {
+        if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewRoles], ct))
+            throw new ForbiddenException();
+
+        var result = await _exhibitRoleService.GetLookupAsync(ct);
+        return Ok(result);
+    }
 }
