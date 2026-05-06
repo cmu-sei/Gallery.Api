@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
@@ -20,7 +19,6 @@ namespace Gallery.Api.Services
     {
         STT.Task<IEnumerable<ExhibitRole>> GetAsync(CancellationToken ct);
         STT.Task<ExhibitRole> GetAsync(Guid id, CancellationToken ct);
-        STT.Task<IEnumerable<ExhibitRoleLookup>> GetLookupAsync(CancellationToken ct);
     }
 
     public class ExhibitRoleService : IExhibitRoleService
@@ -53,13 +51,6 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<ExhibitRole>();
 
             return _mapper.Map<ExhibitRole>(item);
-        }
-
-        public async STT.Task<IEnumerable<ExhibitRoleLookup>> GetLookupAsync(CancellationToken ct)
-        {
-            return await _context.ExhibitRoles
-                .Select(r => new ExhibitRoleLookup { Id = r.Id, Name = r.Name })
-                .ToListAsync(ct);
         }
 
     }
