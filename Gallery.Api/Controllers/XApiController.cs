@@ -72,9 +72,7 @@ namespace Gallery.Api.Controllers
                 throw new EntityNotFoundException<Exhibit>();
 
 
-            if (!await _xApiService.CardViewedAsync(card, exhibit, collection, ct))
-                throw new Exception();
-
+            await _xApiService.CardViewedAsync(card, exhibit, collection, ct);
             return Ok();
         }
 
@@ -100,9 +98,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            if (!await _xApiService.ExhibitWallViewedAsync(exhibit, collection, ct))
-                throw new Exception();
-
+            await _xApiService.ExhibitWallViewedAsync(exhibit, collection, ct);
             return Ok();
         }
 
@@ -129,9 +125,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            if (!await _xApiService.ExhibitArchiveViewedAsync(exhibit, collection, ct))
-                throw new Exception();
-
+            await _xApiService.ExhibitArchiveViewedAsync(exhibit, collection, ct);
             return Ok();
         }
 
@@ -166,9 +160,7 @@ namespace Gallery.Api.Controllers
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            if (!await _xApiService.ArticleViewedAsync(exhibit, article, card, collection, ct))
-                throw new Exception();
-
+            await _xApiService.ArticleViewedAsync(exhibit, article, card, collection, ct);
             return Ok();
         }
 
@@ -203,9 +195,7 @@ namespace Gallery.Api.Controllers
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            if (!await _xApiService.ArticlePreviewedAsync(exhibit, article, card, collection, ct))
-                throw new Exception();
-
+            await _xApiService.ArticlePreviewedAsync(exhibit, article, card, collection, ct);
             return Ok();
         }
 
@@ -236,9 +226,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            if (!await _xApiService.ExhibitWallObservedAsync(exhibit, collection, team, ct))
-                throw new Exception();
-
+            await _xApiService.ExhibitWallObservedAsync(exhibit, collection, team, ct);
             return Ok();
         }
 
@@ -269,9 +257,7 @@ namespace Gallery.Api.Controllers
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
 
-            if (!await _xApiService.ExhibitArchiveObservedAsync(exhibit, collection, team, ct))
-                throw new Exception();
-
+            await _xApiService.ExhibitArchiveObservedAsync(exhibit, collection, team, ct);
             return Ok();
         }
 
