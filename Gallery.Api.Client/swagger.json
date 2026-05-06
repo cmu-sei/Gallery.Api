@@ -2467,6 +2467,80 @@
         }
       }
     },
+    "/api/exhibits/{id}/advance": {
+      "put": {
+        "tags": [
+          "Exhibit"
+        ],
+        "summary": "Advances an Exhibit to the next move/inject",
+        "description": "Looks at all articles for unique moves and injects, sorts by move then inject,\nfinds the current position, and advances to the next higher inject or\nthe next higher move if at the highest inject for the current move.\nReturns an error if already at the last move/inject.",
+        "operationId": "advanceExhibit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The Id of the Exhibit to advance",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exhibit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exhibits/json": {
       "post": {
         "tags": [
@@ -7700,6 +7774,9 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "showAdvanceButton": {
+            "type": "boolean"
           },
           "name": {
             "type": "string",
