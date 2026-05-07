@@ -717,8 +717,11 @@ namespace Gallery.Api.Services
 
                 // Add all recipient teams as grouping context
                 var toTeams = await _context.Teams.Where(t => toTeamIds.Contains(t.Id)).ToListAsync();
+                var sanitizedTeamIds = string.Join(", ", toTeamIds.Select(id => id.ToString("D")))
+                    .Replace("\r", string.Empty)
+                    .Replace("\n", string.Empty);
                 _logger.LogInformation("Found {Count} recipient teams for xAPI shared statement. Team IDs: {TeamIds}",
-                    toTeams.Count, string.Join(", ", toTeamIds));
+                    toTeams.Count, sanitizedTeamIds);
 
                 foreach (var toTeam in toTeams)
                 {
