@@ -105,7 +105,7 @@ namespace Gallery.Api.Services
 
         public Boolean IsConfigured()
         {
-            return _xApiOptions.Enabled && !string.IsNullOrWhiteSpace(_xApiOptions.Username);
+            return !string.IsNullOrWhiteSpace(_xApiOptions.Username);
         }
 
         public async Task<Boolean> ArticleViewedAsync(Exhibit exhibit, Article article, Card card, Collection collection, CancellationToken ct)
