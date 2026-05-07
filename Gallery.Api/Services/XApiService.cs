@@ -9,6 +9,7 @@ using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.ViewModels;
@@ -249,8 +250,10 @@ namespace Gallery.Api.Services
             var verb = new Uri("http://id.tincanapi.com/verb/viewed");
             //var teamId = new Guid();
 
-            var teamId = (_context.TeamUsers
-                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+            var teamUser = await _context.TeamUsers
+                .Include(tu => tu.Team)
+                .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id, ct);
+            var teamId = teamUser?.TeamId ?? Guid.Empty;
 
             var activity = new Dictionary<String,String>();
 
@@ -282,8 +285,10 @@ namespace Gallery.Api.Services
         {
             var verb = new Uri("http://id.tincanapi.com/verb/viewed");
 
-            var teamId = (_context.TeamUsers
-                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+            var teamUser = await _context.TeamUsers
+                .Include(tu => tu.Team)
+                .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id, ct);
+            var teamId = teamUser?.TeamId ?? Guid.Empty;
 
             var activity = new Dictionary<String,String>();
 
@@ -337,8 +342,10 @@ namespace Gallery.Api.Services
         {
             var verb = new Uri("http://id.tincanapi.com/verb/viewed");
 
-            var teamId = (_context.TeamUsers
-                .SingleOrDefault(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id)).TeamId;
+            var teamUser = await _context.TeamUsers
+                .Include(tu => tu.Team)
+                .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibit.Id, ct);
+            var teamId = teamUser?.TeamId ?? Guid.Empty;
 
             var activity = new Dictionary<String,String>();
 
@@ -547,8 +554,9 @@ namespace Gallery.Api.Services
                 }
             }
 
-            if (teamId.ToString() !=  "") {
+            if (teamId != Guid.Empty) {
                 var team = _context.Teams.Find(teamId);
+                if (team == null) return false;
                 var group = new TinCan.Group();
                 group.name = team.ShortName;
                 if (_xApiOptions.EmailDomain != "") {
