@@ -201,15 +201,22 @@ namespace Gallery.Api.Services
                 .AsSingleQuery();
             var exhibitTeamIdList = exhibitTeamList
                 .Select(t => t.Id);
-            var fromTeamId = (await _context.TeamUsers
+            var fromTeamUser = await _context.TeamUsers
                 .Where(tu => tu.UserId == fromUserId && exhibitTeamIdList.Contains(tu.TeamId))
-                .SingleOrDefaultAsync()).TeamId;
+                .SingleOrDefaultAsync();
+            var fromTeamId = fromTeamUser?.TeamId ?? Guid.Empty;
             var toTeamUsers = _context.TeamUsers
                 .Where(tu => shareDetails.ToTeamIdList.Contains(tu.TeamId))
                 .Include(tu => tu.Team)
                 .Include(tu => tu.User)
                 .AsNoTracking()
                 .Distinct();
+
+            // Log xAPI shared statement with all target teams
+            var article = await _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).FirstAsync();
+            var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
+            await LogXApiSharedAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, fromTeamId, shareDetails.ToTeamIdList, ct);
+
             if (await toTeamUsers.AnyAsync(ct))
             {
                 var addUserIds = toTeamUsers
@@ -231,9 +238,6 @@ namespace Gallery.Api.Services
                     await _context.SaveChangesAsync(ct);
                 }
 
-                var article = await _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).FirstAsync();
-                var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
-                await LogXApiAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, ct);
                 // if email is active, send the article sharing email
                 if (_clientOptions.IsEmailActive)
                 {
@@ -584,8 +588,9 @@ namespace Gallery.Api.Services
                 var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
                 var exhibit = await _context.Exhibits.Where(e => e.Id == exhibitId).FirstAsync();
 
-                var teamId = (await _context.TeamUsers
-                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId)).TeamId;
+                var teamUser = await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == exhibitId);
+                var teamId = teamUser?.TeamId ?? Guid.Empty;
 
                 // create and send xapi statement
                 var activity = new Dictionary<String,String>();
@@ -648,6 +653,97 @@ namespace Gallery.Api.Services
                 return await _xApiService.CreateAsync(
                     verb, activity, category, grouping, parent, other, teamId, ct);
 
+            }
+            return false;
+        }
+
+        public async Task<bool> LogXApiSharedAsync(Uri verb, Article article, Guid exhibitId, Guid fromTeamId, Guid[] toTeamIds, CancellationToken ct)
+        {
+            if (_xApiService.IsConfigured())
+            {
+                var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
+                var exhibit = await _context.Exhibits.Where(e => e.Id == exhibitId).FirstAsync();
+
+                // Use the sender's team (fromTeamId) as the primary team context
+                var teamId = fromTeamId;
+
+                // create and send xapi statement
+                var activity = new Dictionary<String,String>();
+                activity.Add("id", article.Id.ToString());
+                activity.Add("name", article.Name);
+                activity.Add("description", article.Summary);
+                activity.Add("type", "article");
+                activity.Add("activityType", "http://id.tincanapi.com/activitytype/resource");
+                activity.Add("moreInfo", "/article/" + article.Id.ToString());
+
+                var parent = new Dictionary<String,String>();
+                parent.Add("id", exhibitId.ToString());
+                parent.Add("name", "Exhibit");
+                parent.Add("description", collection.Name);
+                parent.Add("type", "exhibit");
+                parent.Add("activityType", "http://adlnet.gov/expapi/activities/simulation");
+                parent.Add("moreInfo", "/?exhibit=" + exhibitId.ToString());
+
+                var category = new Dictionary<String,String>();
+                category.Add("id", article.SourceType.ToString());
+                category.Add("name", article.SourceType.ToString());
+                category.Add("description", "The source type for the article.");
+                category.Add("type", "sourceType");
+                category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
+
+                // Use grouping for move/inject context (scenario phase) - separate entries for each
+                var grouping = new List<Dictionary<String,String>>();
+
+                // Move grouping entry
+                var moveGrouping = new Dictionary<String,String>();
+                moveGrouping.Add("id", article.Move.ToString());
+                moveGrouping.Add("name", $"Move {article.Move}");
+                moveGrouping.Add("description", "");
+                moveGrouping.Add("type", $"exhibit/{exhibit.Id}/move");
+                moveGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                moveGrouping.Add("moreInfo", "");
+                grouping.Add(moveGrouping);
+
+                // Inject grouping entry
+                var injectGrouping = new Dictionary<String,String>();
+                injectGrouping.Add("id", article.Inject.ToString());
+                injectGrouping.Add("name", $"Inject {article.Inject}");
+                injectGrouping.Add("description", "");
+                injectGrouping.Add("type", $"exhibit/{exhibit.Id}/inject");
+                injectGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/step");
+                injectGrouping.Add("moreInfo", "");
+                grouping.Add(injectGrouping);
+
+                // Add all recipient teams as grouping context
+                var toTeams = await _context.Teams.Where(t => toTeamIds.Contains(t.Id)).ToListAsync();
+                _logger.LogInformation("Found {Count} recipient teams for xAPI shared statement. Team IDs: {TeamIds}",
+                    toTeams.Count, string.Join(", ", toTeamIds));
+
+                foreach (var toTeam in toTeams)
+                {
+                    var recipientTeamGrouping = new Dictionary<String,String>();
+                    recipientTeamGrouping.Add("id", toTeam.Id.ToString());
+                    recipientTeamGrouping.Add("name", $"Shared to: {toTeam.Name}");
+                    recipientTeamGrouping.Add("description", "A team this article was shared to");
+                    recipientTeamGrouping.Add("type", "recipientTeam");
+                    recipientTeamGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/team");
+                    recipientTeamGrouping.Add("moreInfo", "");
+                    grouping.Add(recipientTeamGrouping);
+                    _logger.LogInformation("Added recipient team {TeamId} to xAPI shared statement grouping", toTeam.Id);
+                }
+
+                // Move card to other context
+                var other = new Dictionary<String,String>();
+                other.Add("id", card.Id.ToString());
+                other.Add("name", card.Name);
+                other.Add("description", card.Description);
+                other.Add("type", "card");
+                other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+
+                return await _xApiService.CreateAsync(
+                    verb, activity, category, grouping, parent, other, teamId, ct);
             }
             return false;
         }
