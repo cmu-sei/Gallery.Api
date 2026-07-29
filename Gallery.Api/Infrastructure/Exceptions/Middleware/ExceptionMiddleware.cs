@@ -122,13 +122,13 @@ namespace Gallery.Api.Infrastructure.Exceptions.Middleware
             return pgEx.SqlState switch
             {
                 "23505" => // unique_violation
-                    new InvalidOperationException("A record with this identifier already exists."),
+                    new ConflictException("A record with this identifier already exists."),
 
                 "23503" => // foreign_key_violation
-                    new InvalidOperationException("Referenced entity does not exist. Please verify all referenced entities exist."),
+                    new BadRequestException("Referenced entity does not exist. Please verify all referenced entities exist."),
 
                 "23514" => // check_violation
-                    new InvalidOperationException("Data validation failed."),
+                    new BadRequestException("Data validation failed."),
 
                 _ => new InvalidOperationException("A database error occurred.")
             };
@@ -148,10 +148,10 @@ namespace Gallery.Api.Infrastructure.Exceptions.Middleware
             return sqlEx.Number switch
             {
                 2601 or 2627 => // unique constraint violation
-                    new InvalidOperationException("A record with this identifier already exists."),
+                    new ConflictException("A record with this identifier already exists."),
 
                 547 => // foreign key violation
-                    new InvalidOperationException("Referenced entity does not exist. Please verify all referenced entities exist."),
+                    new BadRequestException("Referenced entity does not exist. Please verify all referenced entities exist."),
 
                 _ => new InvalidOperationException("A database error occurred.")
             };
