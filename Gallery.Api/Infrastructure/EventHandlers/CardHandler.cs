@@ -49,9 +49,15 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             var teamIdList = _db.Teams
                 .Where(t => t.ExhibitId != null && exhibitIdList.Contains((Guid)t.ExhibitId))
                 .Select(t => t.Id);
+            // A user belongs to one team per exhibit, so a user on teams in several
+            // exhibits of this collection appears once per exhibit. Without Distinct
+            // the same user group is sent the same card event several times, and each
+            // copy re-upserts the card and makes every Wall/Archive subscriber
+            // recompute. Every recipient still receives the event, exactly once.
             var userIdList = await _db.TeamUsers
                 .Where(tu => teamIdList.Contains(tu.TeamId))
                 .Select(tu => tu.UserId)
+                .Distinct()
                 .ToListAsync();
             foreach (var userId in userIdList)
             {
