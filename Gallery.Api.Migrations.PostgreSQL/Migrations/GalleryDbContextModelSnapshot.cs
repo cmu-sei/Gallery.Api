@@ -1045,7 +1045,7 @@ namespace Gallery.Api.Migrations.PostgreSQL.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Gallery.Api.Data.Models.CardEntity", "Exhibit")
+                    b.HasOne("Gallery.Api.Data.Models.ExhibitEntity", "Exhibit")
                         .WithMany()
                         .HasForeignKey("ExhibitId");
 
