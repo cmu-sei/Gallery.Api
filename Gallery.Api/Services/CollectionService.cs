@@ -155,6 +155,7 @@ namespace Gallery.Api.Services
             collectionEntity.DateModified = collectionEntity.DateCreated;
             collectionEntity.ModifiedBy = collectionEntity.CreatedBy;
             collectionEntity.Name = collectionEntity.Name + " - " + username;
+            collectionEntity.Memberships = null;
             await _context.Collections.AddAsync(collectionEntity, ct);
             // copy cards
             var newCardIds = new Dictionary<Guid, Guid>();
@@ -200,6 +201,7 @@ namespace Gallery.Api.Services
         public async Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid collectionId, CancellationToken ct)
         {
             var collection = await _context.Collections
+                .AsNoTracking()
                 .SingleOrDefaultAsync(sm => sm.Id == collectionId, ct);
             if (collection == null)
             {
