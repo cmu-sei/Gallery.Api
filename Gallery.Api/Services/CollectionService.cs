@@ -230,7 +230,10 @@ namespace Gallery.Api.Services
             // convert string to stream
             byte[] byteArray = Encoding.ASCII.GetBytes(collectionFileJson);
             MemoryStream memoryStream = new MemoryStream(byteArray);
-            var filename = collection.Description.ToLower().EndsWith(".json") ? collection.Description : collection.Description + ".json";
+            var basename = string.IsNullOrWhiteSpace(collection.Name) ? collection.Id.ToString() : collection.Name;
+            var filename = collection.Description != null && collection.Description.ToLower().EndsWith(".json")
+                ? collection.Description
+                : basename + ".json";
 
             return System.Tuple.Create(memoryStream, filename);
         }
