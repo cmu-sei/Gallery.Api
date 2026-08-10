@@ -141,6 +141,17 @@ namespace Gallery.Api.Services
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
         {
             var cardToDelete = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);
+            if (cardToDelete == null)
+                throw new EntityNotFoundException<Card>();
+
+            // Block the delete if any article (collection-level or exhibit-scoped) still
+            // references this card, since the database has no cascade for CardId and would
+            // otherwise fail the delete with a foreign-key violation.
+            var articleCount = await _context.Articles.CountAsync(a => a.CardId == id, ct);
+            if (articleCount > 0)
+                throw new ConflictException(
+                    $"This card has {articleCount} article{(articleCount == 1 ? "" : "s")}. Delete or reassign them before deleting the card.");
+
             _context.Cards.Remove(cardToDelete);
             await _context.SaveChangesAsync(ct);
 
