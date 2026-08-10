@@ -248,7 +248,18 @@ namespace Gallery.Api.Services
             {
                 ReferenceHandler = ReferenceHandler.Preserve
             };
-            var collectionFileObject = JsonSerializer.Deserialize<CollectionFileFormat>(collectionJson, options);
+            CollectionFileFormat collectionFileObject;
+            try
+            {
+                collectionFileObject = JsonSerializer.Deserialize<CollectionFileFormat>(collectionJson, options);
+            }
+            catch (JsonException)
+            {
+                throw new BadRequestException("The uploaded file is not valid JSON.");
+            }
+            if (collectionFileObject == null || collectionFileObject.Collection == null)
+                throw new BadRequestException("The uploaded file is not a valid collection file.");
+
             // make a copy and add it to the database
             var collectionEntity = await privateCollectionCopyAsync(collectionFileObject.Collection, collectionFileObject.Cards, collectionFileObject.Articles, ct);
 

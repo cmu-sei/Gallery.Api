@@ -395,7 +395,18 @@ namespace Gallery.Api.Services
             {
                 ReferenceHandler = ReferenceHandler.Preserve
             };
-            var exhibitFileObject = JsonSerializer.Deserialize<ExhibitFileFormat>(exhibitJson, options);
+            ExhibitFileFormat exhibitFileObject;
+            try
+            {
+                exhibitFileObject = JsonSerializer.Deserialize<ExhibitFileFormat>(exhibitJson, options);
+            }
+            catch (JsonException)
+            {
+                throw new BadRequestException("The uploaded file is not valid JSON.");
+            }
+            if (exhibitFileObject == null || exhibitFileObject.Exhibit == null || exhibitFileObject.Collection == null)
+                throw new BadRequestException("The uploaded file is not a valid exhibit file.");
+
             // make a copy and add it to the database
             var exhibitEntity = await privateExhibitCopyAsync(exhibitFileObject, true, ct);
 
