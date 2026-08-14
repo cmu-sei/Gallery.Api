@@ -124,7 +124,8 @@ namespace Gallery.Api.Controllers
                 throw new EntityNotFoundException<Article>();
 
             if (!(article.ExhibitId == null && await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
-                !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+                !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct)) &&
+                !await _articleService.CanUserViewArticleAsync(id, ct)
             )
                 throw new ForbiddenException();
 
