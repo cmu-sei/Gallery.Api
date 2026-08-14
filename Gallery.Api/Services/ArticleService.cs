@@ -34,6 +34,7 @@ namespace Gallery.Api.Services
         Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> CanUserPostArticlesAsync(Article article, CancellationToken ct);
+        Task<bool> CanUserViewArticleAsync(Guid articleId, CancellationToken ct);
         Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct);
     }
 
@@ -253,6 +254,19 @@ namespace Gallery.Api.Services
             var canPostArticles = await _context.TeamCards
                 .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
             return canPostArticles;
+        }
+
+        /// <summary>
+        /// A user can view an Article if it was delivered to them, i.e. they have a UserArticle for it.
+        /// This allows an Exhibit participant with no Exhibit or Collection permissions to open an
+        /// Article they can already see in their Archive.
+        /// </summary>
+        public async Task<bool> CanUserViewArticleAsync(Guid articleId, CancellationToken ct)
+        {
+            var userId = _user.GetId();
+
+            return await _context.UserArticles
+                .AnyAsync(ua => ua.ArticleId == articleId && ua.UserId == userId, ct);
         }
 
         public async Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct)
