@@ -133,6 +133,7 @@ namespace Gallery.Api.Services
                     .ToListAsync(ct);
                 var uaList = await  _context.UserArticles
                     .Where(ua =>
+                        ua.ExhibitId == exhibitId &&
                         userIdList.Contains(ua.UserId) &&
                         (
                             (ua.Article.Move < exhibit.CurrentMove) ||
