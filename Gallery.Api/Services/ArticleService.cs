@@ -275,7 +275,9 @@ namespace Gallery.Api.Services
             if (_xApiService.IsConfigured())
             {
                 var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
-                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
+                // Article.CardId is nullable and CreateAsync persists such an article happily,
+                // so this has to tolerate a missing card rather than throw after the row is committed.
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstOrDefaultAsync(ct);
 
                 var teamId = (await _context.TeamUsers
                     .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
@@ -306,15 +308,19 @@ namespace Gallery.Api.Services
                 category.Add("activityType", "http://id.tincanapi.com/activitytype/category");
                 category.Add("moreInfo", "");
 
-                var cardGrouping = new Dictionary<String,String>();
-                cardGrouping.Add("id", card.Id.ToString());
-                cardGrouping.Add("name", card.Name);
-                cardGrouping.Add("description", card.Description);
-                cardGrouping.Add("type", "card");
-                cardGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                cardGrouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+                var grouping = new List<Dictionary<String,String>>();
+                if (card != null)
+                {
+                    var cardGrouping = new Dictionary<String,String>();
+                    cardGrouping.Add("id", card.Id.ToString());
+                    cardGrouping.Add("name", card.Name);
+                    cardGrouping.Add("description", card.Description);
+                    cardGrouping.Add("type", "card");
+                    cardGrouping.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                    cardGrouping.Add("moreInfo", "/?section=archive&exhibit=" + article.ExhibitId.ToString() + "&card=" + card.Id.ToString());
+                    grouping.Add(cardGrouping);
+                }
 
-                var grouping = new List<Dictionary<String,String>> { cardGrouping };
                 var other = new Dictionary<String,String>();
 
                 // TODO determine if we should log exhibit as registration
