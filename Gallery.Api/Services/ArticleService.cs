@@ -249,10 +249,13 @@ namespace Gallery.Api.Services
         public async Task<bool> CanUserPostArticlesAsync(Article article, CancellationToken ct)
         {
             var userId = _user.GetId();
-            var teamId = (await _context.TeamUsers
-                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+            var teamUser = await _context.TeamUsers
+                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId, ct);
+            if (teamUser == null)
+                return false;
+
             var canPostArticles = await _context.TeamCards
-                .AnyAsync(tc => tc.TeamId == teamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
+                .AnyAsync(tc => tc.TeamId == teamUser.TeamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
             return canPostArticles;
         }
 
@@ -279,8 +282,11 @@ namespace Gallery.Api.Services
                 // so this has to tolerate a missing card rather than throw after the row is committed.
                 var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstOrDefaultAsync(ct);
 
-                var teamId = (await _context.TeamUsers
-                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId)).TeamId;
+                // The caller need not be on a team in the exhibit — a content developer
+                // posting an article is typically on none. Fall back the way XApiService does.
+                var teamUser = await _context.TeamUsers
+                    .SingleOrDefaultAsync(tu => tu.UserId == _user.GetId() && tu.Team.ExhibitId == article.ExhibitId, ct);
+                var teamId = teamUser?.TeamId ?? Guid.Empty;
 
                 // create and send xapi statement
 

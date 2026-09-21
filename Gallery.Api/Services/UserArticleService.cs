@@ -101,7 +101,11 @@ namespace Gallery.Api.Services
             var userArticleEntityList = new List<UserArticleEntity>();
             var myTeamUser = await _context.TeamUsers
                 .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
-            if (myTeamUser.TeamId == teamId)
+            if (myTeamUser == null)
+            {
+                // caller is not on a team in this exhibit, so there is nothing for them here
+            }
+            else if (myTeamUser.TeamId == teamId)
             {
                 // user is requesting their own user articles
                 // make sure all of the user articles have been created
