@@ -103,7 +103,11 @@ namespace Gallery.Api.Services
             var userArticleEntityList = new List<UserArticleEntity>();
             var myTeamUser = await _context.TeamUsers
                 .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
-            if (myTeamUser.TeamId == teamId)
+            if (myTeamUser == null)
+            {
+                // caller is not on a team in this exhibit, so there is nothing for them here
+            }
+            else if (myTeamUser.TeamId == teamId)
             {
                 // user is requesting their own user articles
                 // make sure all of the user articles have been created
@@ -588,7 +592,8 @@ namespace Gallery.Api.Services
             {
 
                 var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
-                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
+                // Article.CardId is nullable, so this has to tolerate a missing card.
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstOrDefaultAsync(ct);
                 var exhibit = await _context.Exhibits.Where(e => e.Id == exhibitId).FirstAsync();
 
                 var teamUser = await _context.TeamUsers
@@ -643,14 +648,18 @@ namespace Gallery.Api.Services
                 injectGrouping.Add("moreInfo", "");
                 grouping.Add(injectGrouping);
 
-                // Move card to other context
+                // Move card to other context. CreateAsync skips the context activity when this
+                // is empty, which is what a cardless article gets.
                 var other = new Dictionary<String,String>();
-                other.Add("id", card.Id.ToString());
-                other.Add("name", card.Name);
-                other.Add("description", card.Description);
-                other.Add("type", "card");
-                other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+                if (card != null)
+                {
+                    other.Add("id", card.Id.ToString());
+                    other.Add("name", card.Name);
+                    other.Add("description", card.Description);
+                    other.Add("type", "card");
+                    other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                    other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+                }
 
                 // TODO determine if we should log exhibit as registration
                 return await _xApiService.CreateAsync(
@@ -665,7 +674,8 @@ namespace Gallery.Api.Services
             if (_xApiService.IsConfigured())
             {
                 var collection = await _context.Collections.Where(c => c.Id == article.CollectionId).FirstAsync();
-                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstAsync();
+                // Article.CardId is nullable, so this has to tolerate a missing card.
+                var card = await _context.Cards.Where(c => c.Id == article.CardId).FirstOrDefaultAsync(ct);
                 var exhibit = await _context.Exhibits.Where(e => e.Id == exhibitId).FirstAsync();
 
                 // Use the sender's team (fromTeamId) as the primary team context
@@ -739,14 +749,18 @@ namespace Gallery.Api.Services
                     _logger.LogInformation("Added recipient team {TeamId} to xAPI shared statement grouping", toTeam.Id);
                 }
 
-                // Move card to other context
+                // Move card to other context. CreateAsync skips the context activity when this
+                // is empty, which is what a cardless article gets.
                 var other = new Dictionary<String,String>();
-                other.Add("id", card.Id.ToString());
-                other.Add("name", card.Name);
-                other.Add("description", card.Description);
-                other.Add("type", "card");
-                other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
-                other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+                if (card != null)
+                {
+                    other.Add("id", card.Id.ToString());
+                    other.Add("name", card.Name);
+                    other.Add("description", card.Description);
+                    other.Add("type", "card");
+                    other.Add("activityType", "http://id.tincanapi.com/activitytype/collection-simple");
+                    other.Add("moreInfo", "/?section=archive&exhibit=" + exhibitId.ToString() + "&card=" + card.Id.ToString());
+                }
 
                 return await _xApiService.CreateAsync(
                     verb, activity, category, grouping, parent, other, teamId, ct);
