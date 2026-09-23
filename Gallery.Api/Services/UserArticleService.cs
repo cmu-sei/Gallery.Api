@@ -82,8 +82,10 @@ namespace Gallery.Api.Services
             IQueryable<UserArticleEntity> articles = _context.UserArticles
                 .Where(ua =>
                         ua.ExhibitId == exhibitId &&
-                        (ua.Article.Move < exhibit.CurrentMove) ||
-                        (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                        (
+                            (ua.Article.Move < exhibit.CurrentMove) ||
+                            (ua.Article.Move == exhibit.CurrentMove && ua.Article.Inject <= exhibit.CurrentInject)
+                        )
                 )
                 .OrderByDescending(ua => ua.Article.Move)
                 .ThenByDescending(ua => ua.Article.Inject);
@@ -131,6 +133,7 @@ namespace Gallery.Api.Services
                     .ToListAsync(ct);
                 var uaList = await  _context.UserArticles
                     .Where(ua =>
+                        ua.ExhibitId == exhibitId &&
                         userIdList.Contains(ua.UserId) &&
                         (
                             (ua.Article.Move < exhibit.CurrentMove) ||
