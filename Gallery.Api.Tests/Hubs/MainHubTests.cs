@@ -135,6 +135,130 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
     }
 
+    /// <summary>The other permissions of the exhibit family do not stand in for ViewExhibits: the caller joins the member's exhibit groups instead.</summary>
+    [Fact]
+    public async Task JoinAdmin_leaves_out_the_exhibit_admin_group_for_a_caller_holding_CreateExhibits_EditExhibits_and_ManageExhibits()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var user = TestData.User();
+        await Seed(collection, exhibit, user, TestData.ExhibitMembership(exhibit.Id, user.Id));
+        var principal = new ClaimsPrincipalBuilder().WithUserId(user.Id).WithSystemPermissions(
+            SystemPermission.CreateExhibits, SystemPermission.EditExhibits, SystemPermission.ManageExhibits).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [user.Id.ToString(), exhibit.Id.ToString()];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    /// <summary>ViewCollections alone joins the collection admin group; the exhibit groups still come from the caller's memberships.</summary>
+    [Fact]
+    public async Task JoinAdmin_joins_the_collection_admin_group_and_the_member_s_exhibit_groups_for_a_caller_holding_only_ViewCollections()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var user = TestData.User();
+        await Seed(collection, exhibit, user, TestData.ExhibitMembership(exhibit.Id, user.Id));
+        var principal = new ClaimsPrincipalBuilder().WithUserId(user.Id).WithSystemPermissions(SystemPermission.ViewCollections).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [user.Id.ToString(), MainHub.COLLECTION_GROUP, exhibit.Id.ToString()];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    /// <summary>The other permissions of the collection family do not stand in for ViewCollections: the caller joins the member's collection groups instead.</summary>
+    [Fact]
+    public async Task JoinAdmin_leaves_out_the_collection_admin_group_for_a_caller_holding_CreateCollections_EditCollections_and_ManageCollections()
+    {
+        var collection = TestData.Collection();
+        var user = TestData.User();
+        await Seed(collection, user, TestData.CollectionMembership(collection.Id, user.Id));
+        var principal = new ClaimsPrincipalBuilder().WithUserId(user.Id).WithSystemPermissions(
+            SystemPermission.CreateCollections, SystemPermission.EditCollections, SystemPermission.ManageCollections).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [user.Id.ToString(), collection.Id.ToString()];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    [Fact]
+    public async Task JoinAdmin_joins_the_group_admin_group_for_a_caller_holding_only_ViewGroups()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ViewGroups).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString(), MainHub.GROUP_GROUP];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    [Fact]
+    public async Task JoinAdmin_leaves_out_the_group_admin_group_for_a_caller_holding_only_ManageGroups()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ManageGroups).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString()];
+        Assert.Equal(expected, harness.JoinedGroups);
+    }
+
+    [Fact]
+    public async Task JoinAdmin_joins_the_role_admin_group_for_a_caller_holding_only_ViewRoles()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ViewRoles).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString(), MainHub.ROLE_GROUP];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    [Fact]
+    public async Task JoinAdmin_leaves_out_the_role_admin_group_for_a_caller_holding_only_ManageRoles()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ManageRoles).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString()];
+        Assert.Equal(expected, harness.JoinedGroups);
+    }
+
+    [Fact]
+    public async Task JoinAdmin_joins_the_user_admin_group_for_a_caller_holding_only_ViewUsers()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ViewUsers).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString(), MainHub.USER_GROUP];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    [Fact]
+    public async Task JoinAdmin_leaves_out_the_user_admin_group_for_a_caller_holding_only_ManageUsers()
+    {
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ManageUsers).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [harness.UserId.ToString()];
+        Assert.Equal(expected, harness.JoinedGroups);
+    }
+
     [Fact]
     public async Task LeaveAdmin_leaves_every_admin_group_for_a_caller_holding_the_view_permissions()
     {
