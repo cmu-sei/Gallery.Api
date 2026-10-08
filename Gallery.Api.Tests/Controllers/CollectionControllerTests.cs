@@ -209,6 +209,18 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     }
 
     [Fact]
+    public async Task Copy_is_forbidden_for_a_caller_holding_CreateCollections_and_ViewCollection_only_on_another_collection()
+    {
+        var collection = await SeedCollection();
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateCollections)
+            .OnNewCollection(CollectionPermission.ViewCollection)
+            .SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsync($"api/collections/{collection.Id}/copy", null, Ct));
+    }
+
+    [Fact]
     public async Task Copy_is_forbidden_for_a_caller_holding_only_ViewCollections()
     {
         var collection = await SeedCollection();

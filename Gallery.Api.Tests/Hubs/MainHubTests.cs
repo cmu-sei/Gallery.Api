@@ -80,7 +80,7 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         await hub.JoinAdmin();
 
         string[] expected = [MainHub.EXHIBIT_GROUP, MainHub.COLLECTION_GROUP, MainHub.GROUP_GROUP, MainHub.ROLE_GROUP, MainHub.USER_GROUP, harness.UserId.ToString()];
-        Assert.Equal(expected.Order(), Joined(harness).Order());
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
     }
 
     /// <summary>Without the system view permissions the caller joins the groups of the exhibits and collections they are a member of.</summary>
@@ -97,7 +97,42 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         await hub.JoinAdmin();
 
         string[] expected = [user.Id.ToString(), exhibit.Id.ToString(), collection.Id.ToString()];
-        Assert.Equal(expected.Order(), Joined(harness).Order());
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    /// <summary>ViewExhibits alone joins the exhibit admin group; the collection groups still come from the caller's memberships.</summary>
+    [Fact]
+    public async Task JoinAdmin_joins_the_exhibit_admin_group_and_the_member_s_collection_groups_for_a_caller_holding_only_ViewExhibits()
+    {
+        var collection = TestData.Collection();
+        var user = TestData.User();
+        await Seed(collection, user, TestData.CollectionMembership(collection.Id, user.Id));
+        var principal = new ClaimsPrincipalBuilder().WithUserId(user.Id).WithSystemPermissions(SystemPermission.ViewExhibits).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [user.Id.ToString(), MainHub.EXHIBIT_GROUP, collection.Id.ToString()];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
+    }
+
+    /// <summary>Every view permission but ViewExhibits joins the other admin groups and the member's exhibit groups, not the exhibit admin group.</summary>
+    [Fact]
+    public async Task JoinAdmin_joins_the_member_s_exhibit_groups_for_a_caller_holding_every_view_permission_but_ViewExhibits()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var user = TestData.User();
+        await Seed(collection, exhibit, user, TestData.ExhibitMembership(exhibit.Id, user.Id));
+        var principal = new ClaimsPrincipalBuilder().WithUserId(user.Id).WithSystemPermissions(
+            SystemPermission.ViewCollections, SystemPermission.ViewGroups, SystemPermission.ViewRoles,
+            SystemPermission.ViewUsers).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.JoinAdmin();
+
+        string[] expected = [user.Id.ToString(), exhibit.Id.ToString(), MainHub.COLLECTION_GROUP, MainHub.GROUP_GROUP, MainHub.ROLE_GROUP, MainHub.USER_GROUP];
+        Assert.Equal(expected.Order(), harness.JoinedGroups.Order());
     }
 
     [Fact]
@@ -111,7 +146,7 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         await hub.LeaveAdmin();
 
         string[] expected = [MainHub.EXHIBIT_GROUP, MainHub.COLLECTION_GROUP, MainHub.GROUP_GROUP, MainHub.ROLE_GROUP, MainHub.USER_GROUP, harness.UserId.ToString()];
-        Assert.Equal(expected.Order(), Left(harness).Order());
+        Assert.Equal(expected.Order(), harness.LeftGroups.Order());
         await harness.Groups.DidNotReceive().AddToGroupAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -128,7 +163,7 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         await hub.LeaveAdmin();
 
         string[] expected = [user.Id.ToString(), exhibit.Id.ToString()];
-        Assert.Equal(expected.Order(), Left(harness).Order());
+        Assert.Equal(expected.Order(), harness.LeftGroups.Order());
     }
 
     private (MainHub Hub, HubHarness Harness) Hub(ClaimsPrincipal principal)
@@ -144,16 +179,6 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
 
         return (harness.Attach(hub), harness);
     }
-
-    private static string[] Joined(HubHarness harness) =>
-        [.. harness.Groups.ReceivedCalls()
-            .Where(x => x.GetMethodInfo().Name == nameof(Microsoft.AspNetCore.SignalR.IGroupManager.AddToGroupAsync))
-            .Select(x => (string)x.GetArguments()[1])];
-
-    private static string[] Left(HubHarness harness) =>
-        [.. harness.Groups.ReceivedCalls()
-            .Where(x => x.GetMethodInfo().Name == nameof(Microsoft.AspNetCore.SignalR.IGroupManager.RemoveFromGroupAsync))
-            .Select(x => (string)x.GetArguments()[1])];
 
     private async Task<(Gallery.Api.Data.Models.ExhibitEntity Exhibit, Gallery.Api.Data.Models.TeamEntity Old, Gallery.Api.Data.Models.TeamEntity New)> SeedTeams()
     {

@@ -143,8 +143,8 @@ public static class TestData
             ActualDatePosted = DefaultDatePosted
         };
 
-    public static ExhibitTeamEntity ExhibitTeam(Guid exhibitId, Guid teamId) =>
-        new(exhibitId, teamId) { Id = Guid.NewGuid() };
+    public static ExhibitTeamEntity ExhibitTeam(Guid exhibitId, Guid teamId, Guid? id = null) =>
+        new(exhibitId, teamId) { Id = id ?? Guid.NewGuid() };
 
     public static CollectionMembershipEntity CollectionMembership(Guid collectionId, Guid userId, Guid? roleId = null) =>
         new(collectionId, userId, null) { Id = Guid.NewGuid(), RoleId = roleId ?? MembershipRoles.Member };

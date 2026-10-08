@@ -25,11 +25,11 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync("api/exhibitteams", Ct));
     }
 
+    // Same case as GetAll_is_forbidden_for_a_caller_holding_ViewExhibits.
     /// <summary>The list is served to a caller holding no view permission at all.</summary>
     [Fact]
     public async Task GetAll_returns_every_link_to_a_caller_holding_only_ViewGroups()
     {
-        // Same case as GetAll_is_forbidden_for_a_caller_holding_ViewExhibits.
         var (_, link) = await SeedLink();
         var actor = await Actor().WithSystemPermissions(SystemPermission.ViewGroups).SeedAsync();
 
@@ -53,6 +53,19 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var actor = await Actor().OnTeam(team).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct));
+    }
+
+    // Same case as Get_is_forbidden_for_a_participant_of_the_linked_team.
+    /// <summary>A link whose id is its team's id is returned to a participant of that team.</summary>
+    [Fact]
+    public async Task Get_returns_a_link_whose_id_is_its_team_s_id_to_a_participant_of_that_team()
+    {
+        var (team, link) = await SeedLink(idOfTheTeam: true);
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        var read = await ReadAsync<ExhibitTeam>(await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        Assert.Equal((team.Id, team.Id), (read.Id, read.TeamId));
     }
 
     [Fact]
@@ -148,12 +161,13 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/{link.ExhibitId}/teams/{team.Id}", Ct));
     }
 
-    private async Task<(TeamEntity Team, ExhibitTeamEntity Link)> SeedLink()
+    /// <summary>Seeds an exhibit, a team and the link between them; <paramref name="idOfTheTeam"/> gives the link the team's id.</summary>
+    private async Task<(TeamEntity Team, ExhibitTeamEntity Link)> SeedLink(bool idOfTheTeam = false)
     {
         var collection = TestData.Collection();
         var exhibit = TestData.Exhibit(collection.Id);
         var team = TestData.Team(exhibit.Id);
-        var link = TestData.ExhibitTeam(exhibit.Id, team.Id);
+        var link = TestData.ExhibitTeam(exhibit.Id, team.Id, idOfTheTeam ? team.Id : null);
         await Seed(collection, exhibit, team, link);
 
         return (team, link);

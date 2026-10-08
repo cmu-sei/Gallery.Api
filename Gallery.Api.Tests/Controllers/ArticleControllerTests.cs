@@ -101,6 +101,21 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
     }
 
+    // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
+    /// <summary>A caller holding ViewExhibit only on another exhibit is answered with a 500.</summary>
+    [Fact]
+    public async Task GetByExhibit_answers_a_caller_holding_ViewExhibit_only_on_another_exhibit_with_a_server_error()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.ViewExhibit).SeedAsync();
+
+        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
+
+        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+    }
+
     // ---- Get -----------------------------------------------------------------------------------
 
     [Fact]
@@ -247,6 +262,21 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
 
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, exhibit.Id), Ct));
+    }
+
+    [Fact]
+    public async Task Create_of_a_posted_article_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, exhibit.Id, name: "Refused"), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Refused", Ct));
     }
 
     /// <summary>A body with no collection is answered with a 500.</summary>

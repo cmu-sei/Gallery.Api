@@ -193,6 +193,32 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
             new { id = card.Id, name = "After", collectionId = collection.Id }, Ct));
     }
 
+    [Fact]
+    public async Task Update_persists_the_change_for_a_caller_holding_EditCollections()
+    {
+        var (collection, card) = await SeedCard("Before");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
+            new { id = card.Id, name = "After", collectionId = collection.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("After", (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).Name);
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, card) = await SeedCard("Before");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
+            new { id = card.Id, name = "After", collectionId = collection.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Before", (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).Name);
+    }
+
     /// <summary>The gate reads the collection the body names, so the card moves into the caller's collection.</summary>
     [Fact]
     public async Task Update_moves_another_collection_s_card_when_the_body_names_a_collection_the_caller_edits()
@@ -234,6 +260,30 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     }
 
     [Fact]
+    public async Task Delete_removes_the_card_for_a_caller_holding_EditCollections()
+    {
+        var (_, card) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/cards/{card.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Cards.AnyAsync(x => x.Id == card.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (_, card) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/cards/{card.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Cards.AnyAsync(x => x.Id == card.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_of_a_card_with_articles_is_answered_with_a_conflict()
     {
         var (collection, card) = await SeedCard();
@@ -247,7 +297,9 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     [Fact]
     public async Task Delete_reports_an_unknown_card_as_not_found_to_a_caller_holding_EditCollections()
     {
-        await AssertProblem(HttpStatusCode.NotFound, await RootClient.DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
     /// <summary>An id that names no card is answered with a 500 for a caller whose edit right is a collection membership.</summary>

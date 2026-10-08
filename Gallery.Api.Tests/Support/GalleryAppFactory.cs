@@ -2,13 +2,15 @@
 // Released under a MIT (SEI)-style license. See LICENSE.md in the project root for license information.
 
 // gallery.api: the run-wide factory with step 1B (a throwaway host database for InitializeDatabase), the
-// two hubs MainHub and CiteHub as recorders, and the stub HTTP handler behind IHttpClientFactory, which is
-// how SteamfitterService reaches Steamfitter and the identity provider.
+// Bearer recipe (both hubs name that scheme), the two hubs MainHub and CiteHub as recorders, and the stub
+// HTTP handler behind IHttpClientFactory, which is how SteamfitterService reaches Steamfitter and the
+// identity provider.
 
 using System.Collections.Concurrent;
 using Gallery.Api.Data;
 using Gallery.Api.Hubs;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
@@ -17,6 +19,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Gallery.Api.Tests.Support;
 
@@ -31,8 +34,8 @@ namespace Gallery.Api.Tests.Support;
 /// registers as a singleton is therefore shared by every test, which is what
 /// <see cref="TestConfiguration"/>'s claims-caching entry and <see cref="TestDatabaseScope"/> exist to
 /// deal with. Only three things are not the application's own: token validation
-/// (<see cref="TestAuthHandler"/>), the context registration (<see cref="TestDatabaseScope"/>), and the
-/// collaborators that leave the process.
+/// (<see cref="TestAuthHandler"/>, registered under the Bearer name the hubs ask for as well), the context
+/// registration (<see cref="TestDatabaseScope"/>), and the collaborators that leave the process.
 /// </para>
 /// <para>
 /// <c>Program.CreateWebHostBuilder</c> matches neither convention <c>HostFactoryResolver</c> looks for, so
@@ -70,9 +73,16 @@ public sealed class GalleryAppFactory : WebApplicationFactory<Program>, ITestHtt
             // XApiBackgroundService starts in the background and reaches for a database no test owns.
             services.RemoveAll<IHostedService>();
 
+            // MainHub and CiteHub name the Bearer scheme ([Authorize(AuthenticationSchemes = "Bearer")]), so
+            // the test handler takes that name too, and a real connection authenticates through it. Startup's
+            // AddJwtBearer has claimed the name and AddScheme refuses a duplicate; every registration that
+            // configures AuthenticationOptions is one IConfigureOptions, so removing them drops that claim
+            // before the test handler is registered under both names.
+            services.RemoveAll<IConfigureOptions<AuthenticationOptions>>();
             services
                 .AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null);
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, null)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(JwtBearerDefaults.AuthenticationScheme, null);
 
             // InitializeDatabase resolves the context from a scope of its own, outside any request, where
             // there is no X-Test-Session header to route by. Until the host has started, such a resolution

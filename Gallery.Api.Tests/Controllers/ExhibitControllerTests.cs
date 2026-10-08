@@ -93,6 +93,29 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task GetByCollection_returns_every_exhibit_to_a_caller_holding_ViewExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var exhibits = await ReadAsync<List<Exhibit>>(await Client(actor).GetAsync($"api/collections/{exhibit.CollectionId}/exhibits", Ct));
+
+        Assert.Equal(exhibit.Id, Assert.Single(exhibits).Id);
+    }
+
+    /// <summary>A caller holding another system permission is not refused, and gets none of the collection's exhibits, being a member of none.</summary>
+    [Fact]
+    public async Task GetByCollection_returns_nothing_to_a_caller_holding_only_ViewCollections()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var exhibits = await ReadAsync<List<Exhibit>>(await Client(actor).GetAsync($"api/collections/{exhibit.CollectionId}/exhibits", Ct));
+
+        Assert.Empty(exhibits);
+    }
+
+    [Fact]
     public async Task GetByCollection_returns_every_exhibit_to_a_collection_manager()
     {
         var exhibit = await SeedExhibit();
@@ -103,7 +126,7 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(exhibit.Id, Assert.Single(exhibits).Id);
     }
 
-    /// <summary>A collection editor is not refused but sees only the exhibits they are a member of.</summary>
+    /// <summary>A collection editor is not refused, and gets none of the collection's exhibits, being a member of none.</summary>
     [Fact]
     public async Task GetByCollection_returns_nothing_to_a_caller_holding_only_EditCollection()
     {
@@ -245,6 +268,18 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     {
         var exhibit = await SeedExhibit();
         var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+    }
+
+    [Fact]
+    public async Task Copy_is_forbidden_for_a_caller_holding_CreateExhibits_and_ViewExhibit_only_on_another_exhibit()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits)
+            .OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ViewExhibit)
+            .SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
     }

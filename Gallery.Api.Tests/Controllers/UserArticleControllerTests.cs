@@ -150,6 +150,18 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
     }
 
     [Fact]
+    public async Task Share_is_forbidden_for_an_owner_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, team, userArticle) = await SeedDelivery();
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, actor.Id, userArticle.ArticleId);
+        await Seed(owned);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = exhibit.Id, toTeamIdList = new[] { team.Id } }, Ct));
+    }
+
+    [Fact]
     public async Task Share_is_forbidden_for_an_exhibit_editor_who_does_not_own_the_user_article()
     {
         var (exhibit, team, userArticle) = await SeedDelivery();

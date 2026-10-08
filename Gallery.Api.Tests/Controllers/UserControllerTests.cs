@@ -127,6 +127,21 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("New User", (await db.Users.SingleAsync(x => x.Id == id, Ct)).Name);
     }
 
+    // Same case as Update_lets_a_caller_holding_only_ManageUsers_give_itself_the_administrator_role.
+    /// <summary>A caller holding only ManageUsers creates a user holding the Administrator role.</summary>
+    [Fact]
+    public async Task Create_lets_a_caller_holding_only_ManageUsers_create_an_administrator()
+    {
+        var id = Guid.NewGuid();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageUsers).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/users",
+            new { id, name = "New Administrator", roleId = TestData.Roles.Administrator }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.Roles.Administrator, (await db.Users.SingleAsync(x => x.Id == id, Ct)).RoleId);
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_ViewUsers()
     {
@@ -160,12 +175,11 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var actor = await Actor().WithSystemPermissions(SystemPermission.ManageUsers).SeedAsync();
 
         await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/users/{user.Id}",
-            new { id = user.Id, name = "After", roleId = TestData.Roles.Observer }, Ct));
+            new { id = user.Id, name = "After" }, Ct));
 
         await using var db = NewContext();
         var stored = await db.Users.SingleAsync(x => x.Id == user.Id, Ct);
-        Assert.Equal("After", stored.Name);
-        Assert.Equal(TestData.Roles.Observer, stored.RoleId);
+        Assert.Equal(("After", (Guid?)null), (stored.Name, stored.RoleId));
     }
 
     [Fact]
@@ -180,6 +194,19 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
         await using var db = NewContext();
         Assert.Null((await db.Users.SingleAsync(x => x.Id == user.Id, Ct)).RoleId);
+    }
+
+    /// <summary>A caller holding only ManageUsers gives itself the Administrator role.</summary>
+    [Fact]
+    public async Task Update_lets_a_caller_holding_only_ManageUsers_give_itself_the_administrator_role()
+    {
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageUsers).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/users/{actor.Id}",
+            new { id = actor.Id, name = actor.Name, roleId = TestData.Roles.Administrator }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.Roles.Administrator, (await db.Users.SingleAsync(x => x.Id == actor.Id, Ct)).RoleId);
     }
 
     /// <summary>A body whose id differs from the route's is answered with a 403.</summary>
