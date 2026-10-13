@@ -68,6 +68,21 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.Equal((team.Id, team.Id), (read.Id, read.TeamId));
     }
 
+    // Same case as Get_is_forbidden_for_a_participant_of_the_linked_team.
+    /// <summary>An observer of the exhibit, holding ViewTeam alone on the team, reads a link whose id is that team's id.</summary>
+    [Fact]
+    public async Task Get_returns_a_link_whose_id_is_its_team_s_id_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (team, link) = await SeedLink(idOfTheTeam: true);
+        var observers = TestData.Team(team.ExhibitId.Value, "Observers");
+        await Seed(observers);
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var read = await ReadAsync<ExhibitTeam>(await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        Assert.Equal((team.Id, team.Id), (read.Id, read.TeamId));
+    }
+
     [Fact]
     public async Task GetByExhibit_returns_the_links_to_a_member_holding_ViewExhibit()
     {
@@ -85,6 +100,26 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var (_, link) = await SeedLink();
         var exhibit = await Exhibit(link);
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ViewExhibit).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{link.ExhibitId}/exhibitteams", Ct));
+    }
+
+    [Fact]
+    public async Task GetByExhibit_returns_the_links_to_a_caller_holding_ViewExhibits()
+    {
+        var (_, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var links = await ReadAsync<List<ExhibitTeam>>(await Client(actor).GetAsync($"api/exhibits/{link.ExhibitId}/exhibitteams", Ct));
+
+        Assert.Equal(link.Id, Assert.Single(links).Id);
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (_, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{link.ExhibitId}/exhibitteams", Ct));
     }
@@ -119,6 +154,38 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
     }
 
     [Fact]
+    public async Task Create_persists_the_link_for_a_caller_holding_EditExhibits()
+    {
+        var (team, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
+        await Seed(other);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+            new { exhibitId = other.Id, teamId = team.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == team.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (team, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Not Linked");
+        await Seed(other);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+            new { exhibitId = other.Id, teamId = team.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_removes_the_link_for_a_member_holding_EditExhibit()
     {
         var (_, link) = await SeedLink();
@@ -137,6 +204,30 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var actor = await Actor().OnExhibit(await Exhibit(link), [ExhibitPermission.ViewExhibit]).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibitteams/{link.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Delete_removes_the_link_for_a_caller_holding_EditExhibits()
+    {
+        var (_, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
     }
 
     [Fact]
@@ -159,6 +250,30 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/{link.ExhibitId}/teams/{team.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task DeleteByIds_removes_the_link_for_a_caller_holding_EditExhibits()
+    {
+        var (team, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/exhibits/{link.ExhibitId}/teams/{team.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
+    }
+
+    [Fact]
+    public async Task DeleteByIds_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (team, link) = await SeedLink();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/{link.ExhibitId}/teams/{team.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
     }
 
     /// <summary>Seeds an exhibit, a team and the link between them; <paramref name="idOfTheTeam"/> gives the link the team's id.</summary>

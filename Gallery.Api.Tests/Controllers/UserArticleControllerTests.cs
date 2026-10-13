@@ -38,6 +38,26 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/userarticles", Ct));
     }
 
+    [Fact]
+    public async Task GetByExhibit_returns_the_delivered_articles_to_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var userArticles = await ReadAsync<List<UserArticle>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/userarticles", Ct));
+
+        Assert.Equal(userArticle.Id, Assert.Single(userArticles).Id);
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (exhibit, _, _) = await SeedDelivery();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/userarticles", Ct));
+    }
+
     /// <summary>A request with no identity is answered with a 401; the anonymous client is the case under test.</summary>
     [Fact]
     public async Task GetByExhibit_without_an_identity_is_unauthorized()
@@ -67,6 +87,25 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/userarticles", Ct));
     }
 
+    /// <summary>
+    /// An observer of the exhibit, holding ViewTeam alone on the team, reads the team's due articles as one
+    /// row per article in its own name.
+    /// </summary>
+    [Fact]
+    public async Task GetByExhibitTeam_returns_the_team_s_due_articles_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (exhibit, team, userArticle) = await SeedDelivery();
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(observers);
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var userArticles = await ReadAsync<List<UserArticle>>(
+            await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/userarticles", Ct));
+
+        var row = Assert.Single(userArticles);
+        Assert.Equal((userArticle.ArticleId, actor.Id), (row.ArticleId, row.UserId));
+    }
+
     [Fact]
     public async Task GetUnreadCount_counts_the_user_s_unread_due_articles_for_a_member_holding_ViewExhibit()
     {
@@ -80,10 +119,32 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
     }
 
     [Fact]
+    public async Task GetUnreadCount_counts_the_user_s_unread_due_articles_for_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var unread = await ReadAsync<UnreadArticles>(
+            await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/users/{userArticle.UserId}/articles/unread", Ct));
+
+        Assert.Equal("1", unread.Count);
+    }
+
+    [Fact]
     public async Task GetUnreadCount_is_forbidden_for_a_caller_holding_only_ViewCollections()
     {
         var (exhibit, _, userArticle) = await SeedDelivery();
         var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden,
+            await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/users/{userArticle.UserId}/articles/unread", Ct));
+    }
+
+    [Fact]
+    public async Task GetUnreadCount_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ViewExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden,
             await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/users/{userArticle.UserId}/articles/unread", Ct));
@@ -116,6 +177,36 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
             new { exhibitId = exhibit.Id, userId = userArticle.UserId, articleId = article.Id }, Ct));
     }
 
+    [Fact]
+    public async Task Create_persists_the_user_article_for_a_caller_holding_EditExhibits()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Handed Out");
+        await Seed(article);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PostAsJsonAsync("api/userarticles",
+            new { exhibitId = exhibit.Id, userId = userArticle.UserId, articleId = article.Id, actualDatePosted = TestData.DefaultDatePosted }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.UserArticles.AnyAsync(x => x.ArticleId == article.Id && x.UserId == userArticle.UserId, Ct));
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Withheld");
+        await Seed(article);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/userarticles",
+            new { exhibitId = exhibit.Id, userId = userArticle.UserId, articleId = article.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.ArticleId == article.Id, Ct));
+    }
+
     /// <summary>Sharing an article delivers it to the users of the teams named.</summary>
     [Fact]
     public async Task Share_delivers_the_article_to_the_named_team_s_users_for_its_owner_holding_EditExhibit()
@@ -134,6 +225,44 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
 
         await using var db = NewContext();
         Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Share_delivers_the_article_to_the_named_team_s_users_for_its_owner_holding_EditExhibits()
+    {
+        var (exhibit, _, _) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Shared");
+        var toTeam = TestData.Team(exhibit.Id, "Recipients");
+        var recipient = TestData.User(name: "Recipient");
+        await Seed(article, toTeam, recipient, TestData.TeamUser(toTeam.Id, recipient.Id));
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, actor.Id, article.Id);
+        await Seed(owned);
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = exhibit.Id, toTeamIdList = new[] { toTeam.Id }, subject = "s", message = "m" }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Share_is_forbidden_for_an_owner_holding_only_ViewExhibits()
+    {
+        var (exhibit, _, _) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Shared");
+        var toTeam = TestData.Team(exhibit.Id, "Recipients");
+        var recipient = TestData.User(name: "Recipient");
+        await Seed(article, toTeam, recipient, TestData.TeamUser(toTeam.Id, recipient.Id));
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, actor.Id, article.Id);
+        await Seed(owned);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = exhibit.Id, toTeamIdList = new[] { toTeam.Id }, subject = "s", message = "m" }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
     }
 
     /// <summary>A participant sharing an article delivered to them is refused; being on a team grants no EditExhibit.</summary>
@@ -216,6 +345,30 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/userarticles/{userArticle.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Delete_removes_the_user_article_for_a_member_holding_EditExhibit()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/userarticles/{userArticle.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.Id == userArticle.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, _, userArticle) = await SeedDelivery();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/userarticles/{userArticle.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.UserArticles.AnyAsync(x => x.Id == userArticle.Id, Ct));
     }
 
     /// <summary>An exhibit at move 0 inject 0 with a team, a team article that is due, and its delivery to one user.</summary>

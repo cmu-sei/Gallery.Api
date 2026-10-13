@@ -41,6 +41,26 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task GetByCard_returns_the_card_s_collection_articles_to_a_caller_holding_ViewCollections()
+    {
+        var (_, card, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var articles = await ReadAsync<List<Article>>(await Client(actor).GetAsync($"api/cards/{card.Id}/articles", Ct));
+
+        Assert.Equal(article.Id, Assert.Single(articles).Id);
+    }
+
+    [Fact]
+    public async Task GetByCard_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, card, _) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/cards/{card.Id}/articles", Ct));
+    }
+
+    [Fact]
     public async Task GetByCard_reports_an_unknown_card_as_not_found()
     {
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.GetAsync($"api/cards/{Guid.NewGuid()}/articles", Ct));
@@ -65,10 +85,30 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task GetByCollection_returns_the_collection_articles_to_a_member_holding_ViewCollection()
+    {
+        var (collection, _, article) = await SeedArticle();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.ViewCollection]).SeedAsync();
+
+        var articles = await ReadAsync<List<Article>>(await Client(actor).GetAsync($"api/collections/{collection.Id}/articles", Ct));
+
+        Assert.Equal(article.Id, Assert.Single(articles).Id);
+    }
+
+    [Fact]
     public async Task GetByCollection_is_forbidden_for_a_caller_holding_only_EditCollection()
     {
         var (collection, _, _) = await SeedArticle();
         var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/articles", Ct));
+    }
+
+    [Fact]
+    public async Task GetByCollection_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/articles", Ct));
     }
@@ -116,6 +156,21 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
     }
 
+    // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
+    /// <summary>A caller holding only ViewCollections is answered with a 500.</summary>
+    [Fact]
+    public async Task GetByExhibit_answers_a_caller_holding_only_ViewCollections_with_a_server_error()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
+
+        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+    }
+
     // ---- Get -----------------------------------------------------------------------------------
 
     [Fact]
@@ -136,6 +191,52 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var actor = await Actor().OnNewCollection(CollectionPermission.ViewCollection).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/articles/{article.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Get_returns_a_collection_article_to_a_caller_holding_ViewCollections()
+    {
+        var (_, _, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var got = await ReadAsync<Article>(await Client(actor).GetAsync($"api/articles/{article.Id}", Ct));
+
+        Assert.Equal(article.Name, got.Name);
+    }
+
+    [Fact]
+    public async Task Get_of_a_collection_article_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, _, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/articles/{article.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Get_returns_a_posted_article_to_a_caller_holding_ViewExhibits()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var posted = TestData.Article(collection.Id, card.Id, exhibit.Id, "Posted");
+        await Seed(exhibit, posted);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var got = await ReadAsync<Article>(await Client(actor).GetAsync($"api/articles/{posted.Id}", Ct));
+
+        Assert.Equal((posted.Id, exhibit.Id), (got.Id, got.ExhibitId));
+    }
+
+    [Fact]
+    public async Task Get_of_a_posted_article_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var posted = TestData.Article(collection.Id, card.Id, exhibit.Id, "Posted");
+        await Seed(exhibit, posted);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/articles/{posted.Id}", Ct));
     }
 
     [Fact]
@@ -219,6 +320,34 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id), Ct));
     }
 
+    [Fact]
+    public async Task Create_persists_a_collection_article_for_a_caller_holding_EditCollections()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        var response = await Client(actor).PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<Article>(response);
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == created.Id, Ct);
+        Assert.Equal((collection.Id, (Guid?)null), (stored.CollectionId, stored.ExhibitId));
+    }
+
+    [Fact]
+    public async Task Create_of_a_collection_article_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, name: "Refused"), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Refused", Ct));
+    }
+
     /// <summary>
     /// A participant whose team card allows posting posts an article into the exhibit, and it is delivered
     /// to the users of every team that has the card.
@@ -265,6 +394,37 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task Create_of_a_posted_article_persists_it_for_a_caller_holding_EditExhibits()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        var response = await Client(actor).PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, exhibit.Id), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<Article>(response);
+        await using var db = NewContext();
+        Assert.Equal(exhibit.Id, (await db.Articles.SingleAsync(x => x.Id == created.Id, Ct)).ExhibitId);
+    }
+
+    [Fact]
+    public async Task Create_of_a_posted_article_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (collection, card, _) = await SeedArticle();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, exhibit.Id, name: "Refused"), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Refused", Ct));
+    }
+
+    [Fact]
     public async Task Create_of_a_posted_article_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
     {
         var (collection, card, _) = await SeedArticle();
@@ -305,6 +465,32 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task Update_persists_the_change_for_a_caller_holding_EditCollections()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Rewritten", (await db.Articles.SingleAsync(x => x.Id == article.Id, Ct)).Name);
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(article.Name, (await db.Articles.SingleAsync(x => x.Id == article.Id, Ct)).Name);
+    }
+
+    [Fact]
     public async Task Update_is_forbidden_for_a_caller_holding_only_ViewCollection()
     {
         var (collection, card, article) = await SeedArticle();
@@ -341,6 +527,32 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         await using var db = NewContext();
         Assert.Equal("Rewritten", (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).Name);
+    }
+
+    [Fact]
+    public async Task Update_of_a_posted_article_is_allowed_for_a_caller_holding_EditExhibits()
+    {
+        var (collection, card, exhibit, _, posted) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/articles/{posted.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, posted.Id, "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Rewritten", (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).Name);
+    }
+
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (collection, card, exhibit, _, posted) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{posted.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, posted.Id, "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Posted", (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).Name);
     }
 
     [Fact]
@@ -397,6 +609,30 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task Delete_removes_the_article_for_a_caller_holding_EditCollections()
+    {
+        var (_, _, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/articles/{article.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Id == article.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (_, _, article) = await SeedArticle();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/articles/{article.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Articles.AnyAsync(x => x.Id == article.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_is_forbidden_for_a_caller_holding_EditCollection_only_on_another_collection()
     {
         var (_, _, article) = await SeedArticle();
@@ -437,6 +673,30 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         await using var db = NewContext();
         Assert.False(await db.Articles.AnyAsync(x => x.Id == posted.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_of_a_posted_article_is_allowed_for_a_caller_holding_EditExhibits()
+    {
+        var (_, _, _, _, posted) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/articles/{posted.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Id == posted.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_of_a_posted_article_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, _, _, _, posted) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/articles/{posted.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Articles.AnyAsync(x => x.Id == posted.Id, Ct));
     }
 
     [Fact]

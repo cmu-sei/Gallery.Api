@@ -40,6 +40,18 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Contains(users, x => x.Id == other.Id);
     }
 
+    [Fact]
+    public async Task GetAll_returns_every_user_to_a_caller_holding_only_ViewCollections()
+    {
+        var other = TestData.User(name: "Listed");
+        await Seed(other);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var users = await ReadAsync<List<User>>(await Client(actor).GetAsync("api/users", Ct));
+
+        Assert.Contains(users, x => x.Id == other.Id);
+    }
+
     /// <summary>The list is not refused but filtered to nothing for a caller with no view permission.</summary>
     [Fact]
     public async Task GetAll_returns_nothing_to_a_caller_holding_only_ViewGroups()
@@ -110,6 +122,21 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var sibling = await Actor().OnNewTeam(exhibit.Id).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(sibling).GetAsync($"api/teams/{team.Id}/users", Ct));
+    }
+
+    /// <summary>An observer of the exhibit holds ViewTeam alone on the teams it is not on.</summary>
+    [Fact]
+    public async Task GetByTeam_returns_the_team_users_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var member = TestData.User(name: "Team Member");
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(member, observers, TestData.TeamUser(team.Id, member.Id));
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var users = await ReadAsync<List<User>>(await Client(actor).GetAsync($"api/teams/{team.Id}/users", Ct));
+
+        Assert.Equal(member.Id, Assert.Single(users).Id);
     }
 
     // ---- Create --------------------------------------------------------------------------------

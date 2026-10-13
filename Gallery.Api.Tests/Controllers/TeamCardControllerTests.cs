@@ -64,6 +64,26 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     }
 
     [Fact]
+    public async Task GetByExhibit_returns_the_team_cards_to_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var teamCards = await ReadAsync<List<TeamCard>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teamcards", Ct));
+
+        Assert.Equal(teamCard.Id, Assert.Single(teamCards).Id);
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (exhibit, _, _) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teamcards", Ct));
+    }
+
+    [Fact]
     public async Task GetByExhibitTeam_returns_the_team_s_cards_to_a_participant_of_the_team()
     {
         var (exhibit, team, teamCard) = await SeedTeamCard();
@@ -81,6 +101,20 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         var actor = await Actor().OnNewTeam(exhibit.Id).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/teamcards", Ct));
+    }
+
+    /// <summary>An observer of the exhibit holds ViewTeam alone on the teams it is not on.</summary>
+    [Fact]
+    public async Task GetByExhibitTeam_returns_the_team_s_cards_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (exhibit, team, teamCard) = await SeedTeamCard();
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(observers);
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var teamCards = await ReadAsync<List<TeamCard>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/teamcards", Ct));
+
+        Assert.Equal(teamCard.Id, Assert.Single(teamCards).Id);
     }
 
     [Fact]
@@ -101,6 +135,20 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         var actor = await Actor().OnNewTeam(exhibit.Id).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/teamcards/{teamCard.Id}", Ct));
+    }
+
+    /// <summary>An observer of the exhibit holds ViewTeam alone on the teams it is not on.</summary>
+    [Fact]
+    public async Task Get_returns_the_team_card_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(observers);
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var got = await ReadAsync<TeamCard>(await Client(actor).GetAsync($"api/teamcards/{teamCard.Id}", Ct));
+
+        Assert.Equal(teamCard.CardId, got.CardId);
     }
 
     [Fact]
@@ -137,6 +185,36 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     }
 
     [Fact]
+    public async Task Create_persists_the_team_card_for_a_caller_holding_ManageExhibits()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var card = TestData.Card(exhibit.CollectionId, "Second Card");
+        await Seed(card);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamcards",
+            new { teamId = team.Id, cardId = card.Id, isShownOnWall = true, canPostArticles = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.True((await db.TeamCards.SingleAsync(x => x.CardId == card.Id, Ct)).CanPostArticles);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var card = TestData.Card(exhibit.CollectionId, "Second Card");
+        await Seed(card);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamcards",
+            new { teamId = team.Id, cardId = card.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == card.Id, Ct));
+    }
+
+    [Fact]
     public async Task Create_answers_a_second_card_for_the_same_team_with_a_conflict()
     {
         var (_, team, teamCard) = await SeedTeamCard();
@@ -167,6 +245,33 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
             new { id = teamCard.Id, teamId = team.Id, cardId = teamCard.CardId, move = 3 }, Ct));
+    }
+
+    [Fact]
+    public async Task Update_persists_the_change_for_a_caller_holding_ManageExhibits()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { id = teamCard.Id, teamId = team.Id, cardId = teamCard.CardId, move = 3, isShownOnWall = false }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((3, false), (stored.Move, stored.IsShownOnWall));
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { id = teamCard.Id, teamId = team.Id, cardId = teamCard.CardId, move = 3 }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(teamCard.Move, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).Move);
     }
 
     /// <summary>The gate reads the team the body names, so the team card moves onto the caller's team.</summary>
@@ -209,6 +314,42 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     }
 
     [Fact]
+    public async Task Delete_removes_the_team_card_for_a_member_holding_ManageExhibit()
+    {
+        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/teamcards/{teamCard.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_EditExhibit()
+    {
+        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teamcards/{teamCard.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (_, _, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teamcards/{teamCard.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
+    }
+
+    [Fact]
     public async Task DeleteByIds_removes_the_team_card_for_a_member_holding_ManageExhibit()
     {
         var (exhibit, team, teamCard) = await SeedTeamCard();
@@ -227,6 +368,30 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teams/{team.Id}/cards/{teamCard.CardId}", Ct));
+    }
+
+    [Fact]
+    public async Task DeleteByIds_removes_the_team_card_for_a_caller_holding_ManageExhibits()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/teams/{team.Id}/cards/{teamCard.CardId}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
+    }
+
+    [Fact]
+    public async Task DeleteByIds_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teams/{team.Id}/cards/{teamCard.CardId}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
     }
 
     private async Task<(ExhibitEntity Exhibit, TeamEntity Team, TeamCardEntity TeamCard)> SeedTeamCard()

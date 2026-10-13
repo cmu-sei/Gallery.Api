@@ -33,6 +33,17 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync("api/cards", Ct));
     }
 
+    [Fact]
+    public async Task GetAll_returns_every_card_to_a_caller_holding_ViewCollections()
+    {
+        var (_, card) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var cards = await ReadAsync<List<Card>>(await Client(actor).GetAsync("api/cards", Ct));
+
+        Assert.Contains(cards, x => x.Id == card.Id);
+    }
+
     /// <summary>A request with no identity is answered with a 401; the anonymous client is the case under test.</summary>
     [Fact]
     public async Task GetAll_without_an_identity_is_unauthorized()
@@ -61,6 +72,26 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     }
 
     [Fact]
+    public async Task GetByCollection_returns_the_cards_to_a_caller_holding_ViewCollections()
+    {
+        var (collection, card) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var cards = await ReadAsync<List<Card>>(await Client(actor).GetAsync($"api/collections/{collection.Id}/cards", Ct));
+
+        Assert.Equal(card.Id, Assert.Single(cards).Id);
+    }
+
+    [Fact]
+    public async Task GetByCollection_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/cards", Ct));
+    }
+
+    [Fact]
     public async Task GetByExhibit_returns_the_collection_s_cards_to_a_member_holding_ViewExhibit()
     {
         var (collection, card) = await SeedCard();
@@ -80,6 +111,41 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().OnCollection(collection, [CollectionPermission.ViewCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/cards", Ct));
+    }
+
+    [Fact]
+    public async Task GetByExhibit_returns_the_collection_s_cards_to_a_caller_holding_ViewExhibits()
+    {
+        var (collection, card) = await SeedCard();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var cards = await ReadAsync<List<Card>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/cards", Ct));
+
+        Assert.Equal(card.Id, Assert.Single(cards).Id);
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, _) = await SeedCard();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/cards", Ct));
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
+    {
+        var (collection, _) = await SeedCard();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit);
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.ViewExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/cards", Ct));
     }
@@ -110,6 +176,22 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/cards", Ct));
     }
 
+    /// <summary>An observer of the exhibit holds ViewTeam alone on the teams it is not on.</summary>
+    [Fact]
+    public async Task GetByExhibitTeam_returns_the_team_s_cards_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (collection, card) = await SeedCard();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var team = TestData.Team(exhibit.Id);
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(exhibit, team, observers, TestData.TeamCard(team.Id, card.Id));
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var cards = await ReadAsync<List<Card>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/cards", Ct));
+
+        Assert.Equal(card.Id, Assert.Single(cards).Id);
+    }
+
     [Fact]
     public async Task Get_returns_the_card_to_a_caller_holding_ViewCollections()
     {
@@ -126,6 +208,26 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     {
         var (_, card) = await SeedCard();
         var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/cards/{card.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Get_returns_the_card_to_a_member_holding_ViewCollection()
+    {
+        var (collection, card) = await SeedCard("Readable Card");
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.ViewCollection]).SeedAsync();
+
+        var got = await ReadAsync<Card>(await Client(actor).GetAsync($"api/cards/{card.Id}", Ct));
+
+        Assert.Equal("Readable Card", got.Name);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_caller_holding_ViewCollection_only_on_another_collection()
+    {
+        var (_, card) = await SeedCard();
+        var actor = await Actor().OnNewCollection(CollectionPermission.ViewCollection).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/cards/{card.Id}", Ct));
     }
@@ -168,6 +270,33 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/cards",
             new { name = "New Card", collectionId = collection.Id }, Ct));
+    }
+
+    [Fact]
+    public async Task Create_persists_the_card_for_a_caller_holding_EditCollections()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        var response = await Client(actor).PostAsJsonAsync("api/cards", new { name = "New Card", collectionId = collection.Id, move = 1 }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<Card>(response);
+        await using var db = NewContext();
+        Assert.Equal(collection.Id, (await db.Cards.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/cards",
+            new { name = "Refused Card", collectionId = collection.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Cards.AnyAsync(x => x.Name == "Refused Card", Ct));
     }
 
     [Fact]

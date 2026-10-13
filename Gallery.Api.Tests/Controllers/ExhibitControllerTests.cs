@@ -126,12 +126,35 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(exhibit.Id, Assert.Single(exhibits).Id);
     }
 
+    [Fact]
+    public async Task GetByCollection_returns_every_exhibit_to_a_caller_holding_ManageCollections()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageCollections).SeedAsync();
+
+        var exhibits = await ReadAsync<List<Exhibit>>(await Client(actor).GetAsync($"api/collections/{exhibit.CollectionId}/exhibits", Ct));
+
+        Assert.Equal(exhibit.Id, Assert.Single(exhibits).Id);
+    }
+
     /// <summary>A collection editor is not refused, and gets none of the collection's exhibits, being a member of none.</summary>
     [Fact]
     public async Task GetByCollection_returns_nothing_to_a_caller_holding_only_EditCollection()
     {
         var exhibit = await SeedExhibit();
         var actor = await Actor().OnCollection(await Collection(exhibit), [CollectionPermission.EditCollection]).SeedAsync();
+
+        var exhibits = await ReadAsync<List<Exhibit>>(await Client(actor).GetAsync($"api/collections/{exhibit.CollectionId}/exhibits", Ct));
+
+        Assert.Empty(exhibits);
+    }
+
+    /// <summary>A manager of another collection is not refused, and gets none of this collection's exhibits, being a member of none.</summary>
+    [Fact]
+    public async Task GetByCollection_returns_nothing_to_a_caller_holding_ManageCollection_only_on_another_collection()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().OnNewCollection(CollectionPermission.ManageCollection).SeedAsync();
 
         var exhibits = await ReadAsync<List<Exhibit>>(await Client(actor).GetAsync($"api/collections/{exhibit.CollectionId}/exhibits", Ct));
 
@@ -161,6 +184,26 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var got = await ReadAsync<Exhibit>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}", Ct));
 
         Assert.Equal("Visible", got.Name);
+    }
+
+    [Fact]
+    public async Task Get_returns_the_exhibit_to_a_caller_holding_ViewExhibits()
+    {
+        var exhibit = await SeedExhibit("Visible");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var got = await ReadAsync<Exhibit>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}", Ct));
+
+        Assert.Equal("Visible", got.Name);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}", Ct));
     }
 
     /// <summary>A participant on one of the exhibit's teams reads it with no exhibit permission.</summary>
@@ -305,6 +348,23 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
     }
 
+    [Fact]
+    public async Task Copy_creates_the_copy_for_a_caller_holding_CreateExhibits_and_ViewExhibits()
+    {
+        var exhibit = await SeedExhibit(move: 2, inject: 1);
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits, SystemPermission.ViewExhibits)
+            .SeedAsync();
+
+        var response = await Client(actor).PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var copy = await ReadAsync<Exhibit>(response);
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == copy.Id, Ct);
+        Assert.Equal((0, exhibit.CollectionId), (stored.CurrentMove, stored.CollectionId));
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -350,6 +410,18 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}", Body(exhibit, "After"), Ct));
     }
 
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}", Body(exhibit, "After"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Before", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
+    }
+
     // ---- Move and inject -----------------------------------------------------------------------
 
     /// <summary>Moving the exhibit delivers the team articles that are now due to the team's users.</summary>
@@ -391,6 +463,31 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ManageExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsync($"api/exhibits/{exhibit.Id}/move/1/inject/0", null, Ct));
+    }
+
+    [Fact]
+    public async Task SetMoveAndInject_moves_the_exhibit_for_a_caller_holding_ManageExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsync($"api/exhibits/{exhibit.Id}/move/1/inject/2", null, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal((1, 2), (stored.CurrentMove, stored.CurrentInject));
+    }
+
+    [Fact]
+    public async Task SetMoveAndInject_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsync($"api/exhibits/{exhibit.Id}/move/1/inject/0", null, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(0, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).CurrentMove);
     }
 
     [Fact]
@@ -488,6 +585,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task Delete_removes_the_exhibit_for_a_caller_holding_ManageExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/exhibits/{exhibit.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.Id == exhibit.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/{exhibit.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Exhibits.AnyAsync(x => x.Id == exhibit.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_reports_an_unknown_exhibit_as_not_found()
     {
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.DeleteAsync($"api/exhibits/{Guid.NewGuid()}", Ct));
@@ -547,8 +668,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     [Fact]
     public async Task DownloadJson_is_forbidden_for_a_caller_holding_only_ViewExhibit()
     {
-        var exhibit = await SeedExhibit();
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/json", Ct));
+    }
+
+    [Fact]
+    public async Task DownloadJson_returns_the_exhibit_file_to_a_caller_holding_ManageExhibits()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        await SeedTeam(exhibit, "Exported Team");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        var response = await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Contains("Exported Team", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
+    public async Task DownloadJson_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/json", Ct));
     }

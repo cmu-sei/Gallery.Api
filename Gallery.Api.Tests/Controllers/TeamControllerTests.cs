@@ -50,6 +50,26 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams", Ct));
     }
 
+    [Fact]
+    public async Task GetByExhibit_returns_the_teams_to_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var teams = await ReadAsync<List<Team>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams", Ct));
+
+        Assert.Equal(team.Id, Assert.Single(teams).Id);
+    }
+
+    [Fact]
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (exhibit, _) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams", Ct));
+    }
+
     /// <summary>A request with no identity is answered with a 401; the anonymous client is the case under test.</summary>
     [Fact]
     public async Task GetByExhibit_without_an_identity_is_unauthorized()
@@ -104,6 +124,20 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/teams/{team.Id}", Ct));
     }
 
+    /// <summary>An observer of the exhibit holds ViewTeam alone on the teams it is not on.</summary>
+    [Fact]
+    public async Task Get_returns_the_team_to_an_observer_on_another_team_of_the_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam("Readable Team");
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(observers);
+        var actor = await Actor().OnTeam(observers, observer: true).SeedAsync();
+
+        var got = await ReadAsync<Team>(await Client(actor).GetAsync($"api/teams/{team.Id}", Ct));
+
+        Assert.Equal("Readable Team", got.Name);
+    }
+
     /// <summary>Holding every system permission does not pass a team gate; only being on the team does.</summary>
     [Fact]
     public async Task Get_is_forbidden_for_a_caller_holding_every_system_permission()
@@ -149,6 +183,33 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
             new { name = "Blue", exhibitId = exhibit.Id }, Ct));
     }
 
+    [Fact]
+    public async Task Create_persists_the_team_for_a_caller_holding_EditExhibits()
+    {
+        var (exhibit, _) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        var response = await Client(actor).PostAsJsonAsync("api/teams", new { name = "Blue", shortName = "B", exhibitId = exhibit.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<Team>(response);
+        await using var db = NewContext();
+        Assert.Equal(exhibit.Id, (await db.Teams.SingleAsync(x => x.Id == created.Id, Ct)).ExhibitId);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (exhibit, _) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teams",
+            new { name = "Refused", exhibitId = exhibit.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Teams.AnyAsync(x => x.Name == "Refused", Ct));
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -172,6 +233,19 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teams/{team.Id}",
             new { id = team.Id, name = "After", exhibitId = exhibit.Id }, Ct));
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam("Before");
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teams/{team.Id}",
+            new { id = team.Id, name = "After", exhibitId = exhibit.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Before", (await db.Teams.SingleAsync(x => x.Id == team.Id, Ct)).Name);
     }
 
     /// <summary>The gate reads the exhibit the body names, so the team moves into the caller's exhibit.</summary>
@@ -221,6 +295,42 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     {
         var (_, team) = await SeedTeam();
         var actor = await Actor().OnTeam(team).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teams/{team.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Teams.AnyAsync(x => x.Id == team.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_removes_the_team_for_a_caller_holding_EditExhibits()
+    {
+        var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/teams/{team.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Teams.AnyAsync(x => x.Id == team.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teams/{team.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Teams.AnyAsync(x => x.Id == team.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/teams/{team.Id}", Ct));
 

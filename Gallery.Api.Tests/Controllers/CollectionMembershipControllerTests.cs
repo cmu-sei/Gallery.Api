@@ -38,6 +38,27 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/memberships", Ct));
     }
 
+    [Fact]
+    public async Task GetAll_returns_the_memberships_to_a_caller_holding_ViewCollections()
+    {
+        var (collection, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var memberships = await ReadAsync<List<CollectionMembership>>(
+            await Client(actor).GetAsync($"api/collections/{collection.Id}/memberships", Ct));
+
+        Assert.Equal(membership.Id, Assert.Single(memberships).Id);
+    }
+
+    [Fact]
+    public async Task GetAll_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (collection, _) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/memberships", Ct));
+    }
+
     /// <summary>A request with no identity is answered with a 401; the anonymous client is the case under test.</summary>
     [Fact]
     public async Task GetAll_without_an_identity_is_unauthorized()
@@ -131,6 +152,37 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
             new { collectionId = collection.Id, userId = user.Id }, Ct));
     }
 
+    [Fact]
+    public async Task Create_persists_the_membership_for_a_caller_holding_ManageCollections()
+    {
+        var collection = TestData.Collection();
+        var user = TestData.User();
+        await Seed(collection, user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync($"api/collections/{collection.Id}/memberships",
+            new { collectionId = collection.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.CollectionMemberships.SingleAsync(x => x.UserId == user.Id, Ct);
+        Assert.Equal((collection.Id, TestData.MembershipRoles.Observer), (stored.CollectionId, stored.RoleId));
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_EditCollections()
+    {
+        var collection = TestData.Collection();
+        var user = TestData.User();
+        await Seed(collection, user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync($"api/collections/{collection.Id}/memberships",
+            new { collectionId = collection.Id, userId = user.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.CollectionMemberships.AnyAsync(x => x.UserId == user.Id, Ct));
+    }
+
     /// <summary>A body whose collection differs from the route's is answered with a 500.</summary>
     [Fact]
     public async Task Create_answers_a_body_naming_another_collection_with_a_server_error()
@@ -172,6 +224,32 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
         Assert.Equal(TestData.MembershipRoles.Member, (await db.CollectionMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
     }
 
+    [Fact]
+    public async Task Update_changes_the_role_for_a_caller_holding_ManageCollections()
+    {
+        var (collection, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/collections/memberships/{membership.Id}",
+            new { id = membership.Id, collectionId = collection.Id, userId = membership.UserId, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.MembershipRoles.Observer, (await db.CollectionMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_EditCollections()
+    {
+        var (collection, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/collections/memberships/{membership.Id}",
+            new { id = membership.Id, collectionId = collection.Id, userId = membership.UserId, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.MembershipRoles.Member, (await db.CollectionMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
+    }
+
     /// <summary>A caller holding only ManageCollection gives a member the Manager role, which holds every collection permission.</summary>
     [Fact]
     public async Task Update_lets_a_caller_holding_only_ManageCollection_grant_the_Manager_role()
@@ -205,6 +283,30 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
         var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/collections/memberships/{membership.Id}", Ct));
+    }
+
+    [Fact]
+    public async Task Delete_removes_the_membership_for_a_member_holding_ManageCollection()
+    {
+        var (collection, membership) = await SeedMembership();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.ManageCollection]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/collections/memberships/{membership.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.CollectionMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_ManageCollection_only_on_another_collection()
+    {
+        var (_, membership) = await SeedMembership();
+        var actor = await Actor().OnNewCollection(CollectionPermission.ManageCollection).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/collections/memberships/{membership.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.CollectionMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
     }
 
     [Fact]

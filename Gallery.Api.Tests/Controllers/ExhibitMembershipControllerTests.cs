@@ -37,6 +37,26 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/memberships", Ct));
     }
 
+    [Fact]
+    public async Task GetAll_returns_the_memberships_to_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        var memberships = await ReadAsync<List<ExhibitMembership>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/memberships", Ct));
+
+        Assert.Equal(membership.Id, Assert.Single(memberships).Id);
+    }
+
+    [Fact]
+    public async Task GetAll_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (exhibit, _) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/memberships", Ct));
+    }
+
     /// <summary>A request with no identity is answered with a 401; the anonymous client is the case under test.</summary>
     [Fact]
     public async Task GetAll_without_an_identity_is_unauthorized()
@@ -117,6 +137,36 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
             new { exhibitId = exhibit.Id, userId = user.Id }, Ct));
     }
 
+    [Fact]
+    public async Task Create_persists_the_membership_for_a_caller_holding_ManageExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync($"api/exhibits/{exhibit.Id}/memberships",
+            new { exhibitId = exhibit.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(exhibit.Id, (await db.ExhibitMemberships.SingleAsync(x => x.UserId == user.Id, Ct)).ExhibitId);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var exhibit = await SeedExhibit();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync($"api/exhibits/{exhibit.Id}/memberships",
+            new { exhibitId = exhibit.Id, userId = user.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.ExhibitMemberships.AnyAsync(x => x.UserId == user.Id, Ct));
+    }
+
     /// <summary>The gate and the insert both use the body's exhibit, whatever exhibit the route names.</summary>
     [Fact]
     public async Task Create_adds_the_membership_to_the_exhibit_the_body_names()
@@ -155,6 +205,32 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
             new { id = membership.Id, exhibitId = exhibit.Id, userId = membership.UserId, roleId = TestData.MembershipRoles.Manager }, Ct));
+    }
+
+    [Fact]
+    public async Task Update_changes_the_role_for_a_caller_holding_ManageExhibits()
+    {
+        var (exhibit, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
+            new { id = membership.Id, exhibitId = exhibit.Id, userId = membership.UserId, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.MembershipRoles.Observer, (await db.ExhibitMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
+    }
+
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (exhibit, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
+            new { id = membership.Id, exhibitId = exhibit.Id, userId = membership.UserId, roleId = TestData.MembershipRoles.Observer }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(TestData.MembershipRoles.Member, (await db.ExhibitMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
     }
 
     /// <summary>The gate reads the exhibit the body names, so the role of a membership on another exhibit changes.</summary>
@@ -199,10 +275,34 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
     }
 
     [Fact]
+    public async Task Delete_removes_the_membership_for_a_member_holding_ManageExhibit()
+    {
+        var (exhibit, membership) = await SeedMembership();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.NoContent, await Client(actor).DeleteAsync($"api/exhibits/memberships/{membership.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.ExhibitMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_is_forbidden_for_a_caller_holding_ManageExhibit_only_on_another_exhibit()
     {
         var (exhibit, membership) = await SeedMembership();
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ManageExhibit).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/memberships/{membership.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_EditExhibits()
+    {
+        var (_, membership) = await SeedMembership();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/exhibits/memberships/{membership.Id}", Ct));
 

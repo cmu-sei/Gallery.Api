@@ -200,6 +200,22 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     }
 
     [Fact]
+    public async Task Copy_creates_the_copy_for_a_caller_holding_CreateCollections_and_ViewCollections()
+    {
+        var collection = await SeedCollection("Original");
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateCollections, SystemPermission.ViewCollections)
+            .SeedAsync();
+
+        var response = await Client(actor).PostAsync($"api/collections/{collection.Id}/copy", null, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var copy = await ReadAsync<Collection>(response);
+        await using var db = NewContext();
+        Assert.Equal("Original - Test Actor", (await db.Collections.SingleAsync(x => x.Id == copy.Id, Ct)).Name);
+    }
+
+    [Fact]
     public async Task Copy_is_forbidden_for_a_caller_holding_only_CreateCollections()
     {
         var collection = await SeedCollection();
@@ -284,6 +300,19 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
             new { id = collection.Id, name = "After" }, Ct));
     }
 
+    [Fact]
+    public async Task Update_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var collection = await SeedCollection("Before");
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/collections/{collection.Id}",
+            new { id = collection.Id, name = "After" }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Before", (await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Name);
+    }
+
     // ---- Delete --------------------------------------------------------------------------------
 
     [Fact]
@@ -332,6 +361,18 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     }
 
     [Fact]
+    public async Task Delete_is_forbidden_for_a_caller_holding_only_EditCollections()
+    {
+        var collection = await SeedCollection();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).DeleteAsync($"api/collections/{collection.Id}", Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.Collections.AnyAsync(x => x.Id == collection.Id, Ct));
+    }
+
+    [Fact]
     public async Task Delete_reports_an_unknown_collection_as_not_found()
     {
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.DeleteAsync($"api/collections/{Guid.NewGuid()}", Ct));
@@ -358,6 +399,28 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     {
         var collection = await SeedCollection();
         var actor = await Actor().OnNewCollection(CollectionPermission.ViewCollection).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/json", Ct));
+    }
+
+    [Fact]
+    public async Task DownloadJson_returns_the_collection_file_to_a_caller_holding_ViewCollections()
+    {
+        var collection = await SeedCollection("Exported");
+        await Seed(TestData.Card(collection.Id, "Exported Card"));
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        var response = await Client(actor).GetAsync($"api/collections/{collection.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Contains("Exported Card", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
+    public async Task DownloadJson_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var collection = await SeedCollection();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/collections/{collection.Id}/json", Ct));
     }
