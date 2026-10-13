@@ -13,6 +13,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
+using Gallery.Api.Infrastructure.JsonConverters;
 using Gallery.Api.Infrastructure.Options;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
@@ -62,7 +63,7 @@ namespace Gallery.Api.Infrastructure.Extensions
                         {
                             var jsonOptions = new JsonSerializerOptions
                             {
-                                Converters = { new JsonStringEnumConverter() }
+                                Converters = { new ItemStatusJsonConverter(), new JsonStringEnumConverter() }
                             };
                             seedDataOptions = JsonSerializer.Deserialize<SeedDataOptions>(
                                 File.ReadAllText(seedFile),

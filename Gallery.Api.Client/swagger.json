@@ -8171,11 +8171,11 @@
       },
       "ItemStatus": {
         "enum": [
-          "Unused",
-          "Closed",
-          "Critical",
-          "Affected",
-          "Open"
+          "Gray",
+          "Red",
+          "Orange",
+          "Yellow",
+          "Green"
         ],
         "type": "string"
       },
