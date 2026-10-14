@@ -53,7 +53,7 @@ The shared mechanics (per-test databases cloned from a migrated template, `X-Tes
   - `OnCollection(collection, permissions | roleId)` and `OnExhibit(exhibit, permissions | roleId)` create a membership whose role is minted for exactly those permissions. With neither, the role is the seeded `Member` (View and Edit).
   - `OnTeam(team, observer)` creates a `TeamUser`. That grants `ParticipateTeam` and `ViewTeam` on the team, `ParticipateExhibit` on its exhibit and `ParticipateCollection` on its collection. An observer also gets `ViewTeam` on every other team of the exhibit.
   - Near misses use `OnNewCollection(permissions)`, `OnNewExhibit(collectionId, permissions)` and `OnNewTeam(exhibitId)`. The minted ids are on `TestActor.NewCollectionIds`, `NewExhibitIds` and `NewTeamIds`.
-- **Team gates have no system-permission path.** `Root` is refused on team-gated routes such as `GET teams/{id}`, so their allowed case is a participant (`OnTeam`) and their near miss a participant on a sibling team (`OnNewTeam`). The defect document lists this under "Needs a decision".
+- **Team gates have no system-permission path.** `Root` is refused on team-gated routes such as `GET teams/{id}`, so their allowed cases are a participant (`OnTeam`) and an observer on a sibling team, who holds exactly `ViewTeam` (`OnTeam(siblingTeam, observer: true)`), and their near miss a participant on a sibling team (`OnNewTeam`). The defect document lists this under "Needs a decision".
 - **Self-tests.**
   - `DatabaseHarnessTests` probes isolation on the unique `system_roles.name`.
   - `HttpHarnessTests` checks the 401, the 403 for an empty actor, routing, the swagger document and that requests never reach the host database. Its concurrency probes `POST api/system-roles` with one shared name. Role names are uniquely indexed, so two tests sharing a database would collide with a 409.
@@ -79,7 +79,7 @@ Denied cases are near misses (`OnNew*`, or a neighbouring permission), named `<O
 
 A pattern that repeats across routes is one `[Theory]` over a route table (`UnknownIdTests`) with one entry.
 
-Every authorization call site needs an allowed case that is not `Root` and a near-miss denial; the standard's `check-repo.js gates` (run by `verify.sh`) fails any that lacks one. Two gates cannot meet that because a characterized defect stands in the way (`ArticleController.GetByExhibit` answers every near miss with a 500; `ExhibitTeamController.Get` without an id refuses exactly the callers holding the `ViewExhibits` it names). They are listed, with their reasons, in the workspace's `agent-docs/api-test-gaps/gallery.api.txt`, outside the repo; when one of those defects is fixed, its entry's **Test to flip:** says to drop the line.
+For every authorization call site, each permission value it reads has an allowed case whose caller holds exactly that value, never `Root`; for a team gate, that includes an observer on a sibling team, who holds exactly `ViewTeam`. Each tier of a multi-tier gate (system, collection, exhibit, team) has a near miss of its own: a caller holding a neighbouring permission of that tier, or the same value on another resource, refused by that site. The standard's `check-repo.js gates` (run by `verify.sh`) fails any call site that has no allowed case other than `Root` or no near-miss denial. Two gates cannot meet the rule because a characterized defect stands in the way (`ArticleController.GetByExhibit` answers every near miss with a 500; `ExhibitTeamController.Get` without an id refuses exactly the callers holding the `ViewExhibits` it names). They are listed, with their reasons, in the workspace's `agent-docs/api-test-gaps/gallery.api.txt`, outside the repo; when one of those defects is fixed, its entry's **Test to flip:** says to drop the line.
 
 Where a file needs the same graph in several tests, it has a private seed helper, such as `SeedPostedArticle(canPost)` in `ArticleControllerTests`. It seeds an exhibit, a team whose card allows posting or not, and an article posted on that card, for the exhibit-article gates of create, update and delete.
 
@@ -88,17 +88,23 @@ Where a file needs the same graph in several tests, it has a private seed helper
 ```
 Gallery.Api.Tests/
   AssemblyFixtures.cs
-  Controllers/          every controller over HTTP; UnknownIdTests is the route table of unknown-id answers
+  Directory.Build.props, coverlet.runsettings, xunit.runner.json
+  Controllers/          every controller over HTTP (CollectionRoleController and ExhibitRoleController in
+                        MembershipRoleControllerTests, the three permission controllers in PermissionControllerTests);
+                        UnknownIdTests is the route table of unknown-id answers
   Hubs/                 MainHub, CiteHub (HubHarness), MainHubConnectionTests, CiteHubConnectionTests (real connections)
   Infrastructure/
     Authorization/      the requirement handlers and AuthorizationService
     EventHandlers/      entity event handlers and their broadcasts, one file per handler file (ArticleHandlerTests,
                         CardHandlerTests, CollectionHandlerTests, ExhibitHandlerTests, TeamHandlerTests,
-                        TeamCardHandlerTests, UserArticleHandlerTests, UserHandlerTests, MembershipHandlerTests)
+                        TeamCardHandlerTests, UserArticleHandlerTests, UserHandlerTests), and MembershipHandlerTests
+                        for the collection, exhibit and group membership handlers
     Exceptions/         ExceptionMiddleware shapes, malformed bodies and routes, enums
-    Extensions/         ClaimsPrincipalExtensions, StringExtensions
+    Extensions/         the default policy's scope (AuthorizationPolicyExtensionTests), ClaimsPrincipalExtensions,
+                        StringExtensions (ExtensionTests)
     Mappings/           AutoMapper profiles through TestMapper
-  Services/             UserClaimsService options the host turns off
+  Services/             UserClaimsService: user rows, claims caching (which the host turns off), roles and groups
+                        from the token
   Support/              DatabaseFixture, GalleryContextFactory, GalleryAppFactory, TestConfiguration,
                         DatabaseTestBase, ApiTestBase, TestActor, TestData, ClaimsPrincipalBuilder,
                         AuthorizationHarness, TestMapper, and the three self-test classes
