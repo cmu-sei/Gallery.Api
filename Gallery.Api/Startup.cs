@@ -115,6 +115,7 @@ public class Startup
         services.AddSignalR(o => o.StatefulReconnectBufferSize = _signalROptions.StatefulReconnectBufferSizeBytes)
             .AddJsonProtocol(options =>
             {
+                options.PayloadSerializerOptions.Converters.Add(new ItemStatusJsonConverter());
                 options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
@@ -133,6 +134,7 @@ public class Startup
         {
             options.JsonSerializerOptions.Converters.Add(new JsonNullableGuidConverter());
             options.JsonSerializerOptions.Converters.Add(new JsonIntegerConverter());
+            options.JsonSerializerOptions.Converters.Add(new ItemStatusJsonConverter());
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
 

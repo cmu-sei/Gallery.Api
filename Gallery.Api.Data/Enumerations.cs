@@ -3,13 +3,16 @@
 
 namespace Gallery.Api.Data.Enumerations
 {
+    // named for the color the wall shows; a lower value is more severe.
+    // declared best to worst; swagger and the generated clients list them by value instead
+    // the values are stored, so they must not change
     public enum ItemStatus
     {
-        Unused = 0,
-        Closed = 10,
-        Critical = 20,
-        Affected = 40,
-        Open = 50
+        Gray = 0,      // was Unused
+        Green = 50,    // was Open
+        Yellow = 40,   // was Affected
+        Orange = 20,   // was Critical
+        Red = 10       // was Closed
     }
 
     public enum SourceType
