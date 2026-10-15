@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gallery.Api.Data", "Gallery
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gallery.Api.Client", "Gallery.Api.Client\Gallery.Api.Client.csproj", "{3B98E14E-EC52-451C-8C38-7B740BAB205C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gallery.Api.Tests", "Gallery.Api.Tests\Gallery.Api.Tests.csproj", "{7A23732A-4634-416B-A655-0BCA890CD6C7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{3B98E14E-EC52-451C-8C38-7B740BAB205C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3B98E14E-EC52-451C-8C38-7B740BAB205C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3B98E14E-EC52-451C-8C38-7B740BAB205C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A23732A-4634-416B-A655-0BCA890CD6C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A23732A-4634-416B-A655-0BCA890CD6C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A23732A-4634-416B-A655-0BCA890CD6C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A23732A-4634-416B-A655-0BCA890CD6C7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
