@@ -98,7 +98,8 @@ public static class TestData
         Guid? exhibitId = null,
         string name = "Test Article",
         int move = 0,
-        int inject = 0) =>
+        int inject = 0,
+        ItemStatus status = ItemStatus.Green) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -110,7 +111,7 @@ public static class TestData
             Move = move,
             Inject = inject,
             SourceType = SourceType.News,
-            Status = ItemStatus.Open,
+            Status = status,
             DatePosted = DefaultDatePosted
         };
 

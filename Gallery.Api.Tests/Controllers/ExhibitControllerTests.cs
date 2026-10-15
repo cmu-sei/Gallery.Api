@@ -4,6 +4,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -720,6 +722,35 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         await using var db = NewContext();
         Assert.Equal(actor.Id, (await db.Exhibits.SingleAsync(x => x.Id == uploaded.Id, Ct)).CreatedBy);
+    }
+
+    /// <summary>The exhibit file keeps an article's status as its stored number, not the color name the API answers with.</summary>
+    [Fact]
+    public async Task DownloadJson_writes_an_article_s_status_as_its_number()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        await Seed(TestData.Article(exhibit.CollectionId, status: ItemStatus.Yellow));
+
+        var response = await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var file = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var status = Assert.Single(file.RootElement.GetProperty("Articles").GetProperty("$values").EnumerateArray()).GetProperty("Status");
+        Assert.Equal((JsonValueKind.Number, 40), (status.ValueKind, status.GetInt32()));
+    }
+
+    /// <summary>An uploaded article status number that no member names is stored as it is.</summary>
+    [Fact]
+    public async Task UploadJson_stores_an_article_status_number_no_member_names()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        await Seed(TestData.Article(exhibit.CollectionId, status: ItemStatus.Red));
+        var downloaded = await (await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/json", Ct)).Content.ReadAsStringAsync(Ct);
+        var file = Encoding.UTF8.GetBytes(downloaded.Replace("\"Status\":10", "\"Status\":30"));
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        Assert.Equal(30, await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.CollectionId).Select(x => (int)x.Status).SingleAsync(Ct)));
     }
 
     [Fact]

@@ -101,10 +101,13 @@ Gallery.Api.Tests/
                         for the collection, exhibit and group membership handlers
     Exceptions/         ExceptionMiddleware shapes, malformed bodies and routes, enums
     Extensions/         the default policy's scope (AuthorizationPolicyExtensionTests), ClaimsPrincipalExtensions,
-                        StringExtensions (ExtensionTests)
+                        StringExtensions (ExtensionTests), InitializeDatabase's seed file over a bare host
+                        (DatabaseExtensionsTests)
+    JsonConverters/     ItemStatusJsonConverter: color names, legacy names, numbers
     Mappings/           AutoMapper profiles through TestMapper
   Services/             UserClaimsService: user rows, claims caching (which the host turns off), roles and groups
                         from the token
+  StartupTests.cs       the SignalR protocol's JSON options, read from the host (no connection receives a broadcast)
   Support/              DatabaseFixture, GalleryContextFactory, GalleryAppFactory, TestConfiguration,
                         DatabaseTestBase, ApiTestBase, TestActor, TestData, ClaimsPrincipalBuilder,
                         AuthorizationHarness, TestMapper, and the three self-test classes

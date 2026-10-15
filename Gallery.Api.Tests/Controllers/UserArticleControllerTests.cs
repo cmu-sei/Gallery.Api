@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Services;
@@ -76,6 +77,21 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
             await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/userarticles", Ct));
 
         Assert.Equal(actor.Id, Assert.Single(userArticles).UserId);
+    }
+
+    /// <summary>The wall and the archive read each delivered article's status by the color name the wall paints.</summary>
+    [Fact]
+    public async Task GetByExhibitTeam_answers_the_delivered_article_s_status_by_its_color_name()
+    {
+        var (exhibit, team, _) = await SeedDelivery(ItemStatus.Orange);
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        var response = await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/userarticles", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var status = Assert.Single(body.RootElement.EnumerateArray()).GetProperty("article").GetProperty("status");
+        Assert.Equal((JsonValueKind.String, "Orange"), (status.ValueKind, status.ToString()));
     }
 
     [Fact]
@@ -371,13 +387,13 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.True(await db.UserArticles.AnyAsync(x => x.Id == userArticle.Id, Ct));
     }
 
-    /// <summary>An exhibit at move 0 inject 0 with a team, a team article that is due, and its delivery to one user.</summary>
-    private async Task<(ExhibitEntity Exhibit, TeamEntity Team, UserArticleEntity UserArticle)> SeedDelivery()
+    /// <summary>An exhibit at move 0 inject 0 with a team, a team article of the given status that is due, and its delivery to one user.</summary>
+    private async Task<(ExhibitEntity Exhibit, TeamEntity Team, UserArticleEntity UserArticle)> SeedDelivery(ItemStatus status = ItemStatus.Green)
     {
         var collection = TestData.Collection();
         var exhibit = TestData.Exhibit(collection.Id);
         var team = TestData.Team(exhibit.Id);
-        var article = TestData.Article(collection.Id);
+        var article = TestData.Article(collection.Id, status: status);
         var user = TestData.User(name: "Reader");
         var userArticle = TestData.UserArticle(exhibit.Id, user.Id, article.Id);
         await Seed(collection, exhibit, team, article, user, TestData.TeamUser(team.Id, user.Id),

@@ -88,5 +88,5 @@ public class ArticleHandlerTests(DatabaseFixture fixture, GalleryAppFactory fact
     }
 
     private static object NewArticle(Guid collectionId, string name, Guid? id = null) =>
-        new { id = id ?? Guid.Empty, name, collectionId, sourceType = "News", status = "Open", datePosted = TestData.DefaultDatePosted };
+        new { id = id ?? Guid.Empty, name, collectionId, sourceType = "News", status = "Green", datePosted = TestData.DefaultDatePosted };
 }

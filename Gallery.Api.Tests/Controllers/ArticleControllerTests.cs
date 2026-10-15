@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -732,6 +733,204 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.True(await db.Articles.AnyAsync(x => x.Id == posted.Id, Ct));
     }
 
+    // ---- Status names --------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("Gray", 0)]
+    [InlineData("Red", 10)]
+    [InlineData("Orange", 20)]
+    [InlineData("Yellow", 40)]
+    [InlineData("Green", 50)]
+    public async Task Create_stores_each_color_name_and_answers_with_it(string status, int stored)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, status: status), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var (id, answered) = await Answered(response);
+        Assert.Equal((JsonValueKind.String, status, stored), (answered.ValueKind, answered.ToString(), await StoredStatus(id)));
+    }
+
+    /// <summary>A client written before the statuses were named for colors still sends the old names.</summary>
+    [Theory]
+    [InlineData("Unused", "Gray", 0)]
+    [InlineData("Closed", "Red", 10)]
+    [InlineData("Critical", "Orange", 20)]
+    [InlineData("Affected", "Yellow", 40)]
+    [InlineData("Open", "Green", 50)]
+    public async Task Create_stores_each_legacy_status_name_as_its_color(string sent, string status, int stored)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, status: sent), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var (id, answered) = await Answered(response);
+        Assert.Equal((status, stored), (answered.ToString(), await StoredStatus(id)));
+    }
+
+    [Theory]
+    [InlineData(20, "Orange", 20)]
+    [InlineData("20", "Orange", 20)]
+    [InlineData(0, "Gray", 0)]
+    [InlineData("50", "Green", 50)]
+    public async Task Create_stores_a_status_number_or_quoted_number_and_answers_with_its_color_name(object sent, string status, int stored)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, status: sent), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var (id, answered) = await Answered(response);
+        Assert.Equal((status, stored), (answered.ToString(), await StoredStatus(id)));
+    }
+
+    [Theory]
+    [InlineData("Purple", "'Purple' is not a valid ItemStatus value.")]
+    [InlineData("Resolved", "'Resolved' is not a valid ItemStatus value.")]
+    public async Task Create_answers_an_unknown_status_name_with_a_bad_request_and_stores_nothing(string sent, string message)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, name: "Refused", status: sent), Ct);
+
+        await AssertProblem(HttpStatusCode.BadRequest, response);
+        Assert.Equal(message, await StatusError(response));
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Refused", Ct)));
+    }
+
+    /// <summary>An out-of-range status at the edge: a number no member names is refused before anything is stored.</summary>
+    [Theory]
+    [InlineData(30, "30 is not a valid ItemStatus value.")]
+    [InlineData(999, "999 is not a valid ItemStatus value.")]
+    [InlineData(-10, "-10 is not a valid ItemStatus value.")]
+    [InlineData("30", "'30' is not a valid ItemStatus value.")]
+    public async Task Create_answers_a_status_number_outside_the_defined_ones_with_a_bad_request_and_stores_nothing(object sent, string message)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, name: "Refused", status: sent), Ct);
+
+        await AssertProblem(HttpStatusCode.BadRequest, response);
+        Assert.Equal(message, await StatusError(response));
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Refused", Ct)));
+    }
+
+    /// <summary>A comma-separated pair of status names is stored as the two values combined, and answered as that number in quotes.</summary>
+    [Fact]
+    public async Task Create_stores_a_comma_separated_pair_of_status_names_as_an_undefined_status()
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var response = await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, card.Id, status: "Red, Orange"), Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var (id, answered) = await Answered(response);
+        Assert.Equal((JsonValueKind.String, "30", 30), (answered.ValueKind, answered.ToString(), await StoredStatus(id)));
+    }
+
+    [Fact]
+    public async Task Update_stores_a_legacy_status_name_as_its_color()
+    {
+        var (collection, card, article) = await SeedArticle();
+
+        var response = await RootClient.PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, status: "Closed"), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var (_, answered) = await Answered(response);
+        Assert.Equal(("Red", 10), (answered.ToString(), await StoredStatus(article.Id)));
+    }
+
+    [Theory]
+    [InlineData("Purple", "'Purple' is not a valid ItemStatus value.")]
+    [InlineData(30, "30 is not a valid ItemStatus value.")]
+    public async Task Update_answers_a_status_no_member_names_with_a_bad_request_and_keeps_the_stored_status(object sent, string message)
+    {
+        var (collection, card, article) = await SeedArticle();
+
+        var response = await RootClient.PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten", status: sent), Ct);
+
+        await AssertProblem(HttpStatusCode.BadRequest, response);
+        Assert.Equal(message, await StatusError(response));
+        var stored = await ReadBack(db => db.Articles.SingleAsync(x => x.Id == article.Id, Ct));
+        Assert.Equal(("Test Article", ItemStatus.Green), (stored.Name, stored.Status));
+    }
+
+    [Theory]
+    [InlineData(ItemStatus.Gray, "Gray")]
+    [InlineData(ItemStatus.Red, "Red")]
+    [InlineData(ItemStatus.Orange, "Orange")]
+    [InlineData(ItemStatus.Yellow, "Yellow")]
+    [InlineData(ItemStatus.Green, "Green")]
+    public async Task Get_answers_each_stored_status_by_its_color_name(ItemStatus stored, string status)
+    {
+        var collection = TestData.Collection();
+        var article = TestData.Article(collection.Id, status: stored);
+        await Seed(collection, article);
+
+        var response = await RootClient.GetAsync($"api/articles/{article.Id}", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var (_, answered) = await Answered(response);
+        Assert.Equal((JsonValueKind.String, status), (answered.ValueKind, answered.ToString()));
+    }
+
+    /// <summary>A stored status no member names is answered as its number in quotes.</summary>
+    [Fact]
+    public async Task Get_answers_a_stored_status_outside_the_defined_ones_with_its_number_as_a_string()
+    {
+        var collection = TestData.Collection();
+        var article = TestData.Article(collection.Id, status: (ItemStatus)30);
+        await Seed(collection, article);
+
+        var response = await RootClient.GetAsync($"api/articles/{article.Id}", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var (_, answered) = await Answered(response);
+        Assert.Equal((JsonValueKind.String, "30"), (answered.ValueKind, answered.ToString()));
+    }
+
+    /// <summary>The wall colors a card by its articles' statuses, which the card's article list answers by color name.</summary>
+    [Fact]
+    public async Task GetByCard_answers_each_article_s_status_by_its_color_name()
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id);
+        await Seed(collection, card,
+            TestData.Article(collection.Id, card.Id, name: "Worst", status: ItemStatus.Red),
+            TestData.Article(collection.Id, card.Id, name: "Middling", status: ItemStatus.Yellow));
+
+        var response = await RootClient.GetAsync($"api/cards/{card.Id}/articles", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var statuses = body.RootElement.EnumerateArray()
+            .ToDictionary(x => x.GetProperty("name").GetString(), x => x.GetProperty("status").GetString());
+        Assert.Equal(new Dictionary<string, string> { ["Worst"] = "Red", ["Middling"] = "Yellow" }, statuses);
+    }
+
+    /// <summary>The id and the status member of an article response, as the wire carries them.</summary>
+    private static async Task<(Guid Id, JsonElement Status)> Answered(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+
+        return (body.RootElement.GetProperty("id").GetGuid(), body.RootElement.GetProperty("status").Clone());
+    }
+
+    /// <summary>The one model error a 400 names for the body's status member.</summary>
+    private static async Task<string> StatusError(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+
+        return Assert.Single(body.RootElement.GetProperty("errors").GetProperty("$.status").EnumerateArray()).GetString();
+    }
+
+    private Task<int> StoredStatus(Guid id) =>
+        ReadBack(db => db.Articles.Where(x => x.Id == id).Select(x => (int)x.Status).SingleAsync(Ct));
+
     private async Task<(CollectionEntity Collection, CardEntity Card, ArticleEntity Article)> SeedArticle()
     {
         var collection = TestData.Collection();
@@ -754,7 +953,7 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         return (collection, card, exhibit, team, posted);
     }
 
-    private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article") =>
+    private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article", object status = null) =>
         new
         {
             id = id ?? Guid.Empty,
@@ -764,7 +963,7 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
             cardId,
             exhibitId,
             sourceType = "News",
-            status = "Open",
+            status = status ?? "Green",
             datePosted = TestData.DefaultDatePosted
         };
 }

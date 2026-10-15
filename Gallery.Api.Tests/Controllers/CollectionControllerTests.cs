@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -459,6 +460,64 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         await AssertProblem(HttpStatusCode.Forbidden,
             await Client(actor).PostAsync("api/collections/json", Upload(Encoding.UTF8.GetBytes("{}")), Ct));
+    }
+
+    /// <summary>The collection file keeps an article's status as its stored number, not the color name the API answers with.</summary>
+    [Fact]
+    public async Task DownloadJson_writes_an_article_s_status_as_its_number()
+    {
+        var collection = await SeedCollection("Exported");
+        await Seed(TestData.Article(collection.Id, status: ItemStatus.Red));
+
+        var response = await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var file = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var status = Assert.Single(file.RootElement.GetProperty("Articles").GetProperty("$values").EnumerateArray()).GetProperty("Status");
+        Assert.Equal((JsonValueKind.Number, 10), (status.ValueKind, status.GetInt32()));
+    }
+
+    [Fact]
+    public async Task UploadJson_keeps_each_article_s_status_from_a_downloaded_file()
+    {
+        var collection = await SeedCollection("Round Trip");
+        await Seed(TestData.Article(collection.Id, status: ItemStatus.Orange));
+        var file = await (await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct)).Content.ReadAsByteArrayAsync(Ct);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(ItemStatus.Orange, await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).Select(x => x.Status).SingleAsync(Ct)));
+    }
+
+    /// <summary>An uploaded article status number that no member names is stored as it is.</summary>
+    [Fact]
+    public async Task UploadJson_stores_an_article_status_number_no_member_names()
+    {
+        var collection = await SeedCollection("Odd Status");
+        await Seed(TestData.Article(collection.Id, status: ItemStatus.Red));
+        var downloaded = await (await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct)).Content.ReadAsStringAsync(Ct);
+        var file = Encoding.UTF8.GetBytes(downloaded.Replace("\"Status\":10", "\"Status\":30"));
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(30, await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).Select(x => (int)x.Status).SingleAsync(Ct)));
+    }
+
+    /// <summary>The upload reads statuses as numbers only: a file naming a status, by color or by legacy name, is refused as not valid JSON.</summary>
+    [Theory]
+    [InlineData("\"Red\"")]
+    [InlineData("\"Closed\"")]
+    public async Task UploadJson_answers_a_file_whose_article_status_is_a_name_with_a_bad_request(string named)
+    {
+        var collection = await SeedCollection("Named Status");
+        await Seed(TestData.Article(collection.Id, status: ItemStatus.Red));
+        var downloaded = await (await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct)).Content.ReadAsStringAsync(Ct);
+        var file = Encoding.UTF8.GetBytes(downloaded.Replace("\"Status\":10", $"\"Status\":{named}"));
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal("The uploaded file is not valid JSON.", problem.Title);
+        Assert.Equal(["Named Status"], await ReadBack(db => db.Collections.Select(x => x.Name).ToListAsync(Ct)));
     }
 
     [Fact]
