@@ -252,6 +252,24 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal(collection.Id, (await db.Cards.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
     }
 
+    /// <summary>The audit fields come from the caller, never from the body.</summary>
+    [Fact]
+    public async Task Create_and_update_stamp_the_caller_over_the_body_s_audit_fields()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+        var spoofed = Guid.NewGuid();
+
+        var created = await ReadAsync<Card>(await Client(actor).PostAsJsonAsync("api/cards",
+            new { name = "New Card", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{created.Id}",
+            new { id = created.Id, name = "Edited", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Cards.SingleAsync(x => x.Id == created.Id, Ct);
+        Assert.Equal((actor.Id, (Guid?)actor.Id), (stored.CreatedBy, stored.ModifiedBy));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_ViewCollection()
     {

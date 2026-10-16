@@ -5532,7 +5532,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the ExhibitTeam with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeam body)
+        public virtual System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeamCreate body)
         {
             return CreateExhibitTeamAsync(body, System.Threading.CancellationToken.None);
         }
@@ -5549,7 +5549,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the ExhibitTeam with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeam body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeamCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -8001,7 +8001,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Team values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, Team body)
+        public virtual System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, TeamEdit body)
         {
             return UpdateTeamAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -8017,7 +8017,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Team values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, Team body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, TeamEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -8206,7 +8206,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the Team with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Team> CreateTeamAsync(Team body)
+        public virtual System.Threading.Tasks.Task<Team> CreateTeamAsync(TeamCreate body)
         {
             return CreateTeamAsync(body, System.Threading.CancellationToken.None);
         }
@@ -8223,7 +8223,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the Team with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Team> CreateTeamAsync(Team body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Team> CreateTeamAsync(TeamCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -10253,7 +10253,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamUser with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUser body)
+        public virtual System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUserCreate body)
         {
             return CreateTeamUserAsync(body, System.Threading.CancellationToken.None);
         }
@@ -10270,7 +10270,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamUser with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUser body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUserCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -11602,7 +11602,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the UserArticle</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticle body)
+        public virtual System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticleCreate body)
         {
             return CreateUserArticleAsync(body, System.Threading.CancellationToken.None);
         }
@@ -11617,7 +11617,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the UserArticle</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticle body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticleCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;

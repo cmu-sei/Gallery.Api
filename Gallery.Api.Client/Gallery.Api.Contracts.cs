@@ -1245,7 +1245,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the ExhibitTeam with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeam body);
+        System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeamCreate body);
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -1259,7 +1259,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the ExhibitTeam with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeam body, System.Threading.CancellationToken cancellationToken);
+        System.Threading.Tasks.Task<ExhibitTeam> CreateExhibitTeamAsync(ExhibitTeamCreate body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Gets a specific ExhibitTeam by id
@@ -1744,7 +1744,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Team values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, Team body);
+        System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, TeamEdit body);
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -1757,7 +1757,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Team values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, Team body, System.Threading.CancellationToken cancellationToken);
+        System.Threading.Tasks.Task<Team> UpdateTeamAsync(System.Guid id, TeamEdit body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Deletes a Team
@@ -1797,7 +1797,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the Team with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Team> CreateTeamAsync(Team body);
+        System.Threading.Tasks.Task<Team> CreateTeamAsync(TeamCreate body);
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -1811,7 +1811,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the Team with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Team> CreateTeamAsync(Team body, System.Threading.CancellationToken cancellationToken);
+        System.Threading.Tasks.Task<Team> CreateTeamAsync(TeamCreate body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Gets all TeamArticles for a exhibit
@@ -2309,7 +2309,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamUser with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUser body);
+        System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUserCreate body);
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -2323,7 +2323,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamUser with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUser body, System.Threading.CancellationToken cancellationToken);
+        System.Threading.Tasks.Task<TeamUser> CreateTeamUserAsync(TeamUserCreate body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Sets the selected TeamUser observer flag
@@ -2646,7 +2646,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the UserArticle</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticle body);
+        System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticleCreate body);
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -2658,7 +2658,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the UserArticle</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticle body, System.Threading.CancellationToken cancellationToken);
+        System.Threading.Tasks.Task<UserArticle> CreateUserArticleAsync(UserArticleCreate body, System.Threading.CancellationToken cancellationToken);
 
         /// <summary>
         /// Shares a UserArticle
@@ -3568,6 +3568,27 @@ namespace Gallery.Api.Client
 
         [System.Text.Json.Serialization.JsonPropertyName("exhibit")]
         public Exhibit Exhibit { get; set; }
+
+    }
+
+    /// <summary>
+    /// An ExhibitTeam create request. It names the Team and the Exhibit by Id only, so it cannot create or change either.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExhibitTeamCreate
+    {
+
+        /// <summary>
+        /// The Id to create the ExhibitTeam with. A new one is made when it is empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("teamId")]
+        public System.Guid TeamId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("exhibitId")]
+        public System.Guid ExhibitId { get; set; }
 
     }
 
@@ -4866,6 +4887,45 @@ namespace Gallery.Api.Client
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TeamCreate
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("shortName")]
+        public string ShortName { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("email")]
+        public string Email { get; set; }
+
+        /// <summary>
+        /// The Id to create the Team with. A new one is made when it is empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("exhibitId")]
+        public System.Guid? ExhibitId { get; set; }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TeamEdit
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("shortName")]
+        public string ShortName { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("email")]
+        public string Email { get; set; }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class TeamUser
     {
 
@@ -4895,6 +4955,30 @@ namespace Gallery.Api.Client
 
         [System.Text.Json.Serialization.JsonPropertyName("team")]
         public Team Team { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("isObserver")]
+        public bool IsObserver { get; set; }
+
+    }
+
+    /// <summary>
+    /// A TeamUser create request. It names the User and the Team by Id only, so it cannot create or change either.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TeamUserCreate
+    {
+
+        /// <summary>
+        /// The Id to create the TeamUser with. A new one is made when it is empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("userId")]
+        public System.Guid UserId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("teamId")]
+        public System.Guid TeamId { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("isObserver")]
         public bool IsObserver { get; set; }
@@ -5548,6 +5632,36 @@ namespace Gallery.Api.Client
 
         [System.Text.Json.Serialization.JsonPropertyName("article")]
         public Article Article { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("actualDatePosted")]
+        public System.DateTimeOffset ActualDatePosted { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("isRead")]
+        public bool IsRead { get; set; }
+
+    }
+
+    /// <summary>
+    /// A UserArticle create request. It names the Article by Id only, so it cannot create or change one.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.6.3.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class UserArticleCreate
+    {
+
+        /// <summary>
+        /// The Id to create the UserArticle with. A new one is made when it is empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("exhibitId")]
+        public System.Guid ExhibitId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("userId")]
+        public System.Guid UserId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("articleId")]
+        public System.Guid ArticleId { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("actualDatePosted")]
         public System.DateTimeOffset ActualDatePosted { get; set; }

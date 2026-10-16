@@ -28,7 +28,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid Exhibit, Guid teamId, CancellationToken ct);
         Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct);
         Task<UnreadArticles> GetUnreadCountAsync(Guid exhibitId, Guid userId, CancellationToken ct);
-        Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct);
+        Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticleCreate userArticle, CancellationToken ct);
         Task<ViewModels.UserArticle> ShareAsync(Guid id, ShareDetails shareDetails, CancellationToken ct);
         Task<ViewModels.UserArticle> SetIsReadAsync(Guid id, bool isRead, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
@@ -175,7 +175,7 @@ namespace Gallery.Api.Services
             return await GetUnreadArticlesAsync(exhibitId, userId, ct);
         }
 
-        public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct)
+        public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticleCreate userArticle, CancellationToken ct)
         {
             var userArticleEntity = _mapper.Map<UserArticleEntity>(userArticle);
             userArticleEntity.Id = userArticleEntity.Id != Guid.Empty ? userArticleEntity.Id : Guid.NewGuid();
@@ -233,14 +233,16 @@ namespace Gallery.Api.Services
                 {
                     foreach (var userId in (await addUserIds.ToListAsync(ct)))
                     {
-                        sharedUserArticle.Id = Guid.NewGuid();
-                        sharedUserArticle.UserId = userId;
-                        sharedUserArticle.DateCreated = DateTime.UtcNow;
-                        sharedUserArticle.CreatedBy = fromUserId;
-                        sharedUserArticle.DateModified = null;
-                        sharedUserArticle.ModifiedBy = null;
-                        var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
-                        _context.UserArticles.Add(sharedArticleEntity);
+                        _context.UserArticles.Add(new UserArticleEntity
+                        {
+                            Id = Guid.NewGuid(),
+                            ExhibitId = sharedUserArticle.ExhibitId,
+                            UserId = userId,
+                            ArticleId = sharedUserArticle.ArticleId,
+                            ActualDatePosted = sharedUserArticle.ActualDatePosted,
+                            IsRead = sharedUserArticle.IsRead,
+                            CreatedBy = fromUserId
+                        });
                     }
                     await _context.SaveChangesAsync(ct);
                 }

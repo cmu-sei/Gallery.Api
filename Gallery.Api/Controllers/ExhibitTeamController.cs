@@ -107,7 +107,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("exhibitteams")]
         [ProducesResponseType(typeof(ExhibitTeam), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createExhibitTeam")]
-        public async Task<IActionResult> Create([FromBody] ExhibitTeam exhibitTeam, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] ExhibitTeamCreate exhibitTeam, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitTeam.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();

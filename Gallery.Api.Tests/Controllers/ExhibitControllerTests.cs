@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -306,6 +307,33 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var stored = await db.Exhibits.SingleAsync(x => x.Id == copy.Id, Ct);
         Assert.Equal((0, 0, exhibit.CollectionId), (stored.CurrentMove, stored.CurrentInject, stored.CollectionId));
         Assert.Equal("Copied Team", (await db.Teams.SingleAsync(x => x.ExhibitId == copy.Id, Ct)).Name);
+    }
+
+    /// <summary>
+    /// A copy keeps the collection's templates where they are and copies the exhibit's own articles to the new exhibit,
+    /// so the copied team articles never point into the source exhibit. A sibling exhibit's article is not copied.
+    /// </summary>
+    [Fact]
+    public async Task Copy_copies_the_exhibit_s_own_articles_and_points_the_team_articles_at_them()
+    {
+        var exhibit = await SeedExhibit();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = await SeedTeam(exhibit, "Copied Team");
+        var template = TestData.Article(exhibit.CollectionId, name: "Template");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        await Seed(sibling, template, own,
+            TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's"),
+            TestData.TeamArticle(exhibit.Id, team.Id, template.Id),
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+
+        var copy = await ReadAsync<Exhibit>(await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        await using var db = NewContext();
+        var copiedOwn = await db.Articles.SingleAsync(x => x.ExhibitId == copy.Id, Ct);
+        Assert.Equal("Own", copiedOwn.Name);
+        var linked = await db.TeamArticles.Where(x => x.ExhibitId == copy.Id).Select(x => x.ArticleId).OrderBy(x => x).ToListAsync(Ct);
+        Assert.Equal(new[] { template.Id, copiedOwn.Id }.Order(), linked);
+        Assert.Equal(1, await db.Articles.CountAsync(x => x.ExhibitId == sibling.Id, Ct));
     }
 
     [Fact]
@@ -767,6 +795,92 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload("{}"u8.ToArray()), Ct));
 
         Assert.Equal("The uploaded file is not a valid exhibit file.", problem.Title);
+    }
+
+    /// <summary>A file's TeamUsers, their nested users and roles are not read: the upload creates no user and puts no one on a team.</summary>
+    [Fact]
+    public async Task UploadJson_creates_no_user_or_team_member_from_the_file()
+    {
+        var smuggledId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Imported" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Imported" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Blue",
+                "TeamUsers": [ { "UserId": "{{smuggledId}}", "TeamId": "{{teamId}}",
+                  "User": { "Id": "{{smuggledId}}", "Name": "Smuggled", "RoleId": "{{SystemRoleEntityDefaults.AdministratorRoleId}}" } } ] } ],
+              "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Users.AnyAsync(x => x.Id == smuggledId, Ct));
+        var team = await db.Teams.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct);
+        Assert.Equal("Blue", team.Name);
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id, Ct));
+    }
+
+    /// <summary>
+    /// An uploaded exhibit keeps the templates and its own articles, the latter moved to the new exhibit. An article of
+    /// another exhibit on the collection is left out, so a file cannot push content into that exhibit.
+    /// </summary>
+    [Fact]
+    public async Task UploadJson_moves_the_exhibit_s_own_articles_to_the_new_exhibit_and_leaves_out_another_exhibit_s()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = TestData.Team(exhibit.Id);
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        await Seed(sibling, team, own,
+            TestData.Article(exhibit.CollectionId, name: "Template"),
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+        var downloaded = await (await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/json", Ct)).Content.ReadAsStringAsync(Ct);
+        // a file from before exports were scoped can still hold a sibling exhibit's article
+        var json = JsonNode.Parse(downloaded);
+        var fileArticles = json["Articles"]["$values"].AsArray();
+        if (!fileArticles.Any(a => (string)a["Name"] == "Sibling's"))
+            fileArticles.Add(JsonNode.Parse($$"""
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Sibling's", "CollectionId": "{{exhibit.CollectionId}}", "ExhibitId": "{{sibling.Id}}", "Status": 10 }
+                """));
+        var file = Encoding.UTF8.GetBytes(json.ToJsonString());
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        var articles = await db.Articles.Where(x => x.CollectionId == uploaded.CollectionId).OrderBy(x => x.Name).ToListAsync(Ct);
+        Assert.Equal([("Own", (Guid?)uploaded.Id), ("Template", null)], articles.Select(x => (x.Name, x.ExhibitId)));
+        var teamArticle = await db.TeamArticles.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct);
+        Assert.Equal(articles[0].Id, teamArticle.ArticleId);
+        Assert.False(await db.Articles.AnyAsync(x => x.ExhibitId == sibling.Id, Ct));
+    }
+
+    /// <summary>A file whose team card names a card it does not hold is refused before anything is saved.</summary>
+    [Fact]
+    public async Task UploadJson_answers_a_team_card_naming_a_card_outside_the_file_with_a_bad_request_and_saves_nothing()
+    {
+        var foreignCard = TestData.Card((await SeedExhibit()).CollectionId);
+        await Seed(foreignCard);
+        var teamId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Refused" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Refused" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Blue" } ],
+              "TeamCards": [ { "TeamId": "{{teamId}}", "CardId": "{{foreignCard.Id}}", "CanPostArticles": true } ],
+              "TeamArticles": []
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Collections.AnyAsync(x => x.Name.StartsWith("Refused"), Ct));
+        Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
     }
 
     private async Task<ExhibitEntity> SeedExhibit(string name = "Test Exhibit", int move = 0, int inject = 0, Guid createdBy = default)

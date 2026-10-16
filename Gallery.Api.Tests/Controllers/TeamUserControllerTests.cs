@@ -197,6 +197,23 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.False(await db.TeamUsers.AnyAsync(x => x.UserId == user.Id, Ct));
     }
 
+    /// <summary>A nested user in the body is not saved: only the TeamUser link is, so no user or role can be created this way.</summary>
+    [Fact]
+    public async Task Create_ignores_a_nested_user_and_creates_no_user()
+    {
+        var (_, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var smuggledId = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id, user = new { id = smuggledId, name = "Smuggled", roleId = SystemRoleEntityDefaults.AdministratorRoleId } }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Users.AnyAsync(x => x.Id == smuggledId, Ct));
+        Assert.Null((await db.Users.SingleAsync(x => x.Id == user.Id, Ct)).RoleId);
+    }
+
     /// <summary>A user already on a team of the exhibit is answered with a 500 naming that team.</summary>
     [Fact]
     public async Task Create_answers_a_user_already_on_a_team_of_the_exhibit_with_a_server_error()

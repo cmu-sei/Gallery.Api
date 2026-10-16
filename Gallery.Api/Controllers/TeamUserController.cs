@@ -111,7 +111,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("teamusers")]
         [ProducesResponseType(typeof(TeamUser), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeamUser")]
-        public async Task<IActionResult> Create([FromBody] TeamUser teamUser, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamUserCreate teamUser, CancellationToken ct)
         {
             var team = await _teamService.GetAsync(teamUser.TeamId, ct);
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))

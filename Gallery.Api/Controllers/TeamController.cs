@@ -103,7 +103,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("teams")]
         [ProducesResponseType(typeof(Team), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeam")]
-        public async Task<IActionResult> Create([FromBody] Team team, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamCreate team, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
@@ -124,9 +124,10 @@ namespace Gallery.Api.Controllers
         [HttpPut("teams/{id}")]
         [ProducesResponseType(typeof(Team), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateTeam")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Team team, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamEdit team, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+            var storedTeam = await _teamService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(storedTeam.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
 
             var updatedTeam = await _teamService.UpdateAsync(id, team, ct);

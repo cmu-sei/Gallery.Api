@@ -128,59 +128,42 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(c => c.CollectionId == collectionId)
                 .ToListAsync(ct);
+            // a copy holds the template articles only, never an exhibit's own articles
             var articles = await _context.Articles
                 .AsNoTracking()
-                .Where(c => c.CollectionId == collectionId)
+                .Where(c => c.CollectionId == collectionId && c.ExhibitId == null)
                 .ToListAsync(ct);
-            var newCollectionEntity = await privateCollectionCopyAsync(collectionEntity, cards, articles, ct);
+            var collectionImport = new CollectionImport
+            {
+                Collection = new CollectionImportFields { Id = collectionEntity.Id, Name = collectionEntity.Name, Description = collectionEntity.Description },
+                Cards = cards.Select(ImportBuilder.ToImport).ToList(),
+                Articles = articles.Select(ImportBuilder.ToImport).ToList()
+            };
+            var newCollectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
             var collection = _mapper.Map<Collection>(newCollectionEntity);
 
             return collection;
         }
 
-        private async Task<CollectionEntity> privateCollectionCopyAsync(
-            CollectionEntity collectionEntity,
-            List<CardEntity> cards,
-            List<ArticleEntity> articles,
-            CancellationToken ct)
+        private async Task<CollectionEntity> privateCollectionCopyAsync(CollectionImport collectionImport, CancellationToken ct)
         {
             var currentUserId = _user.GetId();
             var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == currentUserId)).Name;
-            var oldCollectionId = collectionEntity.Id;
             var newCollectionId = Guid.NewGuid();
-            var dateCreated = DateTime.UtcNow;
-            collectionEntity.Id = newCollectionId;
-            collectionEntity.DateCreated = dateCreated;
-            collectionEntity.CreatedBy = currentUserId;
-            collectionEntity.DateModified = collectionEntity.DateCreated;
-            collectionEntity.ModifiedBy = collectionEntity.CreatedBy;
-            collectionEntity.Name = collectionEntity.Name + " - " + username;
-            collectionEntity.Memberships = null;
+            var collectionEntity = new CollectionEntity
+            {
+                Id = newCollectionId,
+                Name = collectionImport.Collection.Name + " - " + username,
+                Description = collectionImport.Collection.Description,
+                CreatedBy = currentUserId
+            };
+            // a collection file has no exhibit, so only its template articles are kept
+            var (cards, articles, _) = ImportBuilder.BuildCollectionContent(
+                newCollectionId, collectionImport.Cards, collectionImport.Articles, null, null, new Dictionary<Guid, Guid>());
+
             await _context.Collections.AddAsync(collectionEntity, ct);
-            // copy cards
-            var newCardIds = new Dictionary<Guid, Guid>();
-            foreach (var cardEntity in cards)
-            {
-                newCardIds[cardEntity.Id] = Guid.NewGuid();
-                cardEntity.Id = newCardIds[cardEntity.Id];
-                cardEntity.CollectionId = collectionEntity.Id;
-                cardEntity.Collection = null;
-                cardEntity.DateCreated = collectionEntity.DateCreated;
-                cardEntity.CreatedBy = collectionEntity.CreatedBy;
-                 await _context.Cards.AddAsync(cardEntity, ct);
-            }
-            // copy articles
-            foreach (var articleEntity in articles)
-            {
-                articleEntity.Id = Guid.NewGuid();
-                articleEntity.CollectionId = newCollectionId;
-                articleEntity.Collection = null;
-                articleEntity.CardId = articleEntity.CardId == null ? null : newCardIds[(Guid)articleEntity.CardId];
-                articleEntity.Card = null;
-                articleEntity.DateCreated = collectionEntity.DateCreated;
-                articleEntity.CreatedBy = collectionEntity.CreatedBy;
-                await _context.Articles.AddAsync(articleEntity, ct);
-            }
+            await _context.Cards.AddRangeAsync(cards, ct);
+            await _context.Articles.AddRangeAsync(articles, ct);
             await _context.SaveChangesAsync(ct);
             var createOwnerMembership = new CollectionMembershipEntity() {
                 UserId = currentUserId,
@@ -253,20 +236,20 @@ namespace Gallery.Api.Services
             {
                 ReferenceHandler = ReferenceHandler.Preserve
             };
-            CollectionFileFormat collectionFileObject;
+            CollectionImport collectionImport;
             try
             {
-                collectionFileObject = JsonSerializer.Deserialize<CollectionFileFormat>(collectionJson, options);
+                collectionImport = JsonSerializer.Deserialize<CollectionImport>(collectionJson, options);
             }
             catch (JsonException)
             {
                 throw new BadRequestException("The uploaded file is not valid JSON.");
             }
-            if (collectionFileObject == null || collectionFileObject.Collection == null)
+            if (collectionImport == null || collectionImport.Collection == null)
                 throw new BadRequestException("The uploaded file is not a valid collection file.");
 
             // make a copy and add it to the database
-            var collectionEntity = await privateCollectionCopyAsync(collectionFileObject.Collection, collectionFileObject.Cards, collectionFileObject.Articles, ct);
+            var collectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
 
             return _mapper.Map<Collection>(collectionEntity);
         }

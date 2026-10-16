@@ -104,7 +104,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("userArticles")]
         [ProducesResponseType(typeof(UserArticle), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createUserArticle")]
-        public async Task<IActionResult> Create([FromBody] UserArticle userArticle, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] UserArticleCreate userArticle, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(userArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();

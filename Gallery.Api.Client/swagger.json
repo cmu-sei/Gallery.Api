@@ -3165,17 +3165,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitTeam"
+                "$ref": "#/components/schemas/ExhibitTeamCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitTeam"
+                "$ref": "#/components/schemas/ExhibitTeamCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitTeam"
+                "$ref": "#/components/schemas/ExhibitTeamCreate"
               }
             }
           }
@@ -4539,17 +4539,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamEdit"
               }
             }
           }
@@ -4636,17 +4636,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Team"
+                "$ref": "#/components/schemas/TeamCreate"
               }
             }
           }
@@ -5762,17 +5762,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamUser"
+                "$ref": "#/components/schemas/TeamUserCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamUser"
+                "$ref": "#/components/schemas/TeamUserCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamUser"
+                "$ref": "#/components/schemas/TeamUserCreate"
               }
             }
           }
@@ -6514,17 +6514,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserArticle"
+                "$ref": "#/components/schemas/UserArticleCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserArticle"
+                "$ref": "#/components/schemas/UserArticleCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/UserArticle"
+                "$ref": "#/components/schemas/UserArticleCreate"
               }
             }
           }
@@ -7916,6 +7916,26 @@
         },
         "additionalProperties": false
       },
+      "ExhibitTeamCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The Id to create the ExhibitTeam with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "teamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "An ExhibitTeam create request. It names the Team and the Exhibit by Id only, so it cannot create or change either."
+      },
       "FieldAttributes": {
         "enum": [
           "PrivateScope",
@@ -9139,6 +9159,52 @@
         },
         "additionalProperties": false
       },
+      "TeamCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "shortName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "description": "The Id to create the Team with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeamEdit": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "shortName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "TeamUser": {
         "type": "object",
         "properties": {
@@ -9183,6 +9249,29 @@
           }
         },
         "additionalProperties": false
+      },
+      "TeamUserCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The Id to create the TeamUser with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "teamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isObserver": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A TeamUser create request. It names the User and the Team by Id only, so it cannot create or change either."
       },
       "Type": {
         "type": "object",
@@ -10004,6 +10093,37 @@
           }
         },
         "additionalProperties": false
+      },
+      "UserArticleCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The Id to create the UserArticle with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "articleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actualDatePosted": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isRead": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A UserArticle create request. It names the Article by Id only, so it cannot create or change one."
       }
     },
     "securitySchemes": {

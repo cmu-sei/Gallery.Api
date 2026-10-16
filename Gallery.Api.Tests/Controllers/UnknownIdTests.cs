@@ -25,22 +25,26 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
     public static TheoryData<string, string, string, string> ServerErrorRoutes => new()
     {
         { "DELETE", $"api/articles/{Unknown}", null, NullReference },
-        { "DELETE", $"api/teams/{Unknown}", null, NullReference },
         { "GET", $"api/teamusers/{Unknown}", null, NullReference },
-        { "POST", "api/teamusers", $$"""{ "teamId": "{{Unknown}}", "userId": "{{Unknown}}" }""", NullReference },
         { "PUT", $"api/teamusers/{Unknown}/observer/set", null, NullReference },
         { "PUT", $"api/teamusers/{Unknown}/observer/clear", null, NullReference },
         { "DELETE", $"api/teamusers/{Unknown}", null, NullReference },
-        { "DELETE", $"api/teams/{Unknown}/users/{Unknown}", null, NullReference },
-        { "POST", "api/teamcards", $$"""{ "teamId": "{{Unknown}}", "cardId": "{{Unknown}}" }""", NullReference },
-        { "PUT", $"api/teamcards/{Unknown}", $$"""{ "id": "{{Unknown}}", "teamId": "{{Unknown}}", "cardId": "{{Unknown}}" }""", NullReference },
         { "DELETE", $"api/teamcards/{Unknown}", null, NullReference },
-        { "DELETE", $"api/teams/{Unknown}/cards/{Unknown}", null, NullReference },
-        { "DELETE", $"api/teams/{Unknown}/articles/{Unknown}", null, NullReference },
         { "DELETE", $"api/exhibitteams/{Unknown}", null, NullReference },
         { "PUT", $"api/userarticles/{Unknown}/isread", "true", NoElements },
         { "PUT", $"api/userarticles/{Unknown}/share", "{}", NoElements },
         { "DELETE", $"api/userarticles/{Unknown}", null, NoElements },
+    };
+
+    public static TheoryData<string, string, string> NotFoundRoutes => new()
+    {
+        { "DELETE", $"api/teams/{Unknown}", null },
+        { "POST", "api/teamusers", $$"""{ "teamId": "{{Unknown}}", "userId": "{{Unknown}}" }""" },
+        { "DELETE", $"api/teams/{Unknown}/users/{Unknown}", null },
+        { "POST", "api/teamcards", $$"""{ "teamId": "{{Unknown}}", "cardId": "{{Unknown}}" }""" },
+        { "PUT", $"api/teamcards/{Unknown}", $$"""{ "id": "{{Unknown}}", "teamId": "{{Unknown}}", "cardId": "{{Unknown}}" }""" },
+        { "DELETE", $"api/teams/{Unknown}/cards/{Unknown}", null },
+        { "DELETE", $"api/teams/{Unknown}/articles/{Unknown}", null },
     };
 
     public static TheoryData<string> NoContentRoutes => new()
@@ -58,6 +62,16 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
         var response = await RootClient.SendAsync(Request(method, route, body), Ct);
 
         Assert.Equal(detail, (await AssertProblem(HttpStatusCode.InternalServerError, response)).Detail);
+    }
+
+    /// <summary>An id that names no row is answered with a 404 on these routes.</summary>
+    [Theory]
+    [MemberData(nameof(NotFoundRoutes))]
+    public async Task An_unknown_id_is_answered_with_not_found(string method, string route, string body)
+    {
+        var response = await RootClient.SendAsync(Request(method, route, body), Ct);
+
+        await AssertProblem(HttpStatusCode.NotFound, response);
     }
 
     /// <summary>An id that names no row is answered with 204 and no body on these routes.</summary>

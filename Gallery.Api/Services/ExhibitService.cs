@@ -195,7 +195,7 @@ namespace Gallery.Api.Services
         public async Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct)
         {
             var exhibitFileObject = await BuildExhibitFileObject(exhibitId, ct);
-            var newExhibitEntity = await privateExhibitCopyAsync(exhibitFileObject, false, ct);
+            var newExhibitEntity = await privateExhibitCopyAsync(ToImport(exhibitFileObject), false, ct);
             var exhibit = _mapper.Map<Exhibit>(newExhibitEntity);
 
             return exhibit;
@@ -249,102 +249,150 @@ namespace Gallery.Api.Services
             return exhibitFileObject;
         }
 
-        private async Task<ExhibitEntity> privateExhibitCopyAsync(ExhibitFileFormat exhibitFileObject, bool copyTheCollection, CancellationToken ct)
+        private static ExhibitImport ToImport(ExhibitFileFormat exhibitFileObject) => new()
+        {
+            Collection = new CollectionImportFields
+            {
+                Id = exhibitFileObject.Collection.Id,
+                Name = exhibitFileObject.Collection.Name,
+                Description = exhibitFileObject.Collection.Description
+            },
+            Cards = exhibitFileObject.Cards.Select(ImportBuilder.ToImport).ToList(),
+            Articles = exhibitFileObject.Articles.Select(ImportBuilder.ToImport).ToList(),
+            Exhibit = new ExhibitImportFields
+            {
+                Id = exhibitFileObject.Exhibit.Id,
+                Name = exhibitFileObject.Exhibit.Name,
+                Description = exhibitFileObject.Exhibit.Description,
+                ShowAdvanceButton = exhibitFileObject.Exhibit.ShowAdvanceButton
+            },
+            Teams = exhibitFileObject.Teams.Select(ImportBuilder.ToImport).ToList(),
+            TeamCards = exhibitFileObject.TeamCards.Select(ImportBuilder.ToImport).ToList(),
+            TeamArticles = exhibitFileObject.TeamArticles.Select(ImportBuilder.ToImport).ToList()
+        };
+
+        /// <summary>
+        /// Saves a new exhibit built from <paramref name="exhibitImport"/>. With <paramref name="copyTheCollection"/>
+        /// it also saves a new collection with the file's cards and template articles; without it the new exhibit
+        /// uses the file's collection, which must exist. The exhibit's own articles are copied to the new exhibit.
+        /// No users, roles or memberships are read; the caller becomes the exhibit's creator.
+        /// </summary>
+        private async Task<ExhibitEntity> privateExhibitCopyAsync(ExhibitImport exhibitImport, bool copyTheCollection, CancellationToken ct)
         {
             var currentUserId = _user.GetId();
             var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == _user.GetId())).Name;
-            var dateCreated = DateTime.UtcNow;
-            var oldCollectionId = exhibitFileObject.Collection.Id;
-            var newCollectionId = Guid.NewGuid();
-            var cardMap = new Dictionary<Guid, Guid>();
-            var articleMap = new Dictionary<Guid, Guid>();
+            var newExhibitId = Guid.NewGuid();
+            var fileExhibitId = exhibitImport.Exhibit.Id;
+
+            // build and check everything before anything is tracked
+            CollectionEntity newCollection = null;
+            Guid collectionId;
+            var cardIdMap = new Dictionary<Guid, Guid>();
+            var articleIdMap = new Dictionary<Guid, Guid>();
+            List<CardEntity> cards;
+            List<ArticleEntity> articles;
             if (copyTheCollection)
             {
-                // copy the collection
-                exhibitFileObject.Collection.Id = newCollectionId;
-                exhibitFileObject.Collection.DateCreated = dateCreated;
-                exhibitFileObject.Collection.CreatedBy = currentUserId;
-                exhibitFileObject.Collection.DateModified = exhibitFileObject.Collection.DateCreated;
-                exhibitFileObject.Collection.ModifiedBy = exhibitFileObject.Collection.CreatedBy;
-                exhibitFileObject.Collection.Name = exhibitFileObject.Collection.Name + " - " + username;
-                await _context.Collections.AddAsync(exhibitFileObject.Collection, ct);
-                // copy cards
-                foreach (var cardEntity in exhibitFileObject.Cards)
+                collectionId = Guid.NewGuid();
+                newCollection = new CollectionEntity
                 {
-                    cardMap[cardEntity.Id] = Guid.NewGuid();
-                    cardEntity.Id = cardMap[cardEntity.Id];
-                    cardEntity.CollectionId = exhibitFileObject.Collection.Id;
-                    cardEntity.Collection = null;
-                    cardEntity.DateCreated = exhibitFileObject.Collection.DateCreated;
-                    cardEntity.CreatedBy = exhibitFileObject.Collection.CreatedBy;
-                    await _context.Cards.AddAsync(cardEntity, ct);
-                }
-                // copy articles
-                foreach (var articleEntity in exhibitFileObject.Articles)
+                    Id = collectionId,
+                    Name = exhibitImport.Collection.Name + " - " + username,
+                    Description = exhibitImport.Collection.Description,
+                    CreatedBy = currentUserId
+                };
+                (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
+                    collectionId, exhibitImport.Cards, exhibitImport.Articles, fileExhibitId, newExhibitId, cardIdMap);
+            }
+            else
+            {
+                collectionId = exhibitImport.Collection.Id;
+                // the cards and template articles stay where they are; only the exhibit's own articles are copied
+                foreach (var cardId in await _context.Cards.Where(c => c.CollectionId == collectionId).Select(c => c.Id).ToListAsync(ct))
+                    cardIdMap[cardId] = cardId;
+                (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
+                    collectionId, [], exhibitImport.Articles.Where(a => a.ExhibitId == fileExhibitId), fileExhibitId, newExhibitId, cardIdMap);
+                foreach (var articleId in await _context.Articles.Where(a => a.CollectionId == collectionId && a.ExhibitId == null).Select(a => a.Id).ToListAsync(ct))
+                    articleIdMap[articleId] = articleId;
+            }
+            // an article of another exhibit was left out, and so is a TeamArticle that names it
+            var leftOutArticleIds = exhibitImport.Articles
+                .Where(a => a.ExhibitId != null && a.ExhibitId != fileExhibitId)
+                .Select(a => a.Id)
+                .ToHashSet();
+
+            var exhibitEntity = new ExhibitEntity
+            {
+                Id = newExhibitId,
+                CollectionId = collectionId,
+                Name = exhibitImport.Exhibit.Name,
+                Description = exhibitImport.Exhibit.Description,
+                ShowAdvanceButton = exhibitImport.Exhibit.ShowAdvanceButton,
+                CurrentMove = 0,
+                CurrentInject = 0,
+                ScenarioId = null,
+                CreatedBy = currentUserId
+            };
+            var teamIdMap = new Dictionary<Guid, Guid>();
+            var teams = new List<TeamEntity>();
+            foreach (var team in exhibitImport.Teams ?? [])
+            {
+                if (team == null || teamIdMap.ContainsKey(team.Id))
+                    throw new BadRequestException("The file lists a team more than once.");
+                var teamEntity = new TeamEntity
                 {
-                    articleMap[articleEntity.Id] = Guid.NewGuid();
-                    articleEntity.Id = articleMap[articleEntity.Id];
-                    articleEntity.CollectionId = newCollectionId;
-                    articleEntity.Collection = null;
-                    articleEntity.CardId = articleEntity.CardId == null ? null : cardMap[(Guid)articleEntity.CardId];
-                    articleEntity.Card = null;
-                    articleEntity.DateCreated = exhibitFileObject.Collection.DateCreated;
-                    articleEntity.CreatedBy = exhibitFileObject.Collection.CreatedBy;
-                    await _context.Articles.AddAsync(articleEntity, ct);
-                }
+                    Id = Guid.NewGuid(),
+                    ExhibitId = newExhibitId,
+                    Name = team.Name,
+                    ShortName = team.ShortName,
+                    Email = team.Email,
+                    CreatedBy = currentUserId
+                };
+                teamIdMap[team.Id] = teamEntity.Id;
+                teams.Add(teamEntity);
+            }
+            var teamCards = new List<TeamCardEntity>();
+            foreach (var teamCard in exhibitImport.TeamCards ?? [])
+            {
+                if (teamCard == null || !teamIdMap.TryGetValue(teamCard.TeamId, out var teamId) || !cardIdMap.TryGetValue(teamCard.CardId, out var cardId))
+                    throw new BadRequestException("A team card names a team or card that is not in the file.");
+                teamCards.Add(new TeamCardEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TeamId = teamId,
+                    CardId = cardId,
+                    Move = teamCard.Move,
+                    Inject = teamCard.Inject,
+                    IsShownOnWall = teamCard.IsShownOnWall,
+                    CanPostArticles = teamCard.CanPostArticles,
+                    CreatedBy = currentUserId
+                });
+            }
+            var teamArticles = new List<TeamArticleEntity>();
+            foreach (var teamArticle in exhibitImport.TeamArticles ?? [])
+            {
+                if (teamArticle != null && leftOutArticleIds.Contains(teamArticle.ArticleId))
+                    continue;
+                if (teamArticle == null || !teamIdMap.TryGetValue(teamArticle.TeamId, out var teamId) || !articleIdMap.TryGetValue(teamArticle.ArticleId, out var articleId))
+                    throw new BadRequestException("A team article names a team or article that is not in the file.");
+                teamArticles.Add(new TeamArticleEntity
+                {
+                    Id = Guid.NewGuid(),
+                    ExhibitId = newExhibitId,
+                    TeamId = teamId,
+                    ArticleId = articleId,
+                    CreatedBy = currentUserId
+                });
             }
 
-            var oldExhibitId = exhibitFileObject.Exhibit.Id;
-            var newExhibitId = Guid.NewGuid();
-            exhibitFileObject.Exhibit.Id = newExhibitId;
-            exhibitFileObject.Exhibit.CollectionId = copyTheCollection ? newCollectionId : oldCollectionId;
-            exhibitFileObject.Exhibit.DateCreated = DateTime.UtcNow;
-            exhibitFileObject.Exhibit.CreatedBy = currentUserId;
-            exhibitFileObject.Exhibit.DateModified = exhibitFileObject.Exhibit.DateCreated;
-            exhibitFileObject.Exhibit.ModifiedBy = exhibitFileObject.Exhibit.CreatedBy;
-            exhibitFileObject.Exhibit.Teams = null;
-            exhibitFileObject.Exhibit.CurrentMove = 0;
-            exhibitFileObject.Exhibit.CurrentInject = 0;
-            exhibitFileObject.Exhibit.ScenarioId = null;
-            await _context.Exhibits.AddAsync(exhibitFileObject.Exhibit, ct);
-            // copy teams
-            var teamMap = new Dictionary<Guid, Guid>();
-            foreach (var team in exhibitFileObject.Teams)
-            {
-                teamMap[team.Id] = Guid.NewGuid();
-                team.Id = teamMap[team.Id];
-                team.ExhibitId = exhibitFileObject.Exhibit.Id;
-                team.Exhibit = null;
-                team.DateCreated = exhibitFileObject.Exhibit.DateCreated;
-                team.CreatedBy = exhibitFileObject.Exhibit.CreatedBy;
-                await _context.Teams.AddAsync(team, ct);
-            }
-            // copy team cards
-            foreach (var teamCard in exhibitFileObject.TeamCards)
-            {
-                teamCard.Id = Guid.NewGuid();
-                teamCard.TeamId = teamMap[teamCard.TeamId];
-                teamCard.Team = null;
-                teamCard.CardId = copyTheCollection ? cardMap[teamCard.CardId] : teamCard.CardId;
-                teamCard.Card = null;
-                teamCard.DateCreated = dateCreated;
-                teamCard.CreatedBy = currentUserId;
-                await _context.TeamCards.AddAsync(teamCard, ct);
-            }
-            // copy team articles
-            foreach (var teamArticle in exhibitFileObject.TeamArticles)
-            {
-                teamArticle.Id = Guid.NewGuid();
-                teamArticle.ExhibitId = newExhibitId;
-                teamArticle.Exhibit = null;
-                teamArticle.TeamId = teamMap[teamArticle.TeamId];
-                teamArticle.Team = null;
-                teamArticle.ArticleId = copyTheCollection ? articleMap[teamArticle.ArticleId] : teamArticle.ArticleId;
-                teamArticle.Article = null;
-                teamArticle.DateCreated = dateCreated;
-                teamArticle.CreatedBy = currentUserId;
-                await _context.TeamArticles.AddAsync(teamArticle, ct);
-            }
+            if (newCollection != null)
+                await _context.Collections.AddAsync(newCollection, ct);
+            await _context.Cards.AddRangeAsync(cards, ct);
+            await _context.Exhibits.AddAsync(exhibitEntity, ct);
+            await _context.Articles.AddRangeAsync(articles, ct);
+            await _context.Teams.AddRangeAsync(teams, ct);
+            await _context.TeamCards.AddRangeAsync(teamCards, ct);
+            await _context.TeamArticles.AddRangeAsync(teamArticles, ct);
             await _context.SaveChangesAsync(ct);
             var createOwnerMembership = new ExhibitMembershipEntity()
             {
@@ -357,10 +405,8 @@ namespace Gallery.Api.Services
             await _userClaimsService.RefreshClaims(currentUserId);
 
             // get the new Exhibit to return
-            var exhibitEntity = await _context.Exhibits
-                .SingleOrDefaultAsync(sm => sm.Id == exhibitFileObject.Exhibit.Id, ct);
-
-            return exhibitEntity;
+            return await _context.Exhibits
+                .SingleOrDefaultAsync(sm => sm.Id == newExhibitId, ct);
         }
 
         public async Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid exhibitId, CancellationToken ct)
@@ -395,20 +441,20 @@ namespace Gallery.Api.Services
             {
                 ReferenceHandler = ReferenceHandler.Preserve
             };
-            ExhibitFileFormat exhibitFileObject;
+            ExhibitImport exhibitImport;
             try
             {
-                exhibitFileObject = JsonSerializer.Deserialize<ExhibitFileFormat>(exhibitJson, options);
+                exhibitImport = JsonSerializer.Deserialize<ExhibitImport>(exhibitJson, options);
             }
             catch (JsonException)
             {
                 throw new BadRequestException("The uploaded file is not valid JSON.");
             }
-            if (exhibitFileObject == null || exhibitFileObject.Exhibit == null || exhibitFileObject.Collection == null)
+            if (exhibitImport == null || exhibitImport.Exhibit == null || exhibitImport.Collection == null)
                 throw new BadRequestException("The uploaded file is not a valid exhibit file.");
 
             // make a copy and add it to the database
-            var exhibitEntity = await privateExhibitCopyAsync(exhibitFileObject, true, ct);
+            var exhibitEntity = await privateExhibitCopyAsync(exhibitImport, true, ct);
 
             return _mapper.Map<Exhibit>(exhibitEntity);
         }
