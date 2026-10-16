@@ -71,7 +71,9 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.UserArticle> GetAsync(Guid id, CancellationToken ct)
         {
-            var userArticle = await _context.UserArticles.FirstAsync(e => e.Id == id);
+            var userArticle = await _context.UserArticles.SingleOrDefaultAsync(e => e.Id == id, ct);
+            if (userArticle == null)
+                throw new EntityNotFoundException<UserArticle>();
 
             return _mapper.Map<UserArticle>(userArticle);
         }

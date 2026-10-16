@@ -95,7 +95,9 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Article>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            var exhibit = (await _context.Exhibits.FirstAsync(e => e.Id == exhibitId));
+            var exhibit = await _context.Exhibits.SingleOrDefaultAsync(e => e.Id == exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
             IQueryable<ArticleEntity> articles = _context.Articles
                 .Where(a => a.CollectionId == exhibit.CollectionId
                      && (a.ExhibitId == null || a.ExhibitId == exhibitId)

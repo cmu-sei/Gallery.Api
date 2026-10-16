@@ -138,13 +138,23 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("Readable Team", got.Name);
     }
 
-    /// <summary>Holding every system permission does not pass a team gate; only being on the team does.</summary>
+    /// <summary>A caller holding ViewExhibits can read any team, without being on it.</summary>
     [Fact]
-    public async Task Get_is_forbidden_for_a_caller_holding_every_system_permission()
+    public async Task Get_returns_the_team_to_a_caller_holding_ViewExhibits()
     {
         var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
-        await AssertProblem(HttpStatusCode.Forbidden, await RootClient.GetAsync($"api/teams/{team.Id}", Ct));
+        Assert.Equal(team.Id, (await ReadAsync<Team>(await Client(actor).GetAsync($"api/teams/{team.Id}", Ct))).Id);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/teams/{team.Id}", Ct));
     }
 
     // ---- Create --------------------------------------------------------------------------------

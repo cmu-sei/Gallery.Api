@@ -68,7 +68,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamTeamArticles")]
         public async Task<IActionResult> GetByTeam(Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _teamArticleService.GetByTeamAsync(teamId, ct);
@@ -95,7 +95,7 @@ namespace Gallery.Api.Controllers
             if (teamArticle == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamArticle.TeamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamArticle.TeamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             return Ok(teamArticle);

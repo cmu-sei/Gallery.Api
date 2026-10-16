@@ -16,26 +16,16 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
     /// <summary>An id no test seeds: every test database starts from the migrated template, which holds no such row.</summary>
     private const string Unknown = "6f0c9a64-1d2e-4c3b-9a8f-00000000dead";
 
-    /// <summary>The detail of a 500 from a null dereference.</summary>
-    private const string NullReference = "Object reference not set to an instance of an object.";
-
-    /// <summary>The detail of a 500 from <c>FirstAsync</c> over no rows.</summary>
-    private const string NoElements = "Sequence contains no elements.";
-
-    public static TheoryData<string, string, string, string> ServerErrorRoutes => new()
-    {
-        { "GET", $"api/teamusers/{Unknown}", null, NullReference },
-        { "PUT", $"api/teamusers/{Unknown}/observer/set", null, NullReference },
-        { "PUT", $"api/teamusers/{Unknown}/observer/clear", null, NullReference },
-        { "DELETE", $"api/teamusers/{Unknown}", null, NullReference },
-        { "DELETE", $"api/exhibitteams/{Unknown}", null, NullReference },
-        { "PUT", $"api/userarticles/{Unknown}/isread", "true", NoElements },
-        { "PUT", $"api/userarticles/{Unknown}/share", "{}", NoElements },
-        { "DELETE", $"api/userarticles/{Unknown}", null, NoElements },
-    };
-
     public static TheoryData<string, string, string> NotFoundRoutes => new()
     {
+        { "GET", $"api/teamusers/{Unknown}", null },
+        { "PUT", $"api/teamusers/{Unknown}/observer/set", null },
+        { "PUT", $"api/teamusers/{Unknown}/observer/clear", null },
+        { "DELETE", $"api/teamusers/{Unknown}", null },
+        { "DELETE", $"api/exhibitteams/{Unknown}", null },
+        { "PUT", $"api/userarticles/{Unknown}/isread", "true" },
+        { "PUT", $"api/userarticles/{Unknown}/share", "{}" },
+        { "DELETE", $"api/userarticles/{Unknown}", null },
         { "DELETE", $"api/teamcards/{Unknown}", null },
         { "DELETE", $"api/articles/{Unknown}", null },
         { "DELETE", $"api/teams/{Unknown}", null },
@@ -53,16 +43,6 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
         $"api/groups/{Unknown}",
         $"api/groups/memberships/{Unknown}",
     };
-
-    /// <summary>An id that names no row is answered with a 500 on these routes.</summary>
-    [Theory]
-    [MemberData(nameof(ServerErrorRoutes))]
-    public async Task An_unknown_id_is_answered_with_a_server_error(string method, string route, string body, string detail)
-    {
-        var response = await RootClient.SendAsync(Request(method, route, body), Ct);
-
-        Assert.Equal(detail, (await AssertProblem(HttpStatusCode.InternalServerError, response)).Detail);
-    }
 
     /// <summary>An id that names no row is answered with a 404 on these routes.</summary>
     [Theory]

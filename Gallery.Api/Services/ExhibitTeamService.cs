@@ -57,6 +57,8 @@ namespace Gallery.Api.Services
         {
             var item = await _context.ExhibitTeams
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<ExhibitTeam>();
 
             return _mapper.Map<ExhibitTeam>(item);
         }

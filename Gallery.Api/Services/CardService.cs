@@ -101,7 +101,9 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var exhibit = await _context.Exhibits.FindAsync(exhibitId);
+            var exhibit = await _context.Exhibits.FindAsync([exhibitId], ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
             var cards = await _context.TeamCards
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
                 .Include(tc => tc.Card)

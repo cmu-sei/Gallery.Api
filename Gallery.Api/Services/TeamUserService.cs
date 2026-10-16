@@ -99,6 +99,8 @@ namespace Gallery.Api.Services
                 .Include(tu => tu.User)
                 .Include(tu => tu.Team)
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<TeamUser>();
 
             return _mapper.Map<TeamUser>(item);
         }

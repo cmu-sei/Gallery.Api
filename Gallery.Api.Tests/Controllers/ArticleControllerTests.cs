@@ -128,48 +128,41 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(due.Id, Assert.Single(articles).Id);
     }
 
-    /// <summary>A member holding ViewExhibit on the exhibit is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error()
+    public async Task GetByExhibit_returns_the_articles_to_a_member_holding_ViewExhibit()
     {
-        var (collection, _, _) = await SeedArticle();
+        var (collection, _, article) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
+        var articles = await ReadAsync<List<Article>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
 
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        Assert.Contains(articles, x => x.Id == article.Id);
     }
 
     // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
-    /// <summary>A caller holding ViewExhibit only on another exhibit is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_caller_holding_ViewExhibit_only_on_another_exhibit_with_a_server_error()
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
     {
         var (collection, _, _) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.ViewExhibit).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
-
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
     }
 
     // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
-    /// <summary>A caller holding only ViewCollections is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_caller_holding_only_ViewCollections_with_a_server_error()
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
     {
         var (collection, _, _) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
-
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
     }
 
     // ---- Get -----------------------------------------------------------------------------------

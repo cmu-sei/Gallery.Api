@@ -40,7 +40,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeams")]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            if (await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.ViewExhibits], ct))
                 throw new ForbiddenException();
 
             var list = await _exhibitTeamService.GetAsync(ct);
@@ -63,12 +63,10 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeam")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(id, [TeamPermission.ViewTeam], ct))
-                throw new ForbiddenException();
-
+            // the route names the link, so the gate reads the link's stored team
             var exhibit = await _exhibitTeamService.GetAsync(id, ct);
-            if (exhibit == null)
-                throw new EntityNotFoundException<ExhibitTeam>();
+            if (!await _authorizationService.AuthorizeAsync<Team>(exhibit.TeamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
+                throw new ForbiddenException();
 
             return Ok(exhibit);
         }

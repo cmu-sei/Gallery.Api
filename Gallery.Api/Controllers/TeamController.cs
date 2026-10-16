@@ -80,7 +80,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeam")]
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(id, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(id, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var team = await _teamService.GetAsync(id, ct);

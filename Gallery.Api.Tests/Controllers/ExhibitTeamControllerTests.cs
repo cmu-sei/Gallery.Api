@@ -16,22 +16,20 @@ namespace Gallery.Api.Tests.Controllers;
 /// </summary>
 public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFactory factory) : ApiTestBase(fixture, factory)
 {
-    /// <summary>The list is refused to a caller holding ViewExhibits.</summary>
     [Fact]
-    public async Task GetAll_is_forbidden_for_a_caller_holding_ViewExhibits()
+    public async Task GetAll_is_forbidden_for_a_caller_holding_only_ViewGroups()
     {
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewGroups).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync("api/exhibitteams", Ct));
     }
 
     // Same case as GetAll_is_forbidden_for_a_caller_holding_ViewExhibits.
-    /// <summary>The list is served to a caller holding no view permission at all.</summary>
     [Fact]
-    public async Task GetAll_returns_every_link_to_a_caller_holding_only_ViewGroups()
+    public async Task GetAll_returns_every_link_to_a_caller_holding_ViewExhibits()
     {
         var (_, link) = await SeedLink();
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewGroups).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
         var links = await ReadAsync<List<ExhibitTeam>>(await Client(actor).GetAsync("api/exhibitteams", Ct));
 
@@ -45,12 +43,21 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertStatus(HttpStatusCode.Unauthorized, await Client().GetAsync("api/exhibitteams", Ct));
     }
 
-    /// <summary>A link is refused even to a participant of the linked team.</summary>
+    /// <summary>The gate reads the link's stored team, so a reader of that team can read the link.</summary>
     [Fact]
-    public async Task Get_is_forbidden_for_a_participant_of_the_linked_team()
+    public async Task Get_returns_the_link_to_a_participant_of_the_linked_team()
     {
         var (team, link) = await SeedLink();
         var actor = await Actor().OnTeam(team).SeedAsync();
+
+        Assert.Equal(link.Id, (await ReadAsync<ExhibitTeam>(await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct))).Id);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_participant_of_another_team()
+    {
+        var (team, link) = await SeedLink();
+        var actor = await Actor().OnNewTeam(team.ExhibitId.Value).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct));
     }
