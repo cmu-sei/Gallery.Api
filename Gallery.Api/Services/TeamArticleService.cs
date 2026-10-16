@@ -88,6 +88,15 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticleCreate teamArticle, CancellationToken ct)
         {
+            // creating it delivers the article to the team's users, so both must be in the exhibit
+            var exhibit = await _context.Exhibits.SingleOrDefaultAsync(e => e.Id == teamArticle.ExhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+            if (!await _context.Teams.AnyAsync(t => t.Id == teamArticle.TeamId && t.ExhibitId == exhibit.Id, ct))
+                throw new EntityNotFoundException<Team>();
+            if (!await _context.Articles.Where(ArticleScope.InExhibit(exhibit)).AnyAsync(a => a.Id == teamArticle.ArticleId, ct))
+                throw new EntityNotFoundException<Article>();
+
             var teamArticleEntity = _mapper.Map<TeamArticleEntity>(teamArticle);
             teamArticleEntity.Id = teamArticleEntity.Id != Guid.Empty ? teamArticleEntity.Id : Guid.NewGuid();
 

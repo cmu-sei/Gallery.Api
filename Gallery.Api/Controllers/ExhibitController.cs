@@ -177,7 +177,9 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "createExhibit")]
         public async Task<IActionResult> Create([FromBody] ExhibitCreate exhibit, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct))
+            // the creator becomes the exhibit's Manager and can read the collection through it
+            if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct) ||
+                !await _authorizationService.AuthorizeAsync<Collection>(exhibit.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
                 throw new ForbiddenException();
 
             var createdExhibit = await _exhibitService.CreateAsync(exhibit, ct);

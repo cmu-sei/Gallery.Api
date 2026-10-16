@@ -155,6 +155,56 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == user.Id && x.ArticleId == article.Id && x.ExhibitId == exhibit.Id, Ct));
     }
 
+    /// <summary>A sibling exhibit's article on the same collection is not in the exhibit, so it cannot be delivered from it.</summary>
+    [Fact]
+    public async Task Create_answers_a_sibling_exhibit_s_article_with_not_found_and_delivers_nothing()
+    {
+        var (exhibit, team, _) = await SeedTeamArticle();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        var privateArticle = TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's");
+        await Seed(sibling, privateArticle);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/teamarticles",
+            new { exhibitId = exhibit.Id, teamId = team.Id, articleId = privateArticle.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamArticles.AnyAsync(x => x.ArticleId == privateArticle.Id, Ct));
+        Assert.False(await db.UserArticles.AnyAsync(x => x.ArticleId == privateArticle.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_answers_an_article_of_another_collection_with_not_found()
+    {
+        var (exhibit, team, _) = await SeedTeamArticle();
+        var other = TestData.Collection("Other");
+        var foreign = TestData.Article(other.Id, name: "Foreign");
+        await Seed(other, foreign);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PostAsJsonAsync("api/teamarticles",
+            new { exhibitId = exhibit.Id, teamId = team.Id, articleId = foreign.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamArticles.AnyAsync(x => x.ArticleId == foreign.Id, Ct));
+    }
+
+    /// <summary>A manager of one exhibit cannot push an article to another exhibit's team by naming their own exhibit.</summary>
+    [Fact]
+    public async Task Create_answers_a_team_of_another_exhibit_with_not_found_and_delivers_nothing()
+    {
+        var (exhibit, _, teamArticle) = await SeedTeamArticle();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        var siblingTeam = TestData.Team(sibling.Id, "Sibling Team");
+        await Seed(sibling, siblingTeam);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/teamarticles",
+            new { exhibitId = exhibit.Id, teamId = siblingTeam.Id, articleId = teamArticle.ArticleId }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamArticles.AnyAsync(x => x.TeamId == siblingTeam.Id, Ct));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_EditExhibit()
     {

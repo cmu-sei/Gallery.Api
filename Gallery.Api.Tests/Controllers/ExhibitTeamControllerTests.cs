@@ -127,17 +127,35 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
     [Fact]
     public async Task Create_persists_the_link_for_a_member_holding_EditExhibit()
     {
+        var (_, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
+        var actor = await Actor().OnExhibit(other, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+            new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == otherTeam.Id, Ct));
+    }
+
+    /// <summary>A team can be linked only to the exhibit it is in.</summary>
+    [Fact]
+    public async Task Create_answers_a_team_of_another_exhibit_with_not_found_and_saves_no_link()
+    {
         var (team, link) = await SeedLink();
         var exhibit = await Exhibit(link);
         var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
         await Seed(other);
         var actor = await Actor().OnExhibit(other, [ExhibitPermission.EditExhibit]).SeedAsync();
 
-        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/exhibitteams",
             new { exhibitId = other.Id, teamId = team.Id }, Ct));
 
         await using var db = NewContext();
-        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == team.Id, Ct));
+        Assert.False(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id, Ct));
     }
 
     [Fact]
@@ -156,17 +174,18 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
     [Fact]
     public async Task Create_persists_the_link_for_a_caller_holding_EditExhibits()
     {
-        var (team, link) = await SeedLink();
+        var (_, link) = await SeedLink();
         var exhibit = await Exhibit(link);
         var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
-        await Seed(other);
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
         var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
-            new { exhibitId = other.Id, teamId = team.Id }, Ct));
+            new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct));
 
         await using var db = NewContext();
-        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == team.Id, Ct));
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == otherTeam.Id, Ct));
     }
 
     [Fact]

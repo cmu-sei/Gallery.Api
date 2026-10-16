@@ -172,6 +172,23 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.True((await db.TeamCards.SingleAsync(x => x.CardId == card.Id, Ct)).CanPostArticles);
     }
 
+    /// <summary>A TeamCard can name only a card of its team's exhibit collection.</summary>
+    [Fact]
+    public async Task Create_answers_a_card_of_another_collection_with_not_found_and_saves_nothing()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/teamcards",
+            new { teamId = team.Id, cardId = foreignCard.Id, canPostArticles = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_EditExhibit()
     {

@@ -141,13 +141,12 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     // ---- Create --------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Create_puts_the_user_on_the_team_for_a_caller_holding_ViewExhibits()
+    public async Task Create_puts_the_user_on_the_team_for_a_caller_holding_EditExhibits()
     {
-        // Same case as Create_puts_the_caller_on_a_team_for_a_member_holding_only_ViewExhibit.
         var (_, team) = await SeedTeam();
         var user = TestData.User();
         await Seed(user);
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
             new { teamId = team.Id, userId = user.Id }, Ct));
@@ -156,27 +155,57 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.True(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == user.Id, Ct));
     }
 
-    /// <summary>A read-only exhibit membership is enough to put a user, the caller included, on a team.</summary>
     [Fact]
-    public async Task Create_puts_the_caller_on_a_team_for_a_member_holding_only_ViewExhibit()
-    {
-        var (exhibit, team) = await SeedTeam();
-        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
-
-        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
-            new { teamId = team.Id, userId = actor.Id }, Ct));
-
-        await using var db = NewContext();
-        Assert.True(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == actor.Id, Ct));
-    }
-
-    [Fact]
-    public async Task Create_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
+    public async Task Create_puts_the_user_on_the_team_for_a_member_holding_EditExhibit()
     {
         var (exhibit, team) = await SeedTeam();
         var user = TestData.User();
         await Seed(user);
-        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ViewExhibit).SeedAsync();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id, isObserver = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.True((await db.TeamUsers.SingleAsync(x => x.TeamId == team.Id && x.UserId == user.Id, Ct)).IsObserver);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.UserId == user.Id, Ct));
+    }
+
+    /// <summary>A read-only exhibit membership does not let an observer put themselves on a team.</summary>
+    [Fact]
+    public async Task Create_is_forbidden_for_a_member_holding_only_ViewExhibit_who_names_themselves()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = actor.Id, isObserver = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == actor.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
             new { teamId = team.Id, userId = user.Id }, Ct));

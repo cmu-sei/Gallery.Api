@@ -72,6 +72,9 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeamCreate exhibitTeam, CancellationToken ct)
         {
+            if (!await _context.Teams.AnyAsync(t => t.Id == exhibitTeam.TeamId && t.ExhibitId == exhibitTeam.ExhibitId, ct))
+                throw new EntityNotFoundException<Team>();
+
             var exhibitTeamEntity = _mapper.Map<ExhibitTeamEntity>(exhibitTeam);
             exhibitTeamEntity.Id = exhibitTeamEntity.Id != Guid.Empty ? exhibitTeamEntity.Id : Guid.NewGuid();
             _context.ExhibitTeams.Add(exhibitTeamEntity);

@@ -450,6 +450,48 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("CollectionId is required", problem.Detail);
     }
 
+    /// <summary>An exhibit's article goes in the exhibit's collection, whatever collection the body names.</summary>
+    [Fact]
+    public async Task Create_of_a_posted_article_takes_the_collection_from_the_exhibit()
+    {
+        var (collection, card, exhibit, _, _) = await SeedPostedArticle(canPost: true);
+        var other = TestData.Collection("Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        var created = await ReadAsync<Article>(await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(other.Id, card.Id, exhibit.Id, name: "Posted Elsewhere?"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(collection.Id, (await db.Articles.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
+    }
+
+    [Fact]
+    public async Task Create_answers_a_card_of_another_collection_with_not_found_and_saves_nothing()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, foreignCard.Id, name: "Misfiled"), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Misfiled", Ct));
+    }
+
+    [Fact]
+    public async Task Create_keeps_a_cardless_article_valid()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, null, name: "Cardless"), Ct));
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]

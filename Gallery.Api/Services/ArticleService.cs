@@ -110,15 +110,24 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate articleCreate, CancellationToken ct)
         {
-            // Validate required fields
-            if (articleCreate.CollectionId == Guid.Empty)
-                throw new ArgumentException("CollectionId is required");
-
-            // Skip expensive validation queries - rely on database foreign key constraints
-            // This significantly improves performance when creating many articles from the same collection
-            // Database will throw if collection or card doesn't exist
-
             var articleEntity = _mapper.Map<ArticleEntity>(articleCreate);
+            if (articleCreate.ExhibitId != null)
+            {
+                // an exhibit's article is in the exhibit's collection, whatever the body names
+                var collectionId = await _context.Exhibits
+                    .Where(e => e.Id == articleCreate.ExhibitId)
+                    .Select(e => (Guid?)e.CollectionId)
+                    .SingleOrDefaultAsync(ct);
+                if (collectionId == null)
+                    throw new EntityNotFoundException<Exhibit>();
+                articleEntity.CollectionId = collectionId.Value;
+            }
+            else if (articleCreate.CollectionId == Guid.Empty)
+            {
+                throw new ArgumentException("CollectionId is required");
+            }
+            await RequireCardInCollectionAsync(articleEntity.CardId, articleEntity.CollectionId, ct);
+
             articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
             articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
 

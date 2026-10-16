@@ -114,7 +114,7 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> Create([FromBody] TeamUserCreate teamUser, CancellationToken ct)
         {
             var team = await _teamService.GetAsync(teamUser.TeamId, ct);
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
 
             var createdTeamUser = await _teamUserService.CreateAsync(teamUser, ct);

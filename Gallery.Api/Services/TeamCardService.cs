@@ -94,6 +94,16 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct)
         {
+            // the card must be in the collection of the team's exhibit
+            var collectionId = await _context.Teams
+                .Where(t => t.Id == teamCard.TeamId)
+                .Select(t => (Guid?)t.Exhibit.CollectionId)
+                .SingleOrDefaultAsync(ct);
+            if (collectionId == null)
+                throw new EntityNotFoundException<Team>();
+            if (!await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == collectionId, ct))
+                throw new EntityNotFoundException<Card>();
+
             var teamCardEntity = _mapper.Map<TeamCardEntity>(teamCard);
             teamCardEntity.Id = teamCardEntity.Id != Guid.Empty ? teamCardEntity.Id : Guid.NewGuid();
 

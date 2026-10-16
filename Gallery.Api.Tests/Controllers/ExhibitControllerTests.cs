@@ -247,13 +247,15 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     // ---- Create --------------------------------------------------------------------------------
 
-    /// <summary>The creator becomes the exhibit's Manager, and the name and description default to the collection's.</summary>
     [Fact]
     public async Task Create_persists_the_exhibit_and_makes_the_creator_its_manager()
     {
         var collection = TestData.Collection("Source Collection");
         await Seed(collection);
-        var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits).SeedAsync();
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits)
+            .OnCollection(collection, [CollectionPermission.ViewCollection])
+            .SeedAsync();
 
         var response = await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct);
 
@@ -263,6 +265,33 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Source Collection", (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).Name);
         var membership = await db.ExhibitMemberships.SingleAsync(x => x.ExhibitId == created.Id, Ct);
         Assert.Equal((actor.Id, TestData.MembershipRoles.Manager), (membership.UserId.Value, membership.RoleId));
+    }
+
+    /// <summary>The creator becomes the exhibit's Manager, so creating one on a collection the caller cannot read is refused.</summary>
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_CreateExhibits_who_cannot_read_the_collection()
+    {
+        var collection = TestData.Collection("Unreadable");
+        await Seed(collection);
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits)
+            .OnNewCollection(CollectionPermission.ViewCollection)
+            .SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_is_allowed_for_a_caller_holding_CreateExhibits_and_ViewCollections()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits, SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct));
     }
 
     [Fact]
