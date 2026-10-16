@@ -18,7 +18,8 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<TeamCardEntity, TeamCard>();
 
-            CreateMap<TeamCard, TeamCardEntity>();
+            CreateMap<TeamCardCreate, TeamCardEntity>(AutoMapper.MemberList.Source);
+            CreateMap<TeamCardEdit, TeamCardEntity>(AutoMapper.MemberList.Source);
         }
     }
 }

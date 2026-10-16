@@ -37,5 +37,27 @@ namespace Gallery.Api.ViewModels
         public Guid CardId { get; set; }
     }
 
-}
+    /// <summary>
+    /// The fields a TeamCard's create and edit requests share. On an edit, the Team must be in the stored
+    /// TeamCard's Exhibit and the Card in that Exhibit's Collection.
+    /// </summary>
+    public abstract class TeamCardFields
+    {
+        public Guid TeamId { get; set; }
+        public Guid CardId { get; set; }
+        public int Move { get; set; }
+        public int Inject { get; set; }
+        public bool IsShownOnWall { get; set; } = true;
+        public bool CanPostArticles { get; set; }
+    }
 
+    public class TeamCardCreate : TeamCardFields
+    {
+        /// <summary>The Id to create the TeamCard with. A new one is made when it is empty.</summary>
+        public Guid Id { get; set; }
+    }
+
+    public class TeamCardEdit : TeamCardFields
+    {
+    }
+}

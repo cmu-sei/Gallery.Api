@@ -112,7 +112,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("teamarticles")]
         [ProducesResponseType(typeof(TeamArticle), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeamArticle")]
-        public async Task<IActionResult> Create([FromBody] TeamArticle teamArticle, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamArticleCreate teamArticle, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(teamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
                 throw new ForbiddenException();
@@ -131,18 +131,19 @@ namespace Gallery.Api.Controllers
         /// Accessible only to a ContentDeveloper or an Administrator
         /// </remarks>
         /// <param name="id">The Id of the TeamArticle to update</param>
-        /// <param name="teamArticle">The updated TeamArticle values</param>
+        /// <param name="teamArticle">Ignored. A TeamArticle's Exhibit, Team and Article cannot change.</param>
         /// <param name="ct"></param>
+        [Obsolete("A TeamArticle's Exhibit, Team and Article cannot change, so this only sets ModifiedBy. Delete the TeamArticle and create another instead.")]
         [HttpPut("teamArticles/{id}")]
         [ProducesResponseType(typeof(TeamArticle), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateTeamArticle")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamArticle teamArticle, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(teamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+            var storedTeamArticle = await _teamArticleService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(storedTeamArticle.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
                 throw new ForbiddenException();
 
-            teamArticle.ModifiedBy = User.GetId();
-            var updatedTeamArticle = await _teamArticleService.UpdateAsync(id, teamArticle, ct);
+            var updatedTeamArticle = await _teamArticleService.TouchAsync(id, ct);
             return Ok(updatedTeamArticle);
         }
 

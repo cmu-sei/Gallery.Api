@@ -452,6 +452,61 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Before", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
     }
 
+    /// <summary>An edit body's collection is ignored, so an editor cannot point the exhibit at another collection.</summary>
+    [Fact]
+    public async Task Update_ignores_the_collection_in_the_body()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var other = TestData.Collection("Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}",
+            new { name = "After", collectionId = other.Id }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("After", exhibit.CollectionId), (stored.Name, stored.CollectionId));
+    }
+
+    /// <summary>
+    /// Share email goes through the exhibit's Scenario with Gallery's service account, so an edit may name only a
+    /// Scenario the caller can read in Steamfitter with their own token.
+    /// </summary>
+    [Fact]
+    public async Task Update_answers_a_scenario_the_caller_cannot_read_with_not_found_and_keeps_the_scenario()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondWithStatus($"http://localhost:4400/api/scenarios/{scenarioId}", HttpStatusCode.Forbidden);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        Assert.Equal("Scenario not found", problem.Title);
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
+    [Fact]
+    public async Task Update_sets_a_scenario_the_caller_can_read_asking_steamfitter_with_the_caller_s_token()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var url = $"http://localhost:4400/api/scenarios/{scenarioId}";
+        Factory.OutboundHttp.RespondJson(url, new { id = scenarioId, name = "Readable" });
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        Assert.Equal(CallerToken, Assert.Single(Factory.OutboundHttp.Sent, x => x.Uri == url).Authorization);
+        await using var db = NewContext();
+        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).ScenarioId);
+    }
+
     // ---- Move and inject -----------------------------------------------------------------------
 
     /// <summary>Moving the exhibit delivers the team articles that are now due to the team's users.</summary>
@@ -903,6 +958,15 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     private async Task<CollectionEntity> Collection(ExhibitEntity exhibit) =>
         await Db.Collections.SingleAsync(x => x.Id == exhibit.CollectionId, Ct);
+
+    private const string CallerToken = "Bearer the-caller-s-token";
+
+    /// <summary>A request that carries a bearer token as well, which the API forwards to Steamfitter.</summary>
+    private static HttpRequestMessage WithToken(HttpMethod method, string route, object body) => new(method, route)
+    {
+        Content = JsonContent.Create(body),
+        Headers = { { "Authorization", CallerToken } }
+    };
 
     private static object Body(ExhibitEntity exhibit, string name) =>
         new { id = exhibit.Id, collectionId = exhibit.CollectionId, name, currentMove = exhibit.CurrentMove, currentInject = exhibit.CurrentInject };

@@ -271,17 +271,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleEdit"
               }
             }
           }
@@ -368,17 +368,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Article"
+                "$ref": "#/components/schemas/ArticleCreate"
               }
             }
           }
@@ -479,17 +479,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardCreate"
               }
             }
           }
@@ -804,17 +804,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Card"
+                "$ref": "#/components/schemas/CardEdit"
               }
             }
           }
@@ -1889,17 +1889,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitCreate"
               }
             }
           }
@@ -2255,17 +2255,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Exhibit"
+                "$ref": "#/components/schemas/ExhibitEdit"
               }
             }
           }
@@ -2734,17 +2734,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitMembership"
+                "$ref": "#/components/schemas/ExhibitMembershipEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitMembership"
+                "$ref": "#/components/schemas/ExhibitMembershipEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/ExhibitMembership"
+                "$ref": "#/components/schemas/ExhibitMembershipEdit"
               }
             }
           }
@@ -4884,7 +4884,7 @@
           }
         ],
         "requestBody": {
-          "description": "The updated TeamArticle values",
+          "description": "Ignored. A TeamArticle's Exhibit, Team and Article cannot change.",
           "content": {
             "application/json": {
               "schema": {
@@ -4934,7 +4934,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "delete": {
         "tags": [
@@ -4985,17 +4986,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamArticle"
+                "$ref": "#/components/schemas/TeamArticleCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamArticle"
+                "$ref": "#/components/schemas/TeamArticleCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamArticle"
+                "$ref": "#/components/schemas/TeamArticleCreate"
               }
             }
           }
@@ -5143,17 +5144,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardCreate"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardCreate"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardCreate"
               }
             }
           }
@@ -5405,17 +5406,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardEdit"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardEdit"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/TeamCard"
+                "$ref": "#/components/schemas/TeamCardEdit"
               }
             }
           }
@@ -7150,6 +7151,127 @@
         },
         "additionalProperties": false
       },
+      "ArticleCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardId": {
+            "type": "string",
+            "description": "A card of the Article's Collection, or null.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ItemStatus"
+          },
+          "sourceType": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "sourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "datePosted": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "openInNewTab": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "description": "The Id to create the Article with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "description": "Null for a template Article of the Collection.",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ArticleEdit": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardId": {
+            "type": "string",
+            "description": "A card of the Article's Collection, or null.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ItemStatus"
+          },
+          "sourceType": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "sourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "datePosted": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "openInNewTab": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "Assembly": {
         "type": "object",
         "properties": {
@@ -7304,6 +7426,59 @@
           "collectionId": {
             "type": "string",
             "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CardCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "id": {
+            "type": "string",
+            "description": "The Id to create the Card with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CardEdit": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -7796,6 +7971,77 @@
         },
         "additionalProperties": false
       },
+      "ExhibitCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentMove": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentInject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "showAdvanceButton": {
+            "type": "boolean"
+          },
+          "scenarioId": {
+            "type": "string",
+            "description": "The Steamfitter Scenario that sends share email. Setting or changing it on an edit needs the caller to\nbe able to read the Scenario in Steamfitter.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "description": "The Id to create the Exhibit with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExhibitEdit": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentMove": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentInject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "showAdvanceButton": {
+            "type": "boolean"
+          },
+          "scenarioId": {
+            "type": "string",
+            "description": "The Steamfitter Scenario that sends share email. Setting or changing it on an edit needs the caller to\nbe able to read the Scenario in Steamfitter.",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ExhibitMembership": {
         "type": "object",
         "properties": {
@@ -7823,6 +8069,17 @@
           }
         },
         "additionalProperties": false
+      },
+      "ExhibitMembershipEdit": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "The one field an Exhibit Membership's edit request carries. The Exhibit, User and Group are not among\nthem, so an edit cannot move a membership or hand it to someone else."
       },
       "ExhibitPermission": {
         "enum": [
@@ -9109,6 +9366,30 @@
         },
         "additionalProperties": false
       },
+      "TeamArticleCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The Id to create the TeamArticle with. A new one is made when it is empty.",
+            "format": "uuid"
+          },
+          "exhibitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "teamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "articleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A TeamArticle create request. It names the Exhibit, Team and Article by Id only."
+      },
       "TeamCard": {
         "type": "object",
         "properties": {
@@ -9155,6 +9436,67 @@
           "cardId": {
             "type": "string",
             "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeamCardCreate": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cardId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isShownOnWall": {
+            "type": "boolean"
+          },
+          "canPostArticles": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "description": "The Id to create the TeamCard with. A new one is made when it is empty.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TeamCardEdit": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cardId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "move": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inject": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isShownOnWall": {
+            "type": "boolean"
+          },
+          "canPostArticles": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

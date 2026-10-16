@@ -145,7 +145,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("articles")]
         [ProducesResponseType(typeof(Article), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createArticle")]
-        public async Task<IActionResult> Create([FromBody] Article article, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] ArticleCreate article, CancellationToken ct)
         {
             if (article.ExhibitId == null)
             {
@@ -156,7 +156,7 @@ namespace Gallery.Api.Controllers
             {
                 if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
-                    if (!await _articleService.CanUserPostArticlesAsync(article, ct))
+                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, article.CardId, ct))
                         throw new ForbiddenException();
                 }
             }
@@ -180,21 +180,25 @@ namespace Gallery.Api.Controllers
         [HttpPut("articles/{id}")]
         [ProducesResponseType(typeof(Article), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateArticle")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Article article, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] ArticleEdit article, CancellationToken ct)
         {
-            if (article.ExhibitId == null)
+            var storedArticle = await _articleService.GetAsync(id, ct);
+            if (storedArticle.ExhibitId == null)
             {
-                if (!await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
+                if (!await _authorizationService.AuthorizeAsync<Collection>(storedArticle.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                     throw new ForbiddenException();
             }
             else
             {
-                if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
+                if (!await _authorizationService.AuthorizeAsync<Exhibit>(storedArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
-                    if (!await _articleService.CanUserPostArticlesAsync(article, ct))
+                    // a participant must be able to post on the article's card and on the card it moves to
+                    if (!await _articleService.CanUserPostArticlesAsync(storedArticle.ExhibitId.Value, storedArticle.CardId, ct) ||
+                        !await _articleService.CanUserPostArticlesAsync(storedArticle.ExhibitId.Value, article.CardId, ct))
                         throw new ForbiddenException();
                 }
             }
+            await _articleService.RequireCardInCollectionAsync(article.CardId, storedArticle.CollectionId, ct);
 
             var updatedArticle = await _articleService.UpdateAsync(id, article, ct);
             return Ok(updatedArticle);
@@ -225,7 +229,7 @@ namespace Gallery.Api.Controllers
             {
                 if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
-                    if (!await _articleService.CanUserPostArticlesAsync(article, ct))
+                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, article.CardId, ct))
                         throw new ForbiddenException();
                 }
             }

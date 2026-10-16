@@ -175,7 +175,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("exhibits")]
         [ProducesResponseType(typeof(Exhibit), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createExhibit")]
-        public async Task<IActionResult> Create([FromBody] Exhibit exhibit, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] ExhibitCreate exhibit, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync([SystemPermission.CreateExhibits], ct))
                 throw new ForbiddenException();
@@ -222,12 +222,11 @@ namespace Gallery.Api.Controllers
         [HttpPut("exhibits/{id}")]
         [ProducesResponseType(typeof(Exhibit), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateExhibit")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Exhibit exhibit, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] ExhibitEdit exhibit, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(id, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
 
-            exhibit.ModifiedBy = User.GetId();
             var updatedExhibit = await _exhibitService.UpdateAsync(id, exhibit, ct);
             return Ok(updatedExhibit);
         }

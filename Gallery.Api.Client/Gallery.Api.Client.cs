@@ -474,7 +474,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Article values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Article> UpdateArticleAsync(System.Guid id, Article body)
+        public virtual System.Threading.Tasks.Task<Article> UpdateArticleAsync(System.Guid id, ArticleEdit body)
         {
             return UpdateArticleAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -493,7 +493,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Article values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Article> UpdateArticleAsync(System.Guid id, Article body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Article> UpdateArticleAsync(System.Guid id, ArticleEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -682,7 +682,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Article</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Article> CreateArticleAsync(Article body)
+        public virtual System.Threading.Tasks.Task<Article> CreateArticleAsync(ArticleCreate body)
         {
             return CreateArticleAsync(body, System.Threading.CancellationToken.None);
         }
@@ -699,7 +699,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Article</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Article> CreateArticleAsync(Article body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Article> CreateArticleAsync(ArticleCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -880,7 +880,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Card</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Card> CreateCardAsync(Card body)
+        public virtual System.Threading.Tasks.Task<Card> CreateCardAsync(CardCreate body)
         {
             return CreateCardAsync(body, System.Threading.CancellationToken.None);
         }
@@ -897,7 +897,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Card</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Card> CreateCardAsync(Card body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Card> CreateCardAsync(CardCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -1396,7 +1396,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Card values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Card> UpdateCardAsync(System.Guid id, Card body)
+        public virtual System.Threading.Tasks.Task<Card> UpdateCardAsync(System.Guid id, CardEdit body)
         {
             return UpdateCardAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -1415,7 +1415,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Card values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Card> UpdateCardAsync(System.Guid id, Card body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Card> UpdateCardAsync(System.Guid id, CardEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -3348,7 +3348,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Exhibit</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Exhibit> CreateExhibitAsync(Exhibit body)
+        public virtual System.Threading.Tasks.Task<Exhibit> CreateExhibitAsync(ExhibitCreate body)
         {
             return CreateExhibitAsync(body, System.Threading.CancellationToken.None);
         }
@@ -3365,7 +3365,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data used to create the Exhibit</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Exhibit> CreateExhibitAsync(Exhibit body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Exhibit> CreateExhibitAsync(ExhibitCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -3949,7 +3949,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Exhibit values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<Exhibit> UpdateExhibitAsync(System.Guid id, Exhibit body)
+        public virtual System.Threading.Tasks.Task<Exhibit> UpdateExhibitAsync(System.Guid id, ExhibitEdit body)
         {
             return UpdateExhibitAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -3968,7 +3968,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated Exhibit values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Exhibit> UpdateExhibitAsync(System.Guid id, Exhibit body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<Exhibit> UpdateExhibitAsync(System.Guid id, ExhibitEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -4785,7 +4785,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated ExhibitMembership values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<ExhibitMembership> UpdateExhibitMembershipAsync(System.Guid id, ExhibitMembership body)
+        public virtual System.Threading.Tasks.Task<ExhibitMembership> UpdateExhibitMembershipAsync(System.Guid id, ExhibitMembershipEdit body)
         {
             return UpdateExhibitMembershipAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -4801,7 +4801,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated ExhibitMembership values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<ExhibitMembership> UpdateExhibitMembershipAsync(System.Guid id, ExhibitMembership body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<ExhibitMembership> UpdateExhibitMembershipAsync(System.Guid id, ExhibitMembershipEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -8615,9 +8615,10 @@ namespace Gallery.Api.Client
         /// <br/>Accessible only to a ContentDeveloper or an Administrator
         /// </remarks>
         /// <param name="id">The Id of the TeamArticle to update</param>
-        /// <param name="body">The updated TeamArticle values</param>
+        /// <param name="body">Ignored. A TeamArticle's Exhibit, Team and Article cannot change.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
+        [System.Obsolete]
         public virtual System.Threading.Tasks.Task<TeamArticle> UpdateTeamArticleAsync(System.Guid id, TeamArticle body)
         {
             return UpdateTeamArticleAsync(id, body, System.Threading.CancellationToken.None);
@@ -8634,9 +8635,10 @@ namespace Gallery.Api.Client
         /// <br/>Accessible only to a ContentDeveloper or an Administrator
         /// </remarks>
         /// <param name="id">The Id of the TeamArticle to update</param>
-        /// <param name="body">The updated TeamArticle values</param>
+        /// <param name="body">Ignored. A TeamArticle's Exhibit, Team and Article cannot change.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
+        [System.Obsolete]
         public virtual async System.Threading.Tasks.Task<TeamArticle> UpdateTeamArticleAsync(System.Guid id, TeamArticle body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
@@ -8824,7 +8826,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamArticle with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<TeamArticle> CreateTeamArticleAsync(TeamArticle body)
+        public virtual System.Threading.Tasks.Task<TeamArticle> CreateTeamArticleAsync(TeamArticleCreate body)
         {
             return CreateTeamArticleAsync(body, System.Threading.CancellationToken.None);
         }
@@ -8839,7 +8841,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamArticle with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<TeamArticle> CreateTeamArticleAsync(TeamArticle body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<TeamArticle> CreateTeamArticleAsync(TeamArticleCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -9121,7 +9123,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamCard with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<TeamCard> CreateTeamCardAsync(TeamCard body)
+        public virtual System.Threading.Tasks.Task<TeamCard> CreateTeamCardAsync(TeamCardCreate body)
         {
             return CreateTeamCardAsync(body, System.Threading.CancellationToken.None);
         }
@@ -9138,7 +9140,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The data to create the TeamCard with</param>
         /// <returns>Created</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<TeamCard> CreateTeamCardAsync(TeamCard body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<TeamCard> CreateTeamCardAsync(TeamCardCreate body, System.Threading.CancellationToken cancellationToken)
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -9536,7 +9538,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated TeamCard values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<TeamCard> UpdateTeamCardAsync(System.Guid id, TeamCard body)
+        public virtual System.Threading.Tasks.Task<TeamCard> UpdateTeamCardAsync(System.Guid id, TeamCardEdit body)
         {
             return UpdateTeamCardAsync(id, body, System.Threading.CancellationToken.None);
         }
@@ -9555,7 +9557,7 @@ namespace Gallery.Api.Client
         /// <param name="body">The updated TeamCard values</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<TeamCard> UpdateTeamCardAsync(System.Guid id, TeamCard body, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<TeamCard> UpdateTeamCardAsync(System.Guid id, TeamCardEdit body, System.Threading.CancellationToken cancellationToken)
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");

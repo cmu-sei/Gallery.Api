@@ -200,8 +200,9 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.False(await db.TeamArticles.AnyAsync(x => x.ArticleId == article.Id, Ct));
     }
 
+    /// <summary>The obsolete edit changes nothing but ModifiedBy: the body's team is ignored.</summary>
     [Fact]
-    public async Task Update_persists_the_change_for_a_member_holding_ManageExhibit()
+    public async Task Update_sets_only_ModifiedBy_for_a_member_holding_ManageExhibit()
     {
         var (exhibit, team, teamArticle) = await SeedTeamArticle();
         var other = TestData.Team(exhibit.Id, "Other Team");
@@ -212,13 +213,15 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
             new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = other.Id, articleId = teamArticle.ArticleId }, Ct));
 
         await using var db = NewContext();
-        Assert.Equal(other.Id, (await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct)).TeamId);
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((team.Id, (Guid?)actor.Id), (stored.TeamId, stored.ModifiedBy));
     }
 
+    /// <summary>The obsolete edit changes nothing but ModifiedBy: the body's team is ignored.</summary>
     [Fact]
-    public async Task Update_persists_the_change_for_a_caller_holding_ManageExhibits()
+    public async Task Update_sets_only_ModifiedBy_for_a_caller_holding_ManageExhibits()
     {
-        var (exhibit, _, teamArticle) = await SeedTeamArticle();
+        var (exhibit, team, teamArticle) = await SeedTeamArticle();
         var other = TestData.Team(exhibit.Id, "Other Team");
         await Seed(other);
         var actor = await Actor().WithSystemPermissions(SystemPermission.ManageExhibits).SeedAsync();
@@ -227,22 +230,23 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
             new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = other.Id, articleId = teamArticle.ArticleId }, Ct));
 
         await using var db = NewContext();
-        Assert.Equal(other.Id, (await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct)).TeamId);
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((team.Id, (Guid?)actor.Id), (stored.TeamId, stored.ModifiedBy));
     }
 
-    /// <summary>The gate reads the exhibit the body names, so the team article moves into the caller's exhibit.</summary>
+    /// <summary>The gate reads the stored TeamArticle's exhibit, so a manager of the exhibit the body names is refused.</summary>
     [Fact]
-    public async Task Update_moves_another_exhibit_s_team_article_when_the_body_names_an_exhibit_the_caller_manages()
+    public async Task Update_is_forbidden_for_a_manager_of_the_exhibit_the_body_names_and_leaves_the_team_article()
     {
         var (exhibit, team, teamArticle) = await SeedTeamArticle();
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ManageExhibit).SeedAsync();
         var mine = Assert.Single(actor.NewExhibitIds);
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
             new { id = teamArticle.Id, exhibitId = mine, teamId = team.Id, articleId = teamArticle.ArticleId }, Ct));
 
         await using var db = NewContext();
-        Assert.Equal(mine, (await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct)).ExhibitId);
+        Assert.Equal(exhibit.Id, (await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct)).ExhibitId);
     }
 
     [Fact]

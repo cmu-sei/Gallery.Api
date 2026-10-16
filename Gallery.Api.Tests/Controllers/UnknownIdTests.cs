@@ -24,12 +24,10 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
 
     public static TheoryData<string, string, string, string> ServerErrorRoutes => new()
     {
-        { "DELETE", $"api/articles/{Unknown}", null, NullReference },
         { "GET", $"api/teamusers/{Unknown}", null, NullReference },
         { "PUT", $"api/teamusers/{Unknown}/observer/set", null, NullReference },
         { "PUT", $"api/teamusers/{Unknown}/observer/clear", null, NullReference },
         { "DELETE", $"api/teamusers/{Unknown}", null, NullReference },
-        { "DELETE", $"api/teamcards/{Unknown}", null, NullReference },
         { "DELETE", $"api/exhibitteams/{Unknown}", null, NullReference },
         { "PUT", $"api/userarticles/{Unknown}/isread", "true", NoElements },
         { "PUT", $"api/userarticles/{Unknown}/share", "{}", NoElements },
@@ -38,6 +36,8 @@ public class UnknownIdTests(DatabaseFixture fixture, GalleryAppFactory factory) 
 
     public static TheoryData<string, string, string> NotFoundRoutes => new()
     {
+        { "DELETE", $"api/teamcards/{Unknown}", null },
+        { "DELETE", $"api/articles/{Unknown}", null },
         { "DELETE", $"api/teams/{Unknown}", null },
         { "POST", "api/teamusers", $$"""{ "teamId": "{{Unknown}}", "userId": "{{Unknown}}" }""" },
         { "DELETE", $"api/teams/{Unknown}/users/{Unknown}", null },

@@ -133,7 +133,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("teamcards")]
         [ProducesResponseType(typeof(TeamCard), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeamCard")]
-        public async Task<IActionResult> Create([FromBody] TeamCard teamCard, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamCardCreate teamCard, CancellationToken ct)
         {
             var team = await _teamService.GetAsync(teamCard.TeamId, ct);
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
@@ -158,9 +158,10 @@ namespace Gallery.Api.Controllers
         [HttpPut("teamCards/{id}")]
         [ProducesResponseType(typeof(TeamCard), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateTeamCard")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamCard teamCard, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] TeamCardEdit teamCard, CancellationToken ct)
         {
-            var team = await _teamService.GetAsync(teamCard.TeamId, ct);
+            var storedTeamCard = await _teamCardService.GetAsync(id, ct);
+            var team = await _teamService.GetAsync(storedTeamCard.TeamId, ct);
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
                 throw new ForbiddenException();
 

@@ -32,11 +32,11 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct);
         Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct);
-        Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct);
+        Task<ViewModels.Exhibit> CreateAsync(ViewModels.ExhibitCreate exhibit, CancellationToken ct);
         Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct);
         Task<Tuple<MemoryStream, string>> DownloadJsonAsync(Guid exhibitId, CancellationToken ct);
         Task<Exhibit> UploadJsonAsync(FileForm form, CancellationToken ct);
-        Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.Exhibit exhibit, CancellationToken ct);
+        Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.ExhibitEdit exhibit, CancellationToken ct);
         Task<ViewModels.Exhibit> SetMoveAndInjectAsync(Guid id, int move, int inject, CancellationToken ct);
         Task<ViewModels.Exhibit> AdvanceAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
@@ -50,6 +50,7 @@ namespace Gallery.Api.Services
         private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
         private readonly IUserClaimsService _userClaimsService;
+        private readonly ISteamfitterService _steamfitterService;
 
         public ExhibitService(
             GalleryDbContext context,
@@ -57,8 +58,10 @@ namespace Gallery.Api.Services
             IPrincipal user,
             IMapper mapper,
             IUserArticleService userArticleService,
-            IUserClaimsService userClaimsService)
+            IUserClaimsService userClaimsService,
+            ISteamfitterService steamfitterService)
         {
+            _steamfitterService = steamfitterService;
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
@@ -154,7 +157,7 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
         }
 
-        public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.Exhibit exhibit, CancellationToken ct)
+        public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.ExhibitCreate exhibit, CancellationToken ct)
         {
             // Validate required fields
             if (exhibit.CollectionId == Guid.Empty)
@@ -168,10 +171,6 @@ namespace Gallery.Api.Services
             var userId = _user.GetId();
             exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
             exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
-            exhibit.DateCreated = DateTime.UtcNow;
-            exhibit.CreatedBy = userId;
-            exhibit.DateModified = null;
-            exhibit.ModifiedBy = null;
             var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
 
@@ -187,9 +186,7 @@ namespace Gallery.Api.Services
             await _context.SaveChangesAsync(ct);
             await _userClaimsService.RefreshClaims(userId);
 
-            exhibit = await GetAsync(exhibitEntity.Id, false, ct);
-
-            return exhibit;
+            return await GetAsync(exhibitEntity.Id, false, ct);
         }
 
         public async Task<ViewModels.Exhibit> CopyAsync(Guid exhibitId, CancellationToken ct)
@@ -459,20 +456,23 @@ namespace Gallery.Api.Services
             return _mapper.Map<Exhibit>(exhibitEntity);
         }
 
-        public async Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.Exhibit exhibit, CancellationToken ct)
+        public async Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.ExhibitEdit exhibit, CancellationToken ct)
         {
             var exhibitToUpdate = await _context.Exhibits.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (exhibitToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
+
+            // share email goes through this Scenario with Gallery's service account
+            if (exhibit.ScenarioId.HasValue && exhibit.ScenarioId != exhibitToUpdate.ScenarioId &&
+                !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
+                throw new EntityNotFoundException<Exhibit>("Scenario not found");
 
             _mapper.Map(exhibit, exhibitToUpdate);
             _context.Exhibits.Update(exhibitToUpdate);
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);
 
-            exhibit = await GetAsync(exhibitToUpdate.Id, false, ct);
-
-            return exhibit;
+            return await GetAsync(exhibitToUpdate.Id, false, ct);
         }
 
         public async Task<ViewModels.Exhibit> SetMoveAndInjectAsync(Guid id, int move, int inject, CancellationToken ct)

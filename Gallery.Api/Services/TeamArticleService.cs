@@ -24,8 +24,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.TeamArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamArticle>> GetByTeamAsync(Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamArticle> GetAsync(Guid id, CancellationToken ct);
-        Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticle teamArticle, CancellationToken ct);
-        Task<ViewModels.TeamArticle> UpdateAsync(Guid id, ViewModels.TeamArticle teamArticle, CancellationToken ct);
+        Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticleCreate teamArticle, CancellationToken ct);
+        Task<ViewModels.TeamArticle> TouchAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
     }
@@ -86,7 +86,7 @@ namespace Gallery.Api.Services
             return _mapper.Map<TeamArticle>(item);
         }
 
-        public async Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticle teamArticle, CancellationToken ct)
+        public async Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticleCreate teamArticle, CancellationToken ct)
         {
             var teamArticleEntity = _mapper.Map<TeamArticleEntity>(teamArticle);
             teamArticleEntity.Id = teamArticleEntity.Id != Guid.Empty ? teamArticleEntity.Id : Guid.NewGuid();
@@ -99,20 +99,20 @@ namespace Gallery.Api.Services
             return await GetAsync(teamArticleEntity.Id, ct);
         }
 
-        public async Task<ViewModels.TeamArticle> UpdateAsync(Guid id, ViewModels.TeamArticle teamArticle, CancellationToken ct)
+        /// <summary>
+        /// Marks a TeamArticle as modified by the caller and changes nothing else. A TeamArticle's Exhibit, Team and
+        /// Article are fixed: its UserArticles were made from them, so delete it and create another instead.
+        /// </summary>
+        public async Task<ViewModels.TeamArticle> TouchAsync(Guid id, CancellationToken ct)
         {
             var teamArticleToUpdate = await _context.TeamArticles.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (teamArticleToUpdate == null)
                 throw new EntityNotFoundException<TeamArticle>();
 
-            _mapper.Map(teamArticle, teamArticleToUpdate);
-
-            _context.TeamArticles.Update(teamArticleToUpdate);
+            _context.Entry(teamArticleToUpdate).State = EntityState.Modified;
             await _context.SaveChangesAsync(ct);
 
-            teamArticle = await GetAsync(teamArticleToUpdate.Id, ct);
-
-            return teamArticle;
+            return await GetAsync(teamArticleToUpdate.Id, ct);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

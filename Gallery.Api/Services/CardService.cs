@@ -29,8 +29,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
-        Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct);
-        Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct);
+        Task<ViewModels.Card> CreateAsync(ViewModels.CardCreate card, CancellationToken ct);
+        Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.CardEdit card, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
     }
 
@@ -63,6 +63,8 @@ namespace Gallery.Api.Services
         public async Task<ViewModels.Card> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Cards.SingleOrDefaultAsync(sm => sm.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<Card>();
 
             return _mapper.Map<Card>(item);
         }
@@ -110,19 +112,18 @@ namespace Gallery.Api.Services
             return cards;
         }
 
-        public async Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct)
+        public async Task<ViewModels.Card> CreateAsync(ViewModels.CardCreate card, CancellationToken ct)
         {
             var cardEntity = _mapper.Map<CardEntity>(card);
             cardEntity.Id = cardEntity.Id != Guid.Empty ? cardEntity.Id : Guid.NewGuid();
 
             _context.Cards.Add(cardEntity);
             await _context.SaveChangesAsync(ct);
-            card = await GetAsync(cardEntity.Id, ct);
 
-            return card;
+            return await GetAsync(cardEntity.Id, ct);
         }
 
-        public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct)
+        public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.CardEdit card, CancellationToken ct)
         {
             var cardToUpdate = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (cardToUpdate == null)
@@ -133,9 +134,7 @@ namespace Gallery.Api.Services
             _context.Cards.Update(cardToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            card = await GetAsync(cardToUpdate.Id, ct);
-
-            return card;
+            return await GetAsync(cardToUpdate.Id, ct);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

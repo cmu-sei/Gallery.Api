@@ -12,7 +12,8 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<ExhibitEntity, Exhibit>();
 
-            CreateMap<Exhibit, ExhibitEntity>();
+            CreateMap<ExhibitCreate, ExhibitEntity>(AutoMapper.MemberList.Source);
+            CreateMap<ExhibitEdit, ExhibitEntity>(AutoMapper.MemberList.Source);
 
             CreateMap<ExhibitEntity, ExhibitEntity>()
                 .ForMember(e => e.Id, opt => opt.Ignore());

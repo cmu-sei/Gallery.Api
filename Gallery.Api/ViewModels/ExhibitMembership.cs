@@ -17,4 +17,13 @@ namespace Gallery.Api.ViewModels
 
         public Guid RoleId { get; set; }
     }
+
+    /// <summary>
+    /// The one field an Exhibit Membership's edit request carries. The Exhibit, User and Group are not among
+    /// them, so an edit cannot move a membership or hand it to someone else.
+    /// </summary>
+    public class ExhibitMembershipEdit
+    {
+        public Guid RoleId { get; set; }
+    }
 }
