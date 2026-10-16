@@ -216,9 +216,10 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(m => m.CollectionId == exhibitEntity.CollectionId)
                 .ToListAsync(ct);
+            // the templates and this exhibit's own articles, never a sibling exhibit's
             var articles = await _context.Articles
                 .AsNoTracking()
-                .Where(m => m.CollectionId == exhibitEntity.CollectionId)
+                .Where(ArticleScope.InExhibit(exhibitEntity))
                 .ToListAsync(ct);
             var teams = await _context.Teams
                 .AsNoTracking()
@@ -230,7 +231,7 @@ namespace Gallery.Api.Services
                 .ToListAsync(ct);
             var teamArticles = await _context.TeamArticles
                 .AsNoTracking()
-                .Where(m => m.Article.CollectionId == exhibitEntity.CollectionId && m.Team.ExhibitId == exhibitEntity.Id)
+                .Where(m => m.ExhibitId == exhibitEntity.Id && m.Article.CollectionId == exhibitEntity.CollectionId && m.Team.ExhibitId == exhibitEntity.Id)
                 .ToListAsync(ct);
             var exhibitFileObject = new ExhibitFileFormat()
             {

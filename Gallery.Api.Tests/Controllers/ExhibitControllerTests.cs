@@ -836,6 +836,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(actor.Id, (await db.Exhibits.SingleAsync(x => x.Id == uploaded.Id, Ct)).CreatedBy);
     }
 
+    /// <summary>
+    /// An exhibit file holds the templates and the exhibit's own articles. A sibling exhibit on the same collection
+    /// keeps its articles private from the exhibit's managers.
+    /// </summary>
+    [Fact]
+    public async Task DownloadJson_holds_the_templates_and_own_articles_but_not_a_sibling_exhibit_s()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        await Seed(sibling,
+            TestData.Article(exhibit.CollectionId, name: "Template"),
+            TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own"),
+            TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's"));
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        var response = await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var file = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var names = file.RootElement.GetProperty("Articles").GetProperty("$values").EnumerateArray()
+            .Select(a => a.GetProperty("Name").GetString()).Order();
+        Assert.Equal(["Own", "Template"], names);
+    }
+
     /// <summary>The exhibit file keeps an article's status as its stored number, not the color name the API answers with.</summary>
     [Fact]
     public async Task DownloadJson_writes_an_article_s_status_as_its_number()

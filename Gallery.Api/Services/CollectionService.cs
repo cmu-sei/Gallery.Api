@@ -195,10 +195,10 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(c => c.CollectionId == collectionId)
                 .ToListAsync(ct);
-            //get the articles
+            // get the template articles; an exhibit's own articles are not part of the collection file
             var articles = await _context.Articles
                 .AsNoTracking()
-                .Where(c => c.CollectionId == collectionId)
+                .Where(c => c.CollectionId == collectionId && c.ExhibitId == null)
                 .ToListAsync(ct);
             // create the whole object
             var collectionFileObject = new CollectionFileFormat(){

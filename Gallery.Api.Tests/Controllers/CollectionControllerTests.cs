@@ -442,6 +442,24 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal("Round Trip Card", (await db.Cards.SingleAsync(x => x.CollectionId == uploaded.Id, Ct)).Name);
     }
 
+    /// <summary>A collection file holds the templates only: an exhibit's own articles stay private to that exhibit.</summary>
+    [Fact]
+    public async Task DownloadJson_holds_the_templates_but_no_exhibit_s_articles()
+    {
+        var collection = await SeedCollection("Downloaded");
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit,
+            TestData.Article(collection.Id, name: "Template"),
+            TestData.Article(collection.Id, exhibitId: exhibit.Id, name: "Posted During Play"));
+
+        var response = await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var body = await response.Content.ReadAsStringAsync(Ct);
+        Assert.Contains("Template", body);
+        Assert.DoesNotContain("Posted During Play", body);
+    }
+
     /// <summary>
     /// A collection file keeps its templates only. An article that names an exhibit is left out, so a file cannot push
     /// content into that exhibit, and a card it names gets a new id in the new collection.

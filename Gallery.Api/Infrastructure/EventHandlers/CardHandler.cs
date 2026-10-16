@@ -38,7 +38,13 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             _mainHub = mainHub;
         }
 
-        protected async Task<string[]> GetGroups(CardEntity cardEntity, CancellationToken cancellationToken)
+        /// <summary>
+        /// The groups a card event goes to. A card's content goes only to the participants of a team the card is
+        /// assigned to, and to the observers of that team's exhibit, who can see every team.
+        /// <paramref name="toEveryParticipant"/> is for a deletion, which carries only the card's id: its TeamCards
+        /// are gone by then, so it goes to every participant of an exhibit on the collection.
+        /// </summary>
+        protected async Task<string[]> GetGroups(CardEntity cardEntity, CancellationToken cancellationToken, bool toEveryParticipant = false)
         {
             var groupIds = new List<string>();
             groupIds.Add(cardEntity.Id.ToString());
@@ -46,16 +52,32 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             var exhibitIdList = (IQueryable<Guid>)_db.Exhibits
                 .Where(e => e.CollectionId == cardEntity.CollectionId)
                 .Select(e => e.Id);
-            var teamIdList = _db.Teams
-                .Where(t => t.ExhibitId != null && exhibitIdList.Contains((Guid)t.ExhibitId))
-                .Select(t => t.Id);
+            IQueryable<TeamUserEntity> recipients;
+            if (toEveryParticipant)
+            {
+                var teamIdList = _db.Teams
+                    .Where(t => t.ExhibitId != null && exhibitIdList.Contains((Guid)t.ExhibitId))
+                    .Select(t => t.Id);
+                recipients = _db.TeamUsers.Where(tu => teamIdList.Contains(tu.TeamId));
+            }
+            else
+            {
+                var assignedTeamIdList = _db.TeamCards
+                    .Where(tc => tc.CardId == cardEntity.Id)
+                    .Select(tc => tc.TeamId);
+                var assignedExhibitIdList = _db.TeamCards
+                    .Where(tc => tc.CardId == cardEntity.Id)
+                    .Select(tc => tc.Team.ExhibitId);
+                recipients = _db.TeamUsers.Where(tu =>
+                    assignedTeamIdList.Contains(tu.TeamId) ||
+                    (tu.IsObserver && assignedExhibitIdList.Contains(tu.Team.ExhibitId)));
+            }
             // A user belongs to one team per exhibit, so a user on teams in several
             // exhibits of this collection appears once per exhibit. Without Distinct
             // the same user group is sent the same card event several times, and each
             // copy re-upserts the card and makes every Wall/Archive subscriber
             // recompute. Every recipient still receives the event, exactly once.
-            var userIdList = await _db.TeamUsers
-                .Where(tu => teamIdList.Contains(tu.TeamId))
+            var userIdList = await recipients
                 .Select(tu => tu.UserId)
                 .Distinct()
                 .ToListAsync();
@@ -135,7 +157,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
         public async Task Handle(EntityDeleted<CardEntity> notification, CancellationToken cancellationToken)
         {
-            var groupIds = await base.GetGroups(notification.Entity, cancellationToken);
+            var groupIds = await base.GetGroups(notification.Entity, cancellationToken, toEveryParticipant: true);
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
