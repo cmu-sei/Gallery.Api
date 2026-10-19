@@ -87,7 +87,7 @@ namespace Gallery.Api.Services
             userEntity.Id = userEntity.Id != Guid.Empty ? userEntity.Id : Guid.NewGuid();
             _context.Users.Add(userEntity);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"User {user.Name} ({userEntity.Id}) created by {_user.GetId()}");
+            _logger.LogWarning($"User {user.Name.SanitizeForLog()} ({userEntity.Id}) created by {_user.GetId()}");
             return await GetAsync(user.Id, ct);
         }
 
@@ -104,7 +104,7 @@ namespace Gallery.Api.Services
             _mapper.Map(user, userToUpdate);
             _context.Users.Update(userToUpdate);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"User {userToUpdate.Name} ({userToUpdate.Id}) updated by {_user.GetId()}");
+            _logger.LogWarning($"User {userToUpdate.Name.SanitizeForLog()} ({userToUpdate.Id}) updated by {_user.GetId()}");
             return await GetAsync(id, ct);
         }
 

@@ -48,4 +48,15 @@ public class ExtensionTests
     {
         Assert.Equal(expected, input.TitleCaseToCamelCase());
     }
+
+    /// <summary>A value logged from user input loses its line breaks, so it cannot forge an extra log line.</summary>
+    [Theory]
+    [InlineData("Blue Team", "Blue Team")]
+    [InlineData("Blue\r\nTeam created by admin", "BlueTeam created by admin")]
+    [InlineData("a\nb\rc", "abc")]
+    [InlineData(null, "")]
+    public void SanitizeForLog_removes_line_breaks(string input, string expected)
+    {
+        Assert.Equal(expected, input.SanitizeForLog());
+    }
 }

@@ -21,5 +21,11 @@ namespace Gallery.Api.Infrastructure.Extensions
 
             return camelCaseStr;
         }
+
+        /// <summary>
+        /// Removes line breaks, so a user-supplied value cannot forge extra log lines. Null gives an empty string.
+        /// </summary>
+        public static string SanitizeForLog(this string str) =>
+            (str ?? string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
     }
 }

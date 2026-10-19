@@ -139,8 +139,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Add(teamEntity);
             await _context.SaveChangesAsync(ct);
-            var safeTeamName = SanitizeForLog(team.Name);
-            _logger.LogWarning($"Team {safeTeamName} ({teamEntity.Id}) in Exhibit {team.ExhibitId} created by {_user.GetId()}");
+            _logger.LogWarning($"Team {team.Name.SanitizeForLog()} ({teamEntity.Id}) in Exhibit {team.ExhibitId} created by {_user.GetId()}");
             return await GetAsync(teamEntity.Id, ct);
         }
 
@@ -160,7 +159,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Update(teamToUpdate);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"Team {teamToUpdate.Name} ({teamToUpdate.Id}) in Exhibit {team.ExhibitId} updated by {_user.GetId()}");
+            _logger.LogWarning($"Team {teamToUpdate.Name.SanitizeForLog()} ({teamToUpdate.Id}) in Exhibit {team.ExhibitId} updated by {_user.GetId()}");
             return await GetAsync(id, ct);
         }
 
@@ -172,13 +171,8 @@ namespace Gallery.Api.Services
 
             _context.Teams.Remove(teamToDelete);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"Team {teamToDelete.Name} ({teamToDelete.Id}) in Evaluation {teamToDelete.ExhibitId} deleted by {_user.GetId()}");
+            _logger.LogWarning($"Team {teamToDelete.Name.SanitizeForLog()} ({teamToDelete.Id}) in Evaluation {teamToDelete.ExhibitId} deleted by {_user.GetId()}");
             return true;
-        }
-
-        private static string SanitizeForLog(string value)
-        {
-            return (value ?? string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
         }
 
     }
