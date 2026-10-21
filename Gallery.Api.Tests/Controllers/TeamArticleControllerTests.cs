@@ -246,6 +246,44 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
     }
 
     [Fact]
+    public async Task Update_links_a_team_article_to_an_article_in_a_collection_the_caller_cannot_view()
+    {
+        var (exhibit, team, teamArticle) = await SeedTeamArticle();
+        var other = TestData.Collection("Other");
+        var article = TestData.Article(other.Id);
+        await Seed(other, article);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
+            new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = team.Id, articleId = article.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(article.Id, (await ReadAsync<TeamArticle>(response)).ArticleId);
+        await using var db = NewContext();
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((exhibit.Id, team.Id, article.Id), (stored.ExhibitId, stored.TeamId, stored.ArticleId));
+    }
+
+    [Fact]
+    public async Task Update_moves_a_team_article_to_a_team_in_an_exhibit_the_caller_cannot_manage()
+    {
+        var (exhibit, _, teamArticle) = await SeedTeamArticle();
+        var other = TestData.Exhibit(exhibit.CollectionId, "Other");
+        var team = TestData.Team(other.Id);
+        await Seed(other, team);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
+            new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = team.Id, articleId = teamArticle.ArticleId }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(team.Id, (await ReadAsync<TeamArticle>(response)).TeamId);
+        await using var db = NewContext();
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((exhibit.Id, team.Id, teamArticle.ArticleId), (stored.ExhibitId, stored.TeamId, stored.ArticleId));
+    }
+
+    [Fact]
     public async Task Update_is_forbidden_for_a_caller_holding_only_ViewExhibits()
     {
         var (exhibit, team, teamArticle) = await SeedTeamArticle();

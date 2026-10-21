@@ -4,12 +4,14 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Gallery.Api.Data.Enumerations;
+using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Options;
 using Gallery.Api.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 
 namespace Gallery.Api.Tests.Infrastructure.Extensions;
 
@@ -56,6 +58,56 @@ public class DatabaseExtensionsTests(DatabaseFixture fixture) : DatabaseTestBase
 
         Assert.Equal(message, thrown.Message);
         Assert.False(await ReadBack(db => db.Collections.AnyAsync(Ct)));
+    }
+
+    [Fact]
+    public async Task InitializeDatabase_throws_on_a_second_team_card_key_and_keeps_the_original()
+    {
+        var (_, team, card, _) = await SeedContent();
+        var existing = TestData.TeamCard(team.Id, card.Id);
+        await Seed(existing);
+        var duplicate = TestData.TeamCard(team.Id, card.Id);
+        using var seed = new SeedDirectory(JsonSerializer.Serialize(new { TeamCards = new[] { duplicate } }));
+        using var host = HostOver(seed.Path);
+
+        var thrown = Assert.Throws<DbUpdateException>(() => host.InitializeDatabase());
+
+        var postgres = Assert.IsType<PostgresException>(thrown.InnerException);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
+        Assert.Contains("duplicate key value violates unique constraint", postgres.MessageText);
+        var stored = await ReadBack(db => db.TeamCards.Where(x => x.TeamId == team.Id && x.CardId == card.Id).ToListAsync(Ct));
+        Assert.Equal(existing.Id, Assert.Single(stored).Id);
+    }
+
+    [Fact]
+    public async Task InitializeDatabase_throws_on_a_second_team_article_key_and_keeps_the_original()
+    {
+        var (exhibit, team, _, article) = await SeedContent();
+        var existing = TestData.TeamArticle(exhibit.Id, team.Id, article.Id);
+        await Seed(existing);
+        var duplicate = TestData.TeamArticle(exhibit.Id, team.Id, article.Id);
+        using var seed = new SeedDirectory(JsonSerializer.Serialize(new { TeamArticles = new[] { duplicate } }));
+        using var host = HostOver(seed.Path);
+
+        var thrown = Assert.Throws<DbUpdateException>(() => host.InitializeDatabase());
+
+        var postgres = Assert.IsType<PostgresException>(thrown.InnerException);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
+        Assert.Contains("duplicate key value violates unique constraint", postgres.MessageText);
+        var stored = await ReadBack(db => db.TeamArticles.Where(x => x.ExhibitId == exhibit.Id && x.TeamId == team.Id && x.ArticleId == article.Id).ToListAsync(Ct));
+        Assert.Equal(existing.Id, Assert.Single(stored).Id);
+    }
+
+    private async Task<(ExhibitEntity Exhibit, TeamEntity Team, CardEntity Card, ArticleEntity Article)> SeedContent()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var team = TestData.Team(exhibit.Id);
+        var card = TestData.Card(collection.Id);
+        var article = TestData.Article(collection.Id, card.Id);
+        await Seed(collection, exhibit, team, card, article);
+
+        return (exhibit, team, card, article);
     }
 
     /// <summary>A host with the services <c>InitializeDatabase</c> resolves: the database options, a context over this test's database, logging, and the environment whose content root holds the seed file.</summary>

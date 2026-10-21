@@ -518,6 +518,100 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     [Fact]
+    public async Task Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits()
+    {
+        var (collection, card, _, _, article) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
+        var mine = Assert.Single(actor.NewExhibitIds);
+
+        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(mine, (await ReadAsync<Article>(response)).ExhibitId);
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Taken", collection.Id, card.Id, mine),
+            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    [Fact]
+    public async Task Update_turns_a_collection_article_into_a_post_when_the_body_names_an_exhibit_the_caller_edits()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
+        var mine = Assert.Single(actor.NewExhibitIds);
+
+        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(mine, (await ReadAsync<Article>(response)).ExhibitId);
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Taken", collection.Id, card.Id, mine),
+            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    [Fact]
+    public async Task Update_moves_another_exhibit_s_posted_article_when_a_participant_names_their_own_exhibit_and_card()
+    {
+        var (collection, _, _, _, article) = await SeedPostedArticle(canPost: false);
+        var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
+
+        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var returned = await ReadAsync<Article>(response);
+        Assert.Equal((exhibit.Id, card.Id), (returned.ExhibitId.Value, returned.CardId.Value));
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Taken", collection.Id, card.Id, exhibit.Id),
+            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    [Fact]
+    public async Task Update_turns_a_collection_article_into_a_post_when_a_participant_names_their_own_exhibit_and_card()
+    {
+        var (collection, _, article) = await SeedArticle();
+        var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
+
+        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var returned = await ReadAsync<Article>(response);
+        Assert.Equal((exhibit.Id, card.Id), (returned.ExhibitId.Value, returned.CardId.Value));
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Taken", collection.Id, card.Id, exhibit.Id),
+            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+    }
+
+    [Fact]
+    public async Task Update_links_an_article_to_a_card_in_a_collection_the_caller_cannot_edit()
+    {
+        var (collection, _, article) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var otherCard = TestData.Card(other.Id);
+        await Seed(other, otherCard);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, otherCard.Id, id: article.Id), Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(otherCard.Id, (await ReadAsync<Article>(response)).CardId);
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal((collection.Id, otherCard.Id), (stored.CollectionId, stored.CardId.Value));
+    }
+
+    [Fact]
     public async Task Update_of_a_posted_article_is_allowed_for_a_member_holding_EditExhibit()
     {
         var (collection, card, exhibit, _, posted) = await SeedPostedArticle(canPost: false);
@@ -951,6 +1045,17 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await Seed(exhibit, team, TestData.TeamCard(team.Id, card.Id, canPostArticles: canPost), posted);
 
         return (collection, card, exhibit, team, posted);
+    }
+
+    private async Task<(ExhibitEntity Exhibit, CardEntity Card, TestActor Actor)> SeedParticipantWhoCanPost(Guid collectionId)
+    {
+        var exhibit = TestData.Exhibit(collectionId, "Participant's Exhibit");
+        var team = TestData.Team(exhibit.Id);
+        var card = TestData.Card(collectionId, "Participant's Card");
+        await Seed(exhibit, team, card, TestData.TeamCard(team.Id, card.Id, canPostArticles: true));
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        return (exhibit, card, actor);
     }
 
     private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article", object status = null) =>
