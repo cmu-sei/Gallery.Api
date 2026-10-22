@@ -16,6 +16,9 @@ namespace Gallery.Api.Tests.Controllers;
 /// </summary>
 public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactory factory) : ApiTestBase(fixture, factory)
 {
+    /// <summary>An integer outside every defined system permission.</summary>
+    private const SystemPermission UndefinedPermission = (SystemPermission)999;
+
     // ---- GetAll --------------------------------------------------------------------------------
 
     [Fact]
@@ -102,6 +105,21 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal("A record with this identifier already exists.", problem.Title);
     }
 
+    [Fact]
+    public async Task Create_stores_and_returns_a_permission_value_no_member_names()
+    {
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageRoles).SeedAsync();
+
+        var response = await Client(actor).PostAsJsonAsync("api/system-roles",
+            new { name = "Undefined permission", permissions = new[] { UndefinedPermission } }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<SystemRole>(response);
+        Assert.Equal([UndefinedPermission], created.Permissions);
+        await using var db = NewContext();
+        Assert.Equal([UndefinedPermission], (await db.SystemRoles.SingleAsync(x => x.Id == created.Id, Ct)).Permissions);
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -149,6 +167,23 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         await using var db = NewContext();
         Assert.False((await db.SystemRoles.SingleAsync(x => x.Id == TestData.Roles.Administrator, Ct)).AllPermissions);
+    }
+
+    // Same case as Create_stores_and_returns_a_permission_value_no_member_names.
+    [Fact]
+    public async Task Update_stores_and_returns_a_permission_value_no_member_names()
+    {
+        var role = TestData.SystemRole();
+        await Seed(role);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ManageRoles).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/system-roles/{role.Id}",
+            new { id = role.Id, name = role.Name, permissions = new[] { UndefinedPermission } }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal([UndefinedPermission], (await ReadAsync<SystemRole>(response)).Permissions);
+        await using var db = NewContext();
+        Assert.Equal([UndefinedPermission], (await db.SystemRoles.SingleAsync(x => x.Id == role.Id, Ct)).Permissions);
     }
 
     // ---- Delete --------------------------------------------------------------------------------

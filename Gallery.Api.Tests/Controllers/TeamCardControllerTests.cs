@@ -293,6 +293,25 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     }
 
     [Fact]
+    public async Task Update_links_a_team_card_to_a_card_in_a_collection_the_caller_cannot_view()
+    {
+        var (exhibit, team, teamCard) = await SeedTeamCard();
+        var other = TestData.Collection("Other");
+        var card = TestData.Card(other.Id);
+        await Seed(other, card);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { id = teamCard.Id, teamId = team.Id, cardId = card.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(card.Id, (await ReadAsync<TeamCard>(response)).CardId);
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((team.Id, card.Id), (stored.TeamId, stored.CardId));
+    }
+
+    [Fact]
     public async Task Delete_removes_the_team_card_for_a_caller_holding_ManageExhibits()
     {
         var (_, _, teamCard) = await SeedTeamCard();

@@ -424,6 +424,23 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Before", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
     }
 
+    [Fact]
+    public async Task Update_moves_the_exhibit_to_a_collection_the_caller_cannot_edit()
+    {
+        var exhibit = await SeedExhibit();
+        var other = TestData.Collection("Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        var response = await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}",
+            new { id = exhibit.Id, collectionId = other.Id, name = exhibit.Name }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal(other.Id, (await ReadAsync<Exhibit>(response)).CollectionId);
+        await using var db = NewContext();
+        Assert.Equal(other.Id, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).CollectionId);
+    }
+
     // ---- Move and inject -----------------------------------------------------------------------
 
     /// <summary>Moving the exhibit delivers the team articles that are now due to the team's users.</summary>

@@ -199,6 +199,46 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
     }
 
     [Fact]
+    public async Task Create_stores_a_second_membership_for_the_same_user_and_collection()
+    {
+        var (collection, membership) = await SeedMembership();
+
+        var response = await RootClient.PostAsJsonAsync($"api/collections/{collection.Id}/memberships",
+            new { collectionId = collection.Id, userId = membership.UserId, roleId = membership.RoleId }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<CollectionMembership>(response);
+        Assert.NotEqual(membership.Id, created.Id);
+        await using var db = NewContext();
+        var stored = await db.CollectionMemberships.Where(x => x.CollectionId == collection.Id && x.UserId == membership.UserId).ToListAsync(Ct);
+        Assert.Equal(2, stored.Count);
+        Assert.Contains(stored, x => x.Id == membership.Id);
+        Assert.Contains(stored, x => x.Id == created.Id && x.GroupId == null && x.RoleId == membership.RoleId);
+    }
+
+    // Same case as Create_stores_a_second_membership_for_the_same_user_and_collection.
+    [Fact]
+    public async Task Create_stores_a_second_membership_for_the_same_group_and_collection()
+    {
+        var collection = TestData.Collection();
+        var group = TestData.Group();
+        var membership = TestData.CollectionMembership(collection.Id, null, groupId: group.Id);
+        await Seed(collection, group, membership);
+
+        var response = await RootClient.PostAsJsonAsync($"api/collections/{collection.Id}/memberships",
+            new { collectionId = collection.Id, groupId = group.Id, roleId = membership.RoleId }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<CollectionMembership>(response);
+        Assert.NotEqual(membership.Id, created.Id);
+        await using var db = NewContext();
+        var stored = await db.CollectionMemberships.Where(x => x.CollectionId == collection.Id && x.GroupId == group.Id).ToListAsync(Ct);
+        Assert.Equal(2, stored.Count);
+        Assert.Contains(stored, x => x.Id == membership.Id);
+        Assert.Contains(stored, x => x.Id == created.Id && x.UserId == null && x.RoleId == membership.RoleId);
+    }
+
+    [Fact]
     public async Task Update_changes_the_role_for_a_member_holding_ManageCollection()
     {
         var (collection, membership) = await SeedMembership();
