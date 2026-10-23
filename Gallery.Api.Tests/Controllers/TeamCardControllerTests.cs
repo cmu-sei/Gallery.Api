@@ -358,6 +358,24 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.Equal(teamCard.CardId, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).CardId);
     }
 
+    /// <summary>A manager of the exhibit cannot link its TeamCard to a card of a collection they cannot view.</summary>
+    [Fact]
+    public async Task Update_answers_a_card_of_a_collection_the_caller_cannot_view_with_not_found()
+    {
+        var (exhibit, team, teamCard) = await SeedTeamCard();
+        var other = TestData.Collection("Other");
+        var card = TestData.Card(other.Id);
+        await Seed(other, card);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { id = teamCard.Id, teamId = team.Id, cardId = card.Id }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((team.Id, teamCard.CardId), (stored.TeamId, stored.CardId));
+    }
+
     [Fact]
     public async Task Delete_removes_the_team_card_for_a_caller_holding_ManageExhibits()
     {

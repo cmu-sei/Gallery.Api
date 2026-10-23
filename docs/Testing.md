@@ -2,7 +2,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 # Testing
 
-The suite has 821 tests.
+The suite has 837 tests.
 
 The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, AutoMapper profiles and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 
@@ -69,13 +69,7 @@ Follow the standard's CONVENTIONS.md section 2. In short:
 3. Seed with `TestData` mothers and `Actor()`.
 4. Name the test as a sentence, pass `Ct`, and re-read through `NewContext()`.
 
-Denied cases are near misses (`OnNew*`, or a neighbouring permission), named `<Operation>_is_forbidden_for_a_caller_holding_only_<Permission>` or `..._only_on_another_<resource>`. A defect gets a passing test of the current behaviour and an entry in `agent-docs/api-test-bugs/gallery.api.md`, never a note in the test. The document lists 38 entries and 4 "Needs a decision" items. Recipes A to E cover the shared fixes:
-
-- A: the gate reads the parent the body names, not the stored row's.
-- B: a bad request thrown as a non-API exception.
-- C: the route's parent id ignored.
-- D: a body naming another id answered as forbidden.
-- E: a membership update granting a role above the caller's.
+Denied cases are near misses (`OnNew*`, or a neighbouring permission), named `<Operation>_is_forbidden_for_a_caller_holding_only_<Permission>` or `..._only_on_another_<resource>`. Defect descriptions and shared fix recipes belong in the workspace's `agent-docs/api-test-bugs/gallery.api.md`, never in the test or this harness document.
 
 A pattern that repeats across routes is one `[Theory]` over a route table (`UnknownIdTests`) with one entry.
 

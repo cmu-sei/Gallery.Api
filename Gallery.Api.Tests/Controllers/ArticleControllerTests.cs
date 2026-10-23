@@ -593,6 +593,89 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/articles/{Guid.NewGuid()}", NewArticle(Guid.NewGuid(), null), Ct));
     }
 
+    /// <summary>The gate reads the stored article's exhibit, so an editor of a sibling exhibit cannot take it.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_an_editor_of_the_exhibit_the_body_names()
+    {
+        var (collection, card, exhibit, _, article) = await SeedPostedArticle(canPost: false);
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
+        var mine = Assert.Single(actor.NewExhibitIds);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Posted", (Guid?)exhibit.Id), (stored.Name, stored.ExhibitId));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>The gate reads the stored template's collection, so naming an exhibit the caller edits does not make it their post.</summary>
+    [Fact]
+    public async Task Update_of_a_collection_article_is_forbidden_for_an_editor_of_the_exhibit_the_body_names()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
+        var mine = Assert.Single(actor.NewExhibitIds);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Test Article", (Guid?)null), (stored.Name, stored.ExhibitId));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>A participant who can post in their own exhibit cannot take a sibling exhibit's post by naming their exhibit and card.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_a_participant_of_another_exhibit_naming_their_own()
+    {
+        var (collection, _, postedIn, _, article) = await SeedPostedArticle(canPost: false);
+        var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Posted", (Guid?)postedIn.Id), (stored.Name, stored.ExhibitId));
+    }
+
+    // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>A participant who can post in their own exhibit cannot rewrite a template by naming that exhibit and card.</summary>
+    [Fact]
+    public async Task Update_of_a_collection_article_is_forbidden_for_a_participant_naming_their_own_exhibit_and_card()
+    {
+        var (collection, _, article) = await SeedArticle();
+        var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Test Article", (Guid?)null), (stored.Name, stored.ExhibitId));
+    }
+
+    /// <summary>An editor of the collection cannot link its article to a card of a collection they cannot edit.</summary>
+    [Fact]
+    public async Task Update_answers_a_card_of_a_collection_the_caller_cannot_edit_with_not_found()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var otherCard = TestData.Card(other.Id);
+        await Seed(other, otherCard);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, otherCard.Id, id: article.Id), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal((collection.Id, (Guid?)card.Id), (stored.CollectionId, stored.CardId));
+    }
+
     [Fact]
     public async Task Update_of_a_posted_article_is_allowed_for_a_member_holding_EditExhibit()
     {
@@ -1077,6 +1160,17 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await Seed(exhibit, team, TestData.TeamCard(team.Id, card.Id, canPostArticles: canPost), posted);
 
         return (collection, card, exhibit, team, posted);
+    }
+
+    private async Task<(ExhibitEntity Exhibit, CardEntity Card, TestActor Actor)> SeedParticipantWhoCanPost(Guid collectionId)
+    {
+        var exhibit = TestData.Exhibit(collectionId, "Participant's Exhibit");
+        var team = TestData.Team(exhibit.Id);
+        var card = TestData.Card(collectionId, "Participant's Card");
+        await Seed(exhibit, team, card, TestData.TeamCard(team.Id, card.Id, canPostArticles: true));
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        return (exhibit, card, actor);
     }
 
     private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article", object status = null) =>

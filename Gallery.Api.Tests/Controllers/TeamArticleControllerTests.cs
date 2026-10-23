@@ -299,6 +299,42 @@ public class TeamArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.Equal(exhibit.Id, (await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct)).ExhibitId);
     }
 
+    /// <summary>The obsolete edit ignores the body's article, so it cannot link the TeamArticle to another collection's article.</summary>
+    [Fact]
+    public async Task Update_ignores_an_article_of_another_collection_in_the_body()
+    {
+        var (exhibit, team, teamArticle) = await SeedTeamArticle();
+        var other = TestData.Collection("Other");
+        var article = TestData.Article(other.Id);
+        await Seed(other, article);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
+            new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = team.Id, articleId = article.Id }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((exhibit.Id, team.Id, teamArticle.ArticleId), (stored.ExhibitId, stored.TeamId, stored.ArticleId));
+    }
+
+    /// <summary>The obsolete edit ignores the body's team, so it cannot move the TeamArticle to another exhibit's team.</summary>
+    [Fact]
+    public async Task Update_ignores_a_team_of_another_exhibit_in_the_body()
+    {
+        var (exhibit, team, teamArticle) = await SeedTeamArticle();
+        var other = TestData.Exhibit(exhibit.CollectionId, "Other");
+        var otherTeam = TestData.Team(other.Id);
+        await Seed(other, otherTeam);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamarticles/{teamArticle.Id}",
+            new { id = teamArticle.Id, exhibitId = exhibit.Id, teamId = otherTeam.Id, articleId = teamArticle.ArticleId }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamArticles.SingleAsync(x => x.Id == teamArticle.Id, Ct);
+        Assert.Equal((exhibit.Id, team.Id, teamArticle.ArticleId), (stored.ExhibitId, stored.TeamId, stored.ArticleId));
+    }
+
     [Fact]
     public async Task Update_is_forbidden_for_a_caller_holding_only_ViewExhibits()
     {

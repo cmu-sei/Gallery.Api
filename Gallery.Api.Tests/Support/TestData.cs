@@ -147,11 +147,11 @@ public static class TestData
     public static ExhibitTeamEntity ExhibitTeam(Guid exhibitId, Guid teamId, Guid? id = null) =>
         new(exhibitId, teamId) { Id = id ?? Guid.NewGuid() };
 
-    public static CollectionMembershipEntity CollectionMembership(Guid collectionId, Guid userId, Guid? roleId = null) =>
-        new(collectionId, userId, null) { Id = Guid.NewGuid(), RoleId = roleId ?? MembershipRoles.Member };
+    public static CollectionMembershipEntity CollectionMembership(Guid collectionId, Guid? userId, Guid? roleId = null, Guid? groupId = null) =>
+        new(collectionId, userId, groupId) { Id = Guid.NewGuid(), RoleId = roleId ?? MembershipRoles.Member };
 
-    public static ExhibitMembershipEntity ExhibitMembership(Guid exhibitId, Guid userId, Guid? roleId = null) =>
-        new(exhibitId, userId, null) { Id = Guid.NewGuid(), RoleId = roleId ?? MembershipRoles.Member };
+    public static ExhibitMembershipEntity ExhibitMembership(Guid exhibitId, Guid? userId, Guid? roleId = null, Guid? groupId = null) =>
+        new(exhibitId, userId, groupId) { Id = Guid.NewGuid(), RoleId = roleId ?? MembershipRoles.Member };
 
     public static GroupEntity Group(string name = "Test Group") =>
         new() { Id = Guid.NewGuid(), Name = name, Description = "Seeded by TestData.Group" };
