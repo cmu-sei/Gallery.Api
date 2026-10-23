@@ -3643,8 +3643,8 @@ namespace Gallery.Api.Client
         public bool ShowAdvanceButton { get; set; }
 
         /// <summary>
-        /// The Steamfitter Scenario that sends share email. Setting or changing it on an edit needs the caller to
-        /// <br/>be able to read the Scenario in Steamfitter.
+        /// The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter. On a
+        /// <br/>create, a Scenario that does not exist yet is also allowed, since Blueprint creates its Scenario later.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("scenarioId")]
         public System.Guid? ScenarioId { get; set; }
@@ -3680,8 +3680,8 @@ namespace Gallery.Api.Client
         public bool ShowAdvanceButton { get; set; }
 
         /// <summary>
-        /// The Steamfitter Scenario that sends share email. Setting or changing it on an edit needs the caller to
-        /// <br/>be able to read the Scenario in Steamfitter.
+        /// The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter. On a
+        /// <br/>create, a Scenario that does not exist yet is also allowed, since Blueprint creates its Scenario later.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("scenarioId")]
         public System.Guid? ScenarioId { get; set; }

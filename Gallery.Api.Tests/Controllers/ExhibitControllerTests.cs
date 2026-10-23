@@ -284,6 +284,60 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
     }
 
+    /// <summary>A create, like an edit, may not name a Scenario that exists in Steamfitter but the caller cannot read.</summary>
+    [Fact]
+    public async Task Create_answers_a_scenario_the_caller_cannot_read_with_not_found_and_creates_nothing()
+    {
+        var collection = TestData.Collection("Scenario Check");
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondWithStatus($"http://localhost:4400/api/scenarios/{scenarioId}", HttpStatusCode.Forbidden);
+
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        Assert.Equal("Scenario not found", problem.Title);
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    /// <summary>
+    /// Blueprint names its Scenario before it creates it in Steamfitter, so a create may name a Scenario that does not
+    /// exist yet: a 404, or the empty answer Steamfitter gives a caller holding ViewScenarios.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.NoContent)]
+    public async Task Create_keeps_a_scenario_that_does_not_exist_yet(HttpStatusCode answer)
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}", [], "application/json", answer);
+
+        var created = await ReadAsync<Exhibit>(
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).ScenarioId);
+    }
+
+    [Fact]
+    public async Task Create_keeps_a_scenario_the_caller_can_read()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondJson($"http://localhost:4400/api/scenarios/{scenarioId}", new { id = scenarioId, name = "Readable" });
+
+        var created = await ReadAsync<Exhibit>(
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).ScenarioId);
+    }
+
     [Fact]
     public async Task Create_is_allowed_for_a_caller_holding_CreateExhibits_and_ViewCollections()
     {
@@ -517,6 +571,21 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         await using var db = NewContext();
         var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
         Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
+    /// <summary>An edit, unlike a create, may name only a Scenario that exists and that the caller can read.</summary>
+    [Fact]
+    public async Task Update_answers_a_scenario_that_does_not_exist_with_not_found()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.Null((await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).ScenarioId);
     }
 
     [Fact]

@@ -171,6 +171,11 @@ namespace Gallery.Api.Services
             var userId = _user.GetId();
             exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
             exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
+            // Share email goes through this Scenario with Gallery's service account. Blueprint names its Scenario
+            // before it creates it in Steamfitter, so a Scenario that does not exist yet is allowed here.
+            if (exhibit.ScenarioId.HasValue &&
+                await _steamfitterService.GetCallerScenarioAccessAsync(exhibit.ScenarioId.Value, ct) == ScenarioAccess.NotReadable)
+                throw new EntityNotFoundException<Exhibit>("Scenario not found");
             var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
 
@@ -465,7 +470,7 @@ namespace Gallery.Api.Services
 
             // share email goes through this Scenario with Gallery's service account
             if (exhibit.ScenarioId.HasValue && exhibit.ScenarioId != exhibitToUpdate.ScenarioId &&
-                !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
+                await _steamfitterService.GetCallerScenarioAccessAsync(exhibit.ScenarioId.Value, ct) != ScenarioAccess.Readable)
                 throw new EntityNotFoundException<Exhibit>("Scenario not found");
 
             _mapper.Map(exhibit, exhibitToUpdate);

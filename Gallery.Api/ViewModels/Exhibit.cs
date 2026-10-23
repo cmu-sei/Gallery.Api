@@ -31,8 +31,8 @@ namespace Gallery.Api.ViewModels
         public int CurrentInject { get; set; }
         public bool ShowAdvanceButton { get; set; }
         /// <summary>
-        /// The Steamfitter Scenario that sends share email. Setting or changing it on an edit needs the caller to
-        /// be able to read the Scenario in Steamfitter.
+        /// The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter. On a
+        /// create, a Scenario that does not exist yet is also allowed, since Blueprint creates its Scenario later.
         /// </summary>
         public Guid? ScenarioId { get; set; }
     }
