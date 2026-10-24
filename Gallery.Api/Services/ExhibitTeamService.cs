@@ -25,7 +25,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.ExhibitTeam>> GetAsync(CancellationToken ct);
         Task<ViewModels.ExhibitTeam> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
-        Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct);
+        Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeamCreate exhibitTeam, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
     }
@@ -57,6 +57,8 @@ namespace Gallery.Api.Services
         {
             var item = await _context.ExhibitTeams
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<ExhibitTeam>();
 
             return _mapper.Map<ExhibitTeam>(item);
         }
@@ -70,8 +72,11 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<ExhibitTeam>>(items);
         }
 
-        public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct)
+        public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeamCreate exhibitTeam, CancellationToken ct)
         {
+            if (!await _context.Teams.AnyAsync(t => t.Id == exhibitTeam.TeamId && t.ExhibitId == exhibitTeam.ExhibitId, ct))
+                throw new EntityNotFoundException<Team>();
+
             var exhibitTeamEntity = _mapper.Map<ExhibitTeamEntity>(exhibitTeam);
             exhibitTeamEntity.Id = exhibitTeamEntity.Id != Guid.Empty ? exhibitTeamEntity.Id : Guid.NewGuid();
             _context.ExhibitTeams.Add(exhibitTeamEntity);

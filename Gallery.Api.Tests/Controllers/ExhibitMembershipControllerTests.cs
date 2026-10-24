@@ -273,19 +273,43 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
         Assert.Equal(TestData.MembershipRoles.Member, (await db.ExhibitMemberships.SingleAsync(x => x.Id == membership.Id, Ct)).RoleId);
     }
 
-    /// <summary>The gate reads the exhibit the body names, so the role of a membership on another exhibit changes.</summary>
+    /// <summary>The gate reads the stored membership's exhibit, so a manager of the exhibit the body names is refused.</summary>
     [Fact]
-    public async Task Update_changes_a_membership_on_another_exhibit_when_the_body_names_one_the_caller_manages()
+    public async Task Update_is_forbidden_for_a_manager_of_the_exhibit_the_body_names_and_keeps_the_role()
     {
         var (exhibit, membership) = await SeedMembership();
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ManageExhibit).SeedAsync();
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
             new { id = membership.Id, exhibitId = Assert.Single(actor.NewExhibitIds), userId = membership.UserId, roleId = TestData.MembershipRoles.Manager }, Ct));
 
         await using var db = NewContext();
         var stored = await db.ExhibitMemberships.SingleAsync(x => x.Id == membership.Id, Ct);
-        Assert.Equal((exhibit.Id, TestData.MembershipRoles.Manager), (stored.ExhibitId, stored.RoleId));
+        Assert.Equal((exhibit.Id, membership.RoleId), (stored.ExhibitId, stored.RoleId));
+    }
+
+    /// <summary>An edit changes the role only: the body's exhibit and user are ignored.</summary>
+    [Fact]
+    public async Task Update_changes_only_the_role()
+    {
+        var (exhibit, membership) = await SeedMembership();
+        var other = TestData.Exhibit(exhibit.CollectionId, "Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/memberships/{membership.Id}",
+            new { exhibitId = other.Id, userId = actor.Id, roleId = TestData.MembershipRoles.Manager }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.ExhibitMemberships.SingleAsync(x => x.Id == membership.Id, Ct);
+        Assert.Equal((exhibit.Id, membership.UserId, TestData.MembershipRoles.Manager), (stored.ExhibitId, stored.UserId, stored.RoleId));
+    }
+
+    [Fact]
+    public async Task Update_of_an_unknown_membership_is_not_found()
+    {
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/exhibits/memberships/{Guid.NewGuid()}",
+            new { roleId = TestData.MembershipRoles.Manager }, Ct));
     }
 
     /// <summary>A caller holding only ManageExhibit gives a member the Manager role, which holds every exhibit permission.</summary>

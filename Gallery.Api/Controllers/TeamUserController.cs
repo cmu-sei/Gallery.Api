@@ -67,7 +67,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamTeamUsers")]
         public async Task<IActionResult> GetByTeam([FromRoute] Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _teamUserService.GetByTeamAsync(teamId, ct);
@@ -89,7 +89,7 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
             var teamUser = await _teamUserService.GetAsync(id, ct);
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamUser.TeamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamUser.TeamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             if (teamUser == null)
@@ -111,10 +111,10 @@ namespace Gallery.Api.Controllers
         [HttpPost("teamusers")]
         [ProducesResponseType(typeof(TeamUser), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createTeamUser")]
-        public async Task<IActionResult> Create([FromBody] TeamUser teamUser, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] TeamUserCreate teamUser, CancellationToken ct)
         {
             var team = await _teamService.GetAsync(teamUser.TeamId, ct);
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct))
+            if (!await _authorizationService.AuthorizeAsync<Exhibit>(team.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
 
             var createdTeamUser = await _teamUserService.CreateAsync(teamUser, ct);

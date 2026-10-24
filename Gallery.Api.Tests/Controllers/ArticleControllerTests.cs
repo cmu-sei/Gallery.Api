@@ -128,48 +128,41 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(due.Id, Assert.Single(articles).Id);
     }
 
-    /// <summary>A member holding ViewExhibit on the exhibit is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error()
+    public async Task GetByExhibit_returns_the_articles_to_a_member_holding_ViewExhibit()
     {
-        var (collection, _, _) = await SeedArticle();
+        var (collection, _, article) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
+        var articles = await ReadAsync<List<Article>>(await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
 
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        Assert.Contains(articles, x => x.Id == article.Id);
     }
 
     // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
-    /// <summary>A caller holding ViewExhibit only on another exhibit is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_caller_holding_ViewExhibit_only_on_another_exhibit_with_a_server_error()
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
     {
         var (collection, _, _) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.ViewExhibit).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
-
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
     }
 
     // Same case as GetByExhibit_answers_a_member_holding_ViewExhibit_with_a_server_error.
-    /// <summary>A caller holding only ViewCollections is answered with a 500.</summary>
     [Fact]
-    public async Task GetByExhibit_answers_a_caller_holding_only_ViewCollections_with_a_server_error()
+    public async Task GetByExhibit_is_forbidden_for_a_caller_holding_only_ViewCollections()
     {
         var (collection, _, _) = await SeedArticle();
         var exhibit = TestData.Exhibit(collection.Id);
         await Seed(exhibit);
         var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
-
-        Assert.Equal("Handler for type Collection is not implemented.", problem.Detail);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/articles", Ct));
     }
 
     // ---- Get -----------------------------------------------------------------------------------
@@ -450,6 +443,48 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("CollectionId is required", problem.Detail);
     }
 
+    /// <summary>An exhibit's article goes in the exhibit's collection, whatever collection the body names.</summary>
+    [Fact]
+    public async Task Create_of_a_posted_article_takes_the_collection_from_the_exhibit()
+    {
+        var (collection, card, exhibit, _, _) = await SeedPostedArticle(canPost: true);
+        var other = TestData.Collection("Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        var created = await ReadAsync<Article>(await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(other.Id, card.Id, exhibit.Id, name: "Posted Elsewhere?"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(collection.Id, (await db.Articles.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
+    }
+
+    [Fact]
+    public async Task Create_answers_a_card_of_another_collection_with_not_found_and_saves_nothing()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, foreignCard.Id, name: "Misfiled"), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Misfiled", Ct));
+    }
+
+    [Fact]
+    public async Task Create_keeps_a_cardless_article_valid()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, null, name: "Cardless"), Ct));
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -501,114 +536,144 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
             NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten"), Ct));
     }
 
-    /// <summary>The gate reads the collection the body names, so the article moves into the caller's collection.</summary>
+    /// <summary>The gate reads the stored article's collection, so an editor of another collection cannot take the article.</summary>
     [Fact]
-    public async Task Update_moves_another_collection_s_article_when_the_body_names_a_collection_the_caller_edits()
+    public async Task Update_is_forbidden_for_an_editor_of_the_collection_the_body_names_and_leaves_the_article()
     {
-        var (_, _, article) = await SeedArticle();
+        var (collection, _, article) = await SeedArticle();
         var actor = await Actor().OnNewCollection(CollectionPermission.EditCollection).SeedAsync();
         var mine = Assert.Single(actor.NewCollectionIds);
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
             NewArticle(mine, null, id: article.Id, name: "Taken"), Ct));
 
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal(("Taken", mine), (stored.Name, stored.CollectionId));
+        Assert.Equal(("Test Article", collection.Id), (stored.Name, stored.CollectionId));
+    }
+
+    /// <summary>An edit body's collection and exhibit are ignored: the article stays where it is stored.</summary>
+    [Fact]
+    public async Task Update_ignores_the_collection_and_exhibit_in_the_body()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(other, exhibit);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(other.Id, card.Id, exhibit.Id, article.Id, "Edited"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+        Assert.Equal(("Edited", collection.Id, (Guid?)null), (stored.Name, stored.CollectionId, stored.ExhibitId));
+    }
+
+    /// <summary>An article can move only to a card of its own collection.</summary>
+    [Fact]
+    public async Task Update_answers_a_card_of_another_collection_with_not_found_and_keeps_the_card()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, foreignCard.Id, id: article.Id), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(card.Id, (await db.Articles.SingleAsync(x => x.Id == article.Id, Ct)).CardId);
     }
 
     [Fact]
-    public async Task Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits()
+    public async Task Update_of_an_unknown_article_is_not_found()
     {
-        var (collection, card, _, _, article) = await SeedPostedArticle(canPost: false);
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/articles/{Guid.NewGuid()}", NewArticle(Guid.NewGuid(), null), Ct));
+    }
+
+    /// <summary>The gate reads the stored article's exhibit, so an editor of a sibling exhibit cannot take it.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_an_editor_of_the_exhibit_the_body_names()
+    {
+        var (collection, card, exhibit, _, article) = await SeedPostedArticle(canPost: false);
         var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
         var mine = Assert.Single(actor.NewExhibitIds);
 
-        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
-            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        Assert.Equal(mine, (await ReadAsync<Article>(response)).ExhibitId);
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal(("Taken", collection.Id, card.Id, mine),
-            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+        Assert.Equal(("Posted", (Guid?)exhibit.Id), (stored.Name, stored.ExhibitId));
     }
 
     // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>The gate reads the stored template's collection, so naming an exhibit the caller edits does not make it their post.</summary>
     [Fact]
-    public async Task Update_turns_a_collection_article_into_a_post_when_the_body_names_an_exhibit_the_caller_edits()
+    public async Task Update_of_a_collection_article_is_forbidden_for_an_editor_of_the_exhibit_the_body_names()
     {
         var (collection, card, article) = await SeedArticle();
         var actor = await Actor().OnNewExhibit(collection.Id, ExhibitPermission.EditExhibit).SeedAsync();
         var mine = Assert.Single(actor.NewExhibitIds);
 
-        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
-            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, mine, article.Id, "Taken"), Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        Assert.Equal(mine, (await ReadAsync<Article>(response)).ExhibitId);
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal(("Taken", collection.Id, card.Id, mine),
-            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+        Assert.Equal(("Test Article", (Guid?)null), (stored.Name, stored.ExhibitId));
     }
 
     // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>A participant who can post in their own exhibit cannot take a sibling exhibit's post by naming their exhibit and card.</summary>
     [Fact]
-    public async Task Update_moves_another_exhibit_s_posted_article_when_a_participant_names_their_own_exhibit_and_card()
+    public async Task Update_of_a_posted_article_is_forbidden_for_a_participant_of_another_exhibit_naming_their_own()
     {
-        var (collection, _, _, _, article) = await SeedPostedArticle(canPost: false);
+        var (collection, _, postedIn, _, article) = await SeedPostedArticle(canPost: false);
         var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
 
-        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
-            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        var returned = await ReadAsync<Article>(response);
-        Assert.Equal((exhibit.Id, card.Id), (returned.ExhibitId.Value, returned.CardId.Value));
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal(("Taken", collection.Id, card.Id, exhibit.Id),
-            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+        Assert.Equal(("Posted", (Guid?)postedIn.Id), (stored.Name, stored.ExhibitId));
     }
 
     // Same case as Update_moves_another_exhibit_s_posted_article_when_the_body_names_an_exhibit_the_caller_edits.
+    /// <summary>A participant who can post in their own exhibit cannot rewrite a template by naming that exhibit and card.</summary>
     [Fact]
-    public async Task Update_turns_a_collection_article_into_a_post_when_a_participant_names_their_own_exhibit_and_card()
+    public async Task Update_of_a_collection_article_is_forbidden_for_a_participant_naming_their_own_exhibit_and_card()
     {
         var (collection, _, article) = await SeedArticle();
         var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
 
-        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
-            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct);
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, article.Id, "Taken"), Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        var returned = await ReadAsync<Article>(response);
-        Assert.Equal((exhibit.Id, card.Id), (returned.ExhibitId.Value, returned.CardId.Value));
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal(("Taken", collection.Id, card.Id, exhibit.Id),
-            (stored.Name, stored.CollectionId, stored.CardId.Value, stored.ExhibitId.Value));
+        Assert.Equal(("Test Article", (Guid?)null), (stored.Name, stored.ExhibitId));
     }
 
+    /// <summary>An editor of the collection cannot link its article to a card of a collection they cannot edit.</summary>
     [Fact]
-    public async Task Update_links_an_article_to_a_card_in_a_collection_the_caller_cannot_edit()
+    public async Task Update_answers_a_card_of_a_collection_the_caller_cannot_edit_with_not_found()
     {
-        var (collection, _, article) = await SeedArticle();
+        var (collection, card, article) = await SeedArticle();
         var other = TestData.Collection("Other");
         var otherCard = TestData.Card(other.Id);
         await Seed(other, otherCard);
         var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
 
-        var response = await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
-            NewArticle(collection.Id, otherCard.Id, id: article.Id), Ct);
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, otherCard.Id, id: article.Id), Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        Assert.Equal(otherCard.Id, (await ReadAsync<Article>(response)).CardId);
         await using var db = NewContext();
         var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
-        Assert.Equal((collection.Id, otherCard.Id), (stored.CollectionId, stored.CardId.Value));
+        Assert.Equal((collection.Id, (Guid?)card.Id), (stored.CollectionId, stored.CardId));
     }
 
     [Fact]
@@ -687,6 +752,56 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         await using var db = NewContext();
         Assert.Equal("Posted", (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).Name);
+    }
+
+    /// <summary>A participant who can post on another card of the exhibit cannot edit an article on a card their team cannot post on.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_a_participant_who_can_post_only_on_the_card_the_body_names()
+    {
+        var (collection, card, exhibit, team, posted) = await SeedPostedArticle(canPost: false);
+        var open = TestData.Card(collection.Id, "Open");
+        await Seed(open, TestData.TeamCard(team.Id, open.Id, canPostArticles: true));
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{posted.Id}",
+            NewArticle(collection.Id, open.Id, exhibit.Id, posted.Id, "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct);
+        Assert.Equal(("Posted", (Guid?)card.Id), (stored.Name, stored.CardId));
+    }
+
+    /// <summary>A participant cannot move a posted article to a card their team cannot post on.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_forbidden_for_a_participant_moving_it_to_a_card_the_team_cannot_post_on()
+    {
+        var (collection, card, exhibit, team, posted) = await SeedPostedArticle(canPost: true);
+        var closed = TestData.Card(collection.Id, "Closed");
+        await Seed(closed);
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{posted.Id}",
+            NewArticle(collection.Id, closed.Id, exhibit.Id, posted.Id, "Moved"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(card.Id, (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).CardId);
+    }
+
+    /// <summary>A participant's body naming another exhibit does not change which exhibit the gate reads.</summary>
+    [Fact]
+    public async Task Update_of_a_template_is_forbidden_for_a_participant_whose_body_names_their_exhibit()
+    {
+        var (collection, card, exhibit, team, _) = await SeedPostedArticle(canPost: true);
+        var template = TestData.Article(collection.Id, card.Id, name: "Template");
+        await Seed(template);
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{template.Id}",
+            NewArticle(collection.Id, card.Id, exhibit.Id, template.Id, "Rewritten"), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Articles.SingleAsync(x => x.Id == template.Id, Ct);
+        Assert.Equal(("Template", (Guid?)null), (stored.Name, stored.ExhibitId));
     }
 
     // ---- Delete --------------------------------------------------------------------------------

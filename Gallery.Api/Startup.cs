@@ -211,6 +211,7 @@ public class Startup
         services.AddScoped<IUserArticleService, UserArticleService>();
         services.AddScoped<IGalleryAuthorizationService, AuthorizationService>();
         services.AddScoped<IIdentityResolver, IdentityResolver>();
+        services.AddScoped<ICurrentActor, CurrentActor>();
         services.AddScoped<IGroupService, GroupService>();
         services.AddScoped<ISystemRoleService, SystemRoleService>();
         services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();

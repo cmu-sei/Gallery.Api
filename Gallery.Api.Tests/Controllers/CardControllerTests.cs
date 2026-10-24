@@ -252,6 +252,24 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal(collection.Id, (await db.Cards.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
     }
 
+    /// <summary>The audit fields come from the caller, never from the body.</summary>
+    [Fact]
+    public async Task Create_and_update_stamp_the_caller_over_the_body_s_audit_fields()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+        var spoofed = Guid.NewGuid();
+
+        var created = await ReadAsync<Card>(await Client(actor).PostAsJsonAsync("api/cards",
+            new { name = "New Card", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{created.Id}",
+            new { id = created.Id, name = "Edited", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Cards.SingleAsync(x => x.Id == created.Id, Ct);
+        Assert.Equal((actor.Id, (Guid?)actor.Id), (stored.CreatedBy, stored.ModifiedBy));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_ViewCollection()
     {
@@ -348,20 +366,42 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("Before", (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).Name);
     }
 
-    /// <summary>The gate reads the collection the body names, so the card moves into the caller's collection.</summary>
+    /// <summary>The gate reads the stored card's collection, so an editor of another collection cannot take the card.</summary>
     [Fact]
-    public async Task Update_moves_another_collection_s_card_when_the_body_names_a_collection_the_caller_edits()
+    public async Task Update_is_forbidden_for_an_editor_of_the_collection_the_body_names_and_leaves_the_card()
     {
-        var (_, card) = await SeedCard("Theirs");
+        var (collection, card) = await SeedCard("Theirs");
         var actor = await Actor().OnNewCollection(CollectionPermission.EditCollection).SeedAsync();
         var mine = Assert.Single(actor.NewCollectionIds);
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
             new { id = card.Id, name = "Taken", collectionId = mine }, Ct));
 
         await using var db = NewContext();
         var stored = await db.Cards.SingleAsync(x => x.Id == card.Id, Ct);
-        Assert.Equal(("Taken", mine), (stored.Name, stored.CollectionId));
+        Assert.Equal(("Theirs", collection.Id), (stored.Name, stored.CollectionId));
+    }
+
+    /// <summary>An edit body's collection is ignored: the card stays in its collection.</summary>
+    [Fact]
+    public async Task Update_ignores_the_collection_in_the_body()
+    {
+        var (collection, card) = await SeedCard();
+        var other = TestData.Collection("Other");
+        await Seed(other);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}",
+            new { id = card.Id, name = "Renamed", collectionId = other.Id }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Cards.SingleAsync(x => x.Id == card.Id, Ct);
+        Assert.Equal(("Renamed", collection.Id), (stored.Name, stored.CollectionId));
+    }
+
+    [Fact]
+    public async Task Update_of_an_unknown_card_is_not_found()
+    {
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/cards/{Guid.NewGuid()}", new { name = "Nobody" }, Ct));
     }
 
     [Fact]
@@ -431,15 +471,12 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
-    /// <summary>An id that names no card is answered with a 500 for a caller whose edit right is a collection membership.</summary>
     [Fact]
-    public async Task Delete_of_an_unknown_card_answers_a_collection_editor_with_a_server_error()
+    public async Task Delete_of_an_unknown_card_is_not_found_for_a_collection_editor()
     {
         var actor = await Actor().OnNewCollection(CollectionPermission.EditCollection).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
-
-        Assert.Equal("Object reference not set to an instance of an object.", problem.Detail);
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
     private async Task<(CollectionEntity Collection, CardEntity Card)> SeedCard(string name = "Test Card")

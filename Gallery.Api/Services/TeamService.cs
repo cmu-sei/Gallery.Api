@@ -30,8 +30,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, bool checkForTeamMembership, CancellationToken ct);
-        Task<ViewModels.Team> CreateAsync(ViewModels.Team team, CancellationToken ct);
-        Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.Team team, CancellationToken ct);
+        Task<ViewModels.Team> CreateAsync(ViewModels.TeamCreate team, CancellationToken ct);
+        Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.TeamEdit team, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
     }
 
@@ -65,6 +65,9 @@ namespace Gallery.Api.Services
             var item = await _context.Teams
                 .ProjectTo<ViewModels.Team>(_mapper.ConfigurationProvider, dest => dest.Users)
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<Team>();
+
             return item;
         }
 
@@ -132,7 +135,7 @@ namespace Gallery.Api.Services
             return _mapper.Map<IEnumerable<Team>>(items);
         }
 
-        public async Task<ViewModels.Team> CreateAsync(ViewModels.Team team, CancellationToken ct)
+        public async Task<ViewModels.Team> CreateAsync(ViewModels.TeamCreate team, CancellationToken ct)
         {
             var teamEntity = _mapper.Map<TeamEntity>(team);
             teamEntity.Id = teamEntity.Id != Guid.Empty ? teamEntity.Id : Guid.NewGuid();
@@ -143,14 +146,8 @@ namespace Gallery.Api.Services
             return await GetAsync(teamEntity.Id, ct);
         }
 
-        public async Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.Team team, CancellationToken ct)
+        public async Task<ViewModels.Team> UpdateAsync(Guid id, ViewModels.TeamEdit team, CancellationToken ct)
         {
-            // Don't allow changing your own Id
-            if (id != team.Id)
-            {
-                throw new ForbiddenException("You cannot change the team Id");
-            }
-
             var teamToUpdate = await _context.Teams.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (teamToUpdate == null)
                 throw new EntityNotFoundException<Team>();
@@ -159,7 +156,7 @@ namespace Gallery.Api.Services
 
             _context.Teams.Update(teamToUpdate);
             await _context.SaveChangesAsync(ct);
-            _logger.LogWarning($"Team {teamToUpdate.Name} ({teamToUpdate.Id}) in Exhibit {team.ExhibitId} updated by {_user.GetId()}");
+            _logger.LogWarning($"Team {teamToUpdate.Name} ({teamToUpdate.Id}) in Exhibit {teamToUpdate.ExhibitId} updated by {_user.GetId()}");
             return await GetAsync(id, ct);
         }
 

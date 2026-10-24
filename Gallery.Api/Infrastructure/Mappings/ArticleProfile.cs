@@ -13,7 +13,8 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<ArticleEntity, Article>();
 
-            CreateMap<Article, ArticleEntity>();
+            CreateMap<ArticleCreate, ArticleEntity>(AutoMapper.MemberList.Source);
+            CreateMap<ArticleEdit, ArticleEntity>(AutoMapper.MemberList.Source);
 
             CreateMap<ArticleEntity, ArticleEntity>()
                 .ForMember(e => e.Id, opt => opt.Ignore());

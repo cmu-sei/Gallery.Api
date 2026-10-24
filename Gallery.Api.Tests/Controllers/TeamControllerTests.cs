@@ -138,13 +138,23 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("Readable Team", got.Name);
     }
 
-    /// <summary>Holding every system permission does not pass a team gate; only being on the team does.</summary>
+    /// <summary>A caller holding ViewExhibits can read any team, without being on it.</summary>
     [Fact]
-    public async Task Get_is_forbidden_for_a_caller_holding_every_system_permission()
+    public async Task Get_returns_the_team_to_a_caller_holding_ViewExhibits()
     {
         var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
-        await AssertProblem(HttpStatusCode.Forbidden, await RootClient.GetAsync($"api/teams/{team.Id}", Ct));
+        Assert.Equal(team.Id, (await ReadAsync<Team>(await Client(actor).GetAsync($"api/teams/{team.Id}", Ct))).Id);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_caller_holding_only_ViewCollections()
+    {
+        var (_, team) = await SeedTeam();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/teams/{team.Id}", Ct));
     }
 
     // ---- Create --------------------------------------------------------------------------------
@@ -248,32 +258,44 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("Before", (await db.Teams.SingleAsync(x => x.Id == team.Id, Ct)).Name);
     }
 
-    /// <summary>The gate reads the exhibit the body names, so the team moves into the caller's exhibit.</summary>
+    /// <summary>The gate reads the stored team's exhibit, so an editor of another exhibit cannot take the team.</summary>
     [Fact]
-    public async Task Update_moves_another_exhibit_s_team_when_the_body_names_one_the_caller_edits()
+    public async Task Update_is_forbidden_for_an_editor_of_the_exhibit_the_body_names_and_leaves_the_team()
     {
         var (exhibit, team) = await SeedTeam("Theirs");
         var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
         var mine = Assert.Single(actor.NewExhibitIds);
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teams/{team.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teams/{team.Id}",
             new { id = team.Id, name = "Taken", exhibitId = mine }, Ct));
 
         await using var db = NewContext();
         var stored = await db.Teams.SingleAsync(x => x.Id == team.Id, Ct);
-        Assert.Equal(("Taken", mine), (stored.Name, stored.ExhibitId.Value));
+        Assert.Equal(("Theirs", exhibit.Id), (stored.Name, stored.ExhibitId.Value));
     }
 
-    /// <summary>A body whose id differs from the route's is answered with a 403.</summary>
+    /// <summary>An edit body carries no id, exhibit or nested exhibit: the route's team is renamed and stays where it is.</summary>
     [Fact]
-    public async Task Update_answers_a_body_naming_another_team_with_forbidden()
+    public async Task Update_ignores_the_id_the_exhibit_and_a_nested_exhibit_in_the_body()
     {
         var (exhibit, team) = await SeedTeam();
+        var other = TestData.Exhibit(exhibit.CollectionId, name: "Other");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.Forbidden, await RootClient.PutAsJsonAsync($"api/teams/{team.Id}",
-            new { id = Guid.NewGuid(), name = "Renamed", exhibitId = exhibit.Id }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teams/{team.Id}",
+            new { id = Guid.NewGuid(), name = "Renamed", exhibitId = other.Id, exhibit = new { id = other.Id, name = "Overwritten" } }, Ct));
 
-        Assert.Equal("You cannot change the team Id", problem.Title);
+        await using var db = NewContext();
+        var stored = await db.Teams.SingleAsync(x => x.Id == team.Id, Ct);
+        Assert.Equal(("Renamed", exhibit.Id), (stored.Name, stored.ExhibitId.Value));
+        Assert.Equal("Other", (await db.Exhibits.SingleAsync(x => x.Id == other.Id, Ct)).Name);
+    }
+
+    [Fact]
+    public async Task Update_of_an_unknown_team_is_not_found()
+    {
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/teams/{Guid.NewGuid()}", new { name = "Nobody" }, Ct));
     }
 
     // ---- Delete --------------------------------------------------------------------------------

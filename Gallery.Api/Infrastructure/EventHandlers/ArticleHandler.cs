@@ -41,13 +41,14 @@ namespace Gallery.Api.Infrastructure.EventHandlers
         {
             var groupIds = new List<string>();
             groupIds.Add(articleEntity.Id.ToString());
+            // a template is collection content and an exhibit's article is exhibit content
             if (articleEntity.ExhibitId == null)
             {
-                groupIds.Add(MainHub.EXHIBIT_GROUP);
+                groupIds.Add(MainHub.COLLECTION_GROUP);
             }
             else
             {
-                groupIds.Add(MainHub.COLLECTION_GROUP);
+                groupIds.Add(MainHub.EXHIBIT_GROUP);
             }
             // add this article's users
             var userIdList = await _db.UserArticles

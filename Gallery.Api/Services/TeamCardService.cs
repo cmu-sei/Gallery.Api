@@ -26,8 +26,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct);
-        Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct);
-        Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct);
+        Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct);
+        Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCardEdit teamCard, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
     }
@@ -86,12 +86,24 @@ namespace Gallery.Api.Services
         {
             var item = await _context.TeamCards
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<TeamCard>();
 
             return _mapper.Map<TeamCard>(item);
         }
 
-        public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct)
+        public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct)
         {
+            // the card must be in the collection of the team's exhibit
+            var collectionId = await _context.Teams
+                .Where(t => t.Id == teamCard.TeamId)
+                .Select(t => (Guid?)t.Exhibit.CollectionId)
+                .SingleOrDefaultAsync(ct);
+            if (collectionId == null)
+                throw new EntityNotFoundException<Team>();
+            if (!await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == collectionId, ct))
+                throw new EntityNotFoundException<Card>();
+
             var teamCardEntity = _mapper.Map<TeamCardEntity>(teamCard);
             teamCardEntity.Id = teamCardEntity.Id != Guid.Empty ? teamCardEntity.Id : Guid.NewGuid();
 
@@ -101,20 +113,28 @@ namespace Gallery.Api.Services
             return await GetAsync(teamCardEntity.Id, ct);
         }
 
-        public async Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct)
+        public async Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCardEdit teamCard, CancellationToken ct)
         {
-            var teamCardToUpdate = await _context.TeamCards.SingleOrDefaultAsync(v => v.Id == id, ct);
+            var teamCardToUpdate = await _context.TeamCards
+                .Include(tc => tc.Team)
+                .ThenInclude(t => t.Exhibit)
+                .SingleOrDefaultAsync(v => v.Id == id, ct);
             if (teamCardToUpdate == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            _mapper.Map(teamCard, teamCardToUpdate);
+            // a TeamCard can move to another team or card only inside its own exhibit
+            var exhibit = teamCardToUpdate.Team.Exhibit;
+            if (teamCard.TeamId != teamCardToUpdate.TeamId &&
+                !await _context.Teams.AnyAsync(t => t.Id == teamCard.TeamId && t.ExhibitId == exhibit.Id, ct))
+                throw new EntityNotFoundException<Team>();
+            if (teamCard.CardId != teamCardToUpdate.CardId &&
+                !await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == exhibit.CollectionId, ct))
+                throw new EntityNotFoundException<Card>();
 
-            _context.TeamCards.Update(teamCardToUpdate);
+            _mapper.Map(teamCard, teamCardToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            teamCard = await GetAsync(teamCardToUpdate.Id, ct);
-
-            return teamCard;
+            return await GetAsync(teamCardToUpdate.Id, ct);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

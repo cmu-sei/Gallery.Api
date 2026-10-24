@@ -48,10 +48,11 @@ public class ExceptionMiddlewareTests(DatabaseFixture fixture, GalleryAppFactory
     [Fact]
     public async Task An_unhandled_exception_is_a_500_with_a_generic_title_and_the_message_as_detail()
     {
-        // Same case as UnknownIdTests.An_unknown_id_is_answered_with_a_server_error.
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.DeleteAsync($"api/teams/{Guid.NewGuid()}", Ct));
+        // Same case as ExhibitControllerTests.Create_answers_a_body_without_a_collection_with_a_server_error:
+        // ExhibitService throws an ArgumentException, which is not an IApiException.
+        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.PostAsJsonAsync("api/exhibits", new { name = "Orphan" }, Ct));
 
-        Assert.Equal(("A server error occurred.", "Object reference not set to an instance of an object."), (problem.Title, problem.Detail));
+        Assert.Equal(("A server error occurred.", "CollectionId is required"), (problem.Title, problem.Detail));
     }
 
     [Fact]

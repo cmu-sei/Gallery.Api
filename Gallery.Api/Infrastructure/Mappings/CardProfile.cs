@@ -12,7 +12,8 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<CardEntity, Card>();
 
-            CreateMap<Card, CardEntity>();
+            CreateMap<CardCreate, CardEntity>(AutoMapper.MemberList.Source);
+            CreateMap<CardEdit, CardEntity>(AutoMapper.MemberList.Source);
 
             CreateMap<CardEntity, CardEntity>()
                 .ForMember(e => e.Id, opt => opt.Ignore());

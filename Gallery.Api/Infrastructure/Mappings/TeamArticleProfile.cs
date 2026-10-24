@@ -12,7 +12,7 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<TeamArticleEntity, TeamArticle>();
 
-            CreateMap<TeamArticle, TeamArticleEntity>();
+            CreateMap<TeamArticleCreate, TeamArticleEntity>(AutoMapper.MemberList.Source);
         }
     }
 }

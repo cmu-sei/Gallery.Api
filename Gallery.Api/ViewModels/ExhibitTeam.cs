@@ -28,5 +28,14 @@ namespace Gallery.Api.ViewModels
         public Exhibit Exhibit { get; set; }
     }
 
+    /// <summary>
+    /// An ExhibitTeam create request. It names the Team and the Exhibit by Id only, so it cannot create or change either.
+    /// </summary>
+    public class ExhibitTeamCreate
+    {
+        /// <summary>The Id to create the ExhibitTeam with. A new one is made when it is empty.</summary>
+        public Guid Id { get; set; }
+        public Guid TeamId { get; set; }
+        public Guid ExhibitId { get; set; }
+    }
 }
-

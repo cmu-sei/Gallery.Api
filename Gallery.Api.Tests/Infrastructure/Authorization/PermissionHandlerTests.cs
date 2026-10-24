@@ -47,14 +47,38 @@ public class PermissionHandlerTests
         Assert.False(context.HasSucceeded);
     }
 
-    /// <summary>An empty requirement is satisfied by any principal, permissions or not.</summary>
+    /// <summary>An empty or missing list grants nothing, even to a principal holding every permission.</summary>
     [Fact]
-    public async Task SystemPermissionHandler_succeeds_on_an_empty_requirement()
+    public async Task SystemPermissionHandler_does_not_succeed_on_an_empty_or_missing_requirement()
     {
-        var context = await AuthorizationHarness.HandleAsync(new SystemPermissionHandler(),
-            new SystemPermissionRequirement([]), ClaimsPrincipalBuilder.Anonymous());
+        var user = new ClaimsPrincipalBuilder().WithSystemPermissions(Enum.GetValues<SystemPermission>()).Build();
 
-        Assert.True(context.HasSucceeded);
+        var empty = await AuthorizationHarness.HandleAsync(new SystemPermissionHandler(), new SystemPermissionRequirement([]), user);
+        var missing = await AuthorizationHarness.HandleAsync(new SystemPermissionHandler(), new SystemPermissionRequirement(null), user);
+
+        Assert.False(empty.HasSucceeded);
+        Assert.False(missing.HasSucceeded);
+    }
+
+    /// <summary>
+    /// Every participant has a claim for their team, exhibit and collection, so an empty list must not pass on the
+    /// claim alone.
+    /// </summary>
+    [Fact]
+    public async Task The_scoped_handlers_do_not_succeed_on_an_empty_requirement_for_a_caller_with_a_claim_for_the_scope()
+    {
+        var (collectionId, exhibitId, teamId) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var user = new ClaimsPrincipalBuilder()
+            .WithCollection(collectionId, CollectionPermission.ViewCollection)
+            .WithExhibit(exhibitId, ExhibitPermission.ViewExhibit)
+            .WithTeam(teamId, TeamPermission.ViewTeam)
+            .Build();
+
+        var collection = await AuthorizationHarness.HandleAsync(new CollectionPermissionHandler(), new CollectionPermissionRequirement([], collectionId), user);
+        var exhibit = await AuthorizationHarness.HandleAsync(new ExhibitPermissionHandler(), new ExhibitPermissionRequirement([], exhibitId), user);
+        var team = await AuthorizationHarness.HandleAsync(new TeamPermissionHandler(), new TeamPermissionRequirement([], teamId), user);
+
+        Assert.Equal((false, false, false), (collection.HasSucceeded, exhibit.HasSucceeded, team.HasSucceeded));
     }
 
     [Fact]

@@ -105,7 +105,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitCardsByTeam")]
         public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _cardService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
@@ -149,7 +149,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("cards")]
         [ProducesResponseType(typeof(Card), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createCard")]
-        public async Task<IActionResult> Create([FromBody] Card card, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] CardCreate card, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                 throw new ForbiddenException();
@@ -173,14 +173,12 @@ namespace Gallery.Api.Controllers
         [HttpPut("cards/{id}")]
         [ProducesResponseType(typeof(Card), (int)HttpStatusCode.OK)]
         [SwaggerOperation(OperationId = "updateCard")]
-        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] Card card, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] CardEdit card, CancellationToken ct)
         {
-            if (!(await _authorizationService.AuthorizeAsync([SystemPermission.EditCollections], ct) ||
-               await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
-            )
+            var storedCard = await _cardService.GetAsync(id, ct);
+            if (!await _authorizationService.AuthorizeAsync<Collection>(storedCard.CollectionId, [SystemPermission.EditCollections], [CollectionPermission.EditCollection], ct))
                 throw new ForbiddenException();
 
-            card.ModifiedBy = User.GetId();
             var updatedCard = await _cardService.UpdateAsync(id, card, ct);
             return Ok(updatedCard);
         }
