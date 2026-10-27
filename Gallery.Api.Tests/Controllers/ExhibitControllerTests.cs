@@ -308,6 +308,23 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Copied Team", (await db.Teams.SingleAsync(x => x.ExhibitId == copy.Id, Ct)).Name);
     }
 
+    /// <summary>A copy is named "<name> - <user>" after the caller, as a copied collection is.</summary>
+    [Fact]
+    public async Task Copy_names_the_copy_after_the_caller()
+    {
+        var exhibit = await SeedExhibit();
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits, SystemPermission.ViewExhibits)
+            .SeedAsync();
+
+        var copy = await ReadAsync<Exhibit>(await Client(actor).PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        Assert.Equal("Test Exhibit - Test Actor", copy.Name);
+        await using var db = NewContext();
+        Assert.Equal("Test Exhibit", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
+        Assert.Equal("Test Exhibit - Test Actor", (await db.Exhibits.SingleAsync(x => x.Id == copy.Id, Ct)).Name);
+    }
+
     [Fact]
     public async Task Copy_is_forbidden_for_a_caller_holding_only_CreateExhibits()
     {
@@ -726,6 +743,21 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.NotEqual(exhibit.CollectionId, uploaded.CollectionId);
         await using var context = NewContext();
         Assert.True(await context.Collections.AnyAsync(x => x.Id == uploaded.CollectionId, Ct));
+    }
+
+    /// <summary>An uploaded exhibit and its new collection are both named "<name> - <user>" after the caller.</summary>
+    [Fact]
+    public async Task UploadJson_names_the_exhibit_and_collection_after_the_caller()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var file = await (await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/json", Ct)).Content.ReadAsByteArrayAsync(Ct);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits).SeedAsync();
+
+        var uploaded = await ReadAsync<Exhibit>(await Client(actor).PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        Assert.Equal("Test Exhibit - Test Actor", uploaded.Name);
+        await using var db = NewContext();
+        Assert.Equal("Test Collection - Test Actor", (await db.Collections.SingleAsync(x => x.Id == uploaded.CollectionId, Ct)).Name);
     }
 
     [Fact]
