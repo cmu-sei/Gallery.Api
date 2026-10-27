@@ -2,7 +2,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 # Testing
 
-The suite has 791 tests.
+The suite has 793 tests.
 
 The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, AutoMapper profiles and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 

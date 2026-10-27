@@ -300,6 +300,7 @@ namespace Gallery.Api.Services
             exhibitFileObject.Exhibit.CollectionId = copyTheCollection ? newCollectionId : oldCollectionId;
             exhibitFileObject.Exhibit.DateCreated = DateTime.UtcNow;
             exhibitFileObject.Exhibit.CreatedBy = currentUserId;
+            exhibitFileObject.Exhibit.Name = exhibitFileObject.Exhibit.Name + " - " + username;
             exhibitFileObject.Exhibit.DateModified = exhibitFileObject.Exhibit.DateCreated;
             exhibitFileObject.Exhibit.ModifiedBy = exhibitFileObject.Exhibit.CreatedBy;
             exhibitFileObject.Exhibit.Teams = null;
