@@ -7995,7 +7995,7 @@
           },
           "scenarioId": {
             "type": "string",
-            "description": "The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter. On a\ncreate, a Scenario that does not exist yet is also allowed, since Blueprint creates its Scenario later.",
+            "description": "The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter.",
             "format": "uuid",
             "nullable": true
           },
@@ -8035,7 +8035,7 @@
           },
           "scenarioId": {
             "type": "string",
-            "description": "The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter. On a\ncreate, a Scenario that does not exist yet is also allowed, since Blueprint creates its Scenario later.",
+            "description": "The Steamfitter Scenario that sends share email. The caller must be able to read it in Steamfitter.",
             "format": "uuid",
             "nullable": true
           }

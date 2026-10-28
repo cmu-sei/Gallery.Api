@@ -20,18 +20,7 @@ namespace Gallery.Api.Services
     public interface ISteamfitterService
     {
         Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskCreate taskForm, CancellationToken ct);
-        Task<ScenarioAccess> GetCallerScenarioAccessAsync(Guid scenarioId, CancellationToken ct);
-    }
-
-    /// <summary>What Steamfitter answers the caller, with their own token, about one Scenario.</summary>
-    public enum ScenarioAccess
-    {
-        /// <summary>The Scenario exists and the caller can read it.</summary>
-        Readable,
-        /// <summary>No Scenario has this id yet, as when Blueprint names the Scenario before it creates it.</summary>
-        NotFound,
-        /// <summary>The caller cannot read the Scenario, or has no token to ask with.</summary>
-        NotReadable
+        Task<bool> CanCallerReadScenarioAsync(Guid scenarioId, CancellationToken ct);
     }
 
     public class SteamfitterService : ISteamfitterService
@@ -67,16 +56,16 @@ namespace Gallery.Api.Services
         /// <summary>
         /// Asks Steamfitter for the Scenario with the caller's own token rather than Gallery's service account. An
         /// exhibit names the Scenario that its share email goes through with the service account, so it may name only
-        /// a Scenario the caller can read. The request is sent directly, because Steamfitter answers an unknown id
-        /// with an empty 200 or 204 to a caller holding ViewScenarios, and the generated client does not tell that
-        /// apart from a Scenario. Any other caller is answered 403 for an unknown id, as for a Scenario they cannot
-        /// read, so that the answer does not tell which ids exist; an older Steamfitter answers them 404.
+        /// a Scenario the caller can read, and one that does not exist is no more readable than one they cannot see.
+        /// A 403, a 404 or an empty answer all mean the caller cannot use it; which one Steamfitter gives for an id
+        /// it does not know depends on its version and on what the caller may see. A server error is answered as
+        /// unavailable. The request is sent directly so that every answer, an empty one included, can be read.
         /// </summary>
-        public async Task<ScenarioAccess> GetCallerScenarioAccessAsync(Guid scenarioId, CancellationToken ct)
+        public async Task<bool> CanCallerReadScenarioAsync(Guid scenarioId, CancellationToken ct)
         {
             var authorization = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
             if (string.IsNullOrEmpty(authorization))
-                return ScenarioAccess.NotReadable;
+                return false;
 
             HttpStatusCode status;
             string body = null;
@@ -99,16 +88,15 @@ namespace Gallery.Api.Services
             switch (status)
             {
                 case HttpStatusCode.OK:
-                    return string.IsNullOrWhiteSpace(body) || body.Trim() == "null" ? ScenarioAccess.NotFound : ScenarioAccess.Readable;
+                    return !string.IsNullOrWhiteSpace(body) && body.Trim() != "null";
                 case HttpStatusCode.NoContent:
                 case HttpStatusCode.NotFound:
-                    return ScenarioAccess.NotFound;
                 case HttpStatusCode.Unauthorized:
                 case HttpStatusCode.Forbidden:
-                    return ScenarioAccess.NotReadable;
+                    return false;
                 default:
                     if ((int)status >= 200 && (int)status < 300)
-                        return ScenarioAccess.NotReadable;
+                        return false;
                     throw new ServiceUnavailableException($"Steamfitter answered {(int)status} when asked for the Scenario.");
             }
         }

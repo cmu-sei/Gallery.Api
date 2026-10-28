@@ -302,25 +302,26 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     /// <summary>
-    /// Blueprint names its Scenario before it creates it in Steamfitter, so a create may name a Scenario that does not
-    /// exist yet: a 404, or the empty answer Steamfitter gives a caller holding ViewScenarios.
+    /// A create, like an edit, may name only a Scenario Steamfitter answers with. A 404, or an empty 200 or 204, is a
+    /// Scenario the caller cannot use, as a 403 is: an exhibit is linked to its Scenario once the Scenario exists.
     /// </summary>
     [Theory]
     [InlineData(HttpStatusCode.NotFound)]
     [InlineData(HttpStatusCode.OK)]
     [InlineData(HttpStatusCode.NoContent)]
-    public async Task Create_keeps_a_scenario_that_does_not_exist_yet(HttpStatusCode answer)
+    public async Task Create_answers_a_scenario_that_does_not_exist_with_not_found_and_creates_nothing(HttpStatusCode answer)
     {
         var collection = TestData.Collection();
         await Seed(collection);
         var scenarioId = Guid.NewGuid();
         Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}", [], "application/json", answer);
 
-        var created = await ReadAsync<Exhibit>(
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
             await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
 
+        Assert.Equal("Scenario not found", problem.Title);
         await using var db = NewContext();
-        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).ScenarioId);
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
     }
 
     [Fact]

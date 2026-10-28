@@ -171,11 +171,9 @@ namespace Gallery.Api.Services
             var userId = _user.GetId();
             exhibit.Name = string.IsNullOrEmpty(exhibit.Name) ? collection.Name : exhibit.Name;
             exhibit.Description = string.IsNullOrEmpty(exhibit.Description) ? collection.Description : exhibit.Description;
-            // Share email goes through this Scenario with Gallery's service account. A Scenario that does not exist
-            // yet is allowed here, but only a caller Steamfitter tells it does not exist, one holding ViewScenarios,
-            // gets that far; any other is refused, as for a Scenario they cannot read.
+            // share email goes through this Scenario with Gallery's service account
             if (exhibit.ScenarioId.HasValue &&
-                await _steamfitterService.GetCallerScenarioAccessAsync(exhibit.ScenarioId.Value, ct) == ScenarioAccess.NotReadable)
+                !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
                 throw new EntityNotFoundException<Exhibit>("Scenario not found");
             var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
@@ -474,7 +472,7 @@ namespace Gallery.Api.Services
 
             // share email goes through this Scenario with Gallery's service account
             if (exhibit.ScenarioId.HasValue && exhibit.ScenarioId != exhibitToUpdate.ScenarioId &&
-                await _steamfitterService.GetCallerScenarioAccessAsync(exhibit.ScenarioId.Value, ct) != ScenarioAccess.Readable)
+                !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
                 throw new EntityNotFoundException<Exhibit>("Scenario not found");
 
             _mapper.Map(exhibit, exhibitToUpdate);
