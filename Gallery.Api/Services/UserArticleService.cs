@@ -535,7 +535,7 @@ namespace Gallery.Api.Services
                     {"Account", "stackstorm"},
                     {"Mime", "html"}
                 },
-                ApiUrl = "stackstorm",
+                ApiUrl = "email",
                 VmList = null,
                 VmMask = "",
                 Action = SAC.TaskAction.Send_email,
