@@ -19,7 +19,7 @@ namespace Gallery.Api.Services
 {
     public interface ISteamfitterService
     {
-        Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskForm taskForm, CancellationToken ct);
+        Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskCreate taskForm, CancellationToken ct);
         Task<ScenarioAccess> GetCallerScenarioAccessAsync(Guid scenarioId, CancellationToken ct);
     }
 
@@ -53,7 +53,7 @@ namespace Gallery.Api.Services
             _resourceOwnerAuthorizationOptions = resourceOwnerAuthorizationOptions;
         }
 
-        public async Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskForm taskForm, CancellationToken ct)
+        public async Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskCreate taskForm, CancellationToken ct)
         {
             var client = ApiClientsExtensions.GetHttpClient(_httpClientFactory, _clientOptions.SteamfitterApiUrl);
             var tokenResponse = await ApiClientsExtensions.RequestTokenAsync(_resourceOwnerAuthorizationOptions, client);

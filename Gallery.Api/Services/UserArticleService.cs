@@ -512,14 +512,13 @@ namespace Gallery.Api.Services
             Guid scenarioId,
             CancellationToken ct)
         {
-            var task = new SAC.TaskForm()
+            var task = new SAC.TaskCreate()
             {
                 Repeatable = false,
                 UserExecutable = true,
                 Score = 0,
                 TriggerCondition = SAC.TaskTrigger.Manual,
                 TriggerTaskId = null,
-                CurrentIteration = 0,
                 IterationTermination = SAC.TaskIterationTermination.IterationCount,
                 Iterations = 1,
                 IntervalSeconds = 0,
@@ -540,13 +539,11 @@ namespace Gallery.Api.Services
                 VmList = null,
                 VmMask = "",
                 Action = SAC.TaskAction.Send_email,
-                UserId = _user.GetId(),
                 ScenarioId = scenarioId,
                 ScenarioTemplateId = null,
                 Description = "Send email regarding shared Gallery Article",
                 Name = "Send Email from Gallery User " + _user.FindFirst("name")?.Value,
-                ExpectedOutput = "True",
-                AdditionalProperties = new Dictionary<string, Object>(){}
+                ExpectedOutput = "True"
             };
             try
             {
