@@ -631,6 +631,46 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
     }
 
     /// <summary>
+    /// A 200 that is not the Scenario, such as a proxy's login page or another Scenario, means Gallery is not talking
+    /// to Steamfitter as it should, so the Scenario is unchecked and the edit is refused as unavailable.
+    /// </summary>
+    [Theory]
+    [InlineData("text/html", "<html><body>Sign in</body></html>")]
+    [InlineData("application/json", """{"id":"00000000-0000-0000-0000-000000000001","name":"Another"}""")]
+    [InlineData("application/json", """[{"name":"Readable"}]""")]
+    [InlineData("application/json", """{"name":"No id"}""")]
+    public async Task Update_answers_a_200_that_is_not_the_scenario_with_service_unavailable(string contentType, string body)
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}", Encoding.UTF8.GetBytes(body), contentType);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
+    [Fact]
+    public async Task Create_answers_a_200_that_is_not_the_scenario_with_service_unavailable_and_creates_nothing()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}",
+            Encoding.UTF8.GetBytes("<html><body>Sign in</body></html>"), "text/html");
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    /// <summary>
     /// A Steamfitter that cannot be reached, or that fails, leaves the Scenario unchecked, so the edit is refused as
     /// unavailable rather than failing with a server error.
     /// </summary>
