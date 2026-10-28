@@ -506,10 +506,9 @@ namespace Gallery.Api.Services
             if (exhibitToUpdate == null)
                 throw new EntityNotFoundException<Exhibit>();
 
-            // Get all unique move/inject pairs from articles in this exhibit's collection
+            // Get all unique move/inject pairs from the articles in this exhibit
             var moveInjectPairs = await _context.Articles
-                .Where(a => a.CollectionId == exhibitToUpdate.CollectionId
-                    && (a.ExhibitId == null || a.ExhibitId == id))
+                .Where(ArticleScope.InExhibit(exhibitToUpdate))
                 .Select(a => new { a.Move, a.Inject })
                 .Distinct()
                 .OrderBy(a => a.Move)

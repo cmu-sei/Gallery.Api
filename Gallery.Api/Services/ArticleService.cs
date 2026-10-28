@@ -99,11 +99,9 @@ namespace Gallery.Api.Services
             if (exhibit == null)
                 throw new EntityNotFoundException<Exhibit>();
             IQueryable<ArticleEntity> articles = _context.Articles
-                .Where(a => a.CollectionId == exhibit.CollectionId
-                     && (a.ExhibitId == null || a.ExhibitId == exhibitId)
-                    && (a.Move < exhibit.CurrentMove
-                        || (a.Move == exhibit.CurrentMove && a.Inject <= exhibit.CurrentInject))
-                )
+                .Where(ArticleScope.InExhibit(exhibit))
+                .Where(a => a.Move < exhibit.CurrentMove
+                    || (a.Move == exhibit.CurrentMove && a.Inject <= exhibit.CurrentInject))
                 .OrderByDescending(a => a.Move)
                 .ThenByDescending(a => a.Inject);
 
