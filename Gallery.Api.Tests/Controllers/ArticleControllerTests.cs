@@ -787,6 +787,22 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(card.Id, (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).CardId);
     }
 
+    /// <summary>A participant can move a posted article between two cards their team can post on.</summary>
+    [Fact]
+    public async Task Update_of_a_posted_article_is_allowed_for_a_participant_moving_it_to_another_card_the_team_can_post_on()
+    {
+        var (collection, _, exhibit, team, posted) = await SeedPostedArticle(canPost: true);
+        var open = TestData.Card(collection.Id, "Open");
+        await Seed(open, TestData.TeamCard(team.Id, open.Id, canPostArticles: true));
+        var actor = await Actor().OnTeam(team).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/articles/{posted.Id}",
+            NewArticle(collection.Id, open.Id, exhibit.Id, posted.Id, "Moved"), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(open.Id, (await db.Articles.SingleAsync(x => x.Id == posted.Id, Ct)).CardId);
+    }
+
     /// <summary>A participant's body naming another exhibit does not change which exhibit the gate reads.</summary>
     [Fact]
     public async Task Update_of_a_template_is_forbidden_for_a_participant_whose_body_names_their_exhibit()

@@ -156,7 +156,7 @@ namespace Gallery.Api.Controllers
             {
                 if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
-                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, article.CardId, ct))
+                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, [article.CardId], ct))
                         throw new ForbiddenException();
                 }
             }
@@ -193,12 +193,13 @@ namespace Gallery.Api.Controllers
                 if (!await _authorizationService.AuthorizeAsync<Exhibit>(storedArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
                     // a participant must be able to post on the article's card and on the card it moves to
-                    if (!await _articleService.CanUserPostArticlesAsync(storedArticle.ExhibitId.Value, storedArticle.CardId, ct) ||
-                        !await _articleService.CanUserPostArticlesAsync(storedArticle.ExhibitId.Value, article.CardId, ct))
+                    if (!await _articleService.CanUserPostArticlesAsync(storedArticle.ExhibitId.Value, [storedArticle.CardId, article.CardId], ct))
                         throw new ForbiddenException();
                 }
             }
-            await _articleService.RequireCardInCollectionAsync(article.CardId, storedArticle.CollectionId, ct);
+            // the stored card is already in the article's collection
+            if (article.CardId != storedArticle.CardId)
+                await _articleService.RequireCardInCollectionAsync(article.CardId, storedArticle.CollectionId, ct);
 
             var updatedArticle = await _articleService.UpdateAsync(id, article, ct);
             return Ok(updatedArticle);
@@ -229,7 +230,7 @@ namespace Gallery.Api.Controllers
             {
                 if (!await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 {
-                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, article.CardId, ct))
+                    if (!await _articleService.CanUserPostArticlesAsync(article.ExhibitId.Value, [article.CardId], ct))
                         throw new ForbiddenException();
                 }
             }

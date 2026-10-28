@@ -33,7 +33,7 @@ namespace Gallery.Api.Services
         Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate article, CancellationToken ct);
         Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.ArticleEdit article, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
-        Task<bool> CanUserPostArticlesAsync(Guid exhibitId, Guid? cardId, CancellationToken ct);
+        Task<bool> CanUserPostArticlesAsync(Guid exhibitId, IReadOnlyCollection<Guid?> cardIds, CancellationToken ct);
         Task RequireCardInCollectionAsync(Guid? cardId, Guid collectionId, CancellationToken ct);
         Task<bool> CanUserViewArticleAsync(Guid articleId, CancellationToken ct);
         Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct);
@@ -258,8 +258,8 @@ namespace Gallery.Api.Services
             return true;
         }
 
-        /// <summary>Whether the caller's team in <paramref name="exhibitId"/> can post articles on <paramref name="cardId"/>.</summary>
-        public async Task<bool> CanUserPostArticlesAsync(Guid exhibitId, Guid? cardId, CancellationToken ct)
+        /// <summary>Whether the caller's team in <paramref name="exhibitId"/> can post articles on every one of <paramref name="cardIds"/>.</summary>
+        public async Task<bool> CanUserPostArticlesAsync(Guid exhibitId, IReadOnlyCollection<Guid?> cardIds, CancellationToken ct)
         {
             var userId = _user.GetId();
             var teamUser = await _context.TeamUsers
@@ -267,9 +267,12 @@ namespace Gallery.Api.Services
             if (teamUser == null)
                 return false;
 
-            var canPostArticles = await _context.TeamCards
-                .AnyAsync(tc => tc.TeamId == teamUser.TeamId && tc.CardId == cardId && tc.CanPostArticles, ct);
-            return canPostArticles;
+            // no TeamCard names a null card, so a null in the list is never matched
+            var distinctCardIds = cardIds.Distinct().ToList();
+            var postableCardCount = await _context.TeamCards
+                .Where(tc => tc.TeamId == teamUser.TeamId && tc.CanPostArticles && distinctCardIds.Contains(tc.CardId))
+                .CountAsync(ct);
+            return postableCardCount == distinctCardIds.Count;
         }
 
         /// <summary>Throws a 404 unless <paramref name="cardId"/> is null or a card of <paramref name="collectionId"/>.</summary>
