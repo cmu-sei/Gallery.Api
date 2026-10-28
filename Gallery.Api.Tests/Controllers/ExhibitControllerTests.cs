@@ -419,6 +419,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(1, await db.Articles.CountAsync(x => x.ExhibitId == sibling.Id, Ct));
     }
 
+    /// <summary>
+    /// Data from before team articles were scoped can link a team to a sibling exhibit's article. The copy leaves that
+    /// link out with the article, rather than refusing a file it built itself.
+    /// </summary>
+    [Fact]
+    public async Task Copy_leaves_out_a_team_article_naming_a_sibling_exhibit_s_article()
+    {
+        var exhibit = await SeedExhibit();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = await SeedTeam(exhibit, "Copied Team");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        var siblings = TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's");
+        await Seed(sibling, own, siblings,
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id),
+            TestData.TeamArticle(exhibit.Id, team.Id, siblings.Id));
+
+        var copy = await ReadAsync<Exhibit>(await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        await using var db = NewContext();
+        var copiedOwn = await db.Articles.SingleAsync(x => x.ExhibitId == copy.Id, Ct);
+        var linked = await db.TeamArticles.Where(x => x.ExhibitId == copy.Id).Select(x => x.ArticleId).ToListAsync(Ct);
+        Assert.Equal([copiedOwn.Id], linked);
+    }
+
     [Fact]
     public async Task Copy_is_forbidden_for_a_caller_holding_only_CreateExhibits()
     {
@@ -1033,6 +1057,25 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var teamArticle = await db.TeamArticles.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct);
         Assert.Equal(articles[0].Id, teamArticle.ArticleId);
         Assert.False(await db.Articles.AnyAsync(x => x.ExhibitId == sibling.Id, Ct));
+    }
+
+    /// <summary>A file whose article list is null holds no articles, as a file that leaves the list out does.</summary>
+    [Fact]
+    public async Task UploadJson_reads_a_null_article_list_as_no_articles()
+    {
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "No Articles" },
+              "Cards": [], "Articles": null,
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "No Articles" },
+              "Teams": [], "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.CollectionId == uploaded.CollectionId, Ct));
     }
 
     /// <summary>A file whose team card names a card it does not hold is refused before anything is saved.</summary>

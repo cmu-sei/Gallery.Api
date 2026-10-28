@@ -234,9 +234,11 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(m => m.Card.CollectionId == exhibitEntity.CollectionId && m.Team.ExhibitId == exhibitEntity.Id)
                 .ToListAsync(ct);
+            // only the TeamArticles naming an article the file carries; older data can link a sibling exhibit's article
+            var articleIds = articles.Select(m => m.Id).ToList();
             var teamArticles = await _context.TeamArticles
                 .AsNoTracking()
-                .Where(m => m.ExhibitId == exhibitEntity.Id && m.Article.CollectionId == exhibitEntity.CollectionId && m.Team.ExhibitId == exhibitEntity.Id)
+                .Where(m => m.ExhibitId == exhibitEntity.Id && articleIds.Contains(m.ArticleId) && m.Team.ExhibitId == exhibitEntity.Id)
                 .ToListAsync(ct);
             var exhibitFileObject = new ExhibitFileFormat()
             {
@@ -286,6 +288,7 @@ namespace Gallery.Api.Services
             var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == _user.GetId())).Name;
             var newExhibitId = Guid.NewGuid();
             var fileExhibitId = exhibitImport.Exhibit.Id;
+            var fileArticles = exhibitImport.Articles ?? [];
 
             // build and check everything before anything is tracked
             CollectionEntity newCollection = null;
@@ -305,7 +308,7 @@ namespace Gallery.Api.Services
                     CreatedBy = currentUserId
                 };
                 (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
-                    collectionId, exhibitImport.Cards, exhibitImport.Articles, fileExhibitId, newExhibitId, cardIdMap);
+                    collectionId, exhibitImport.Cards, fileArticles, fileExhibitId, newExhibitId, cardIdMap);
             }
             else
             {
@@ -314,13 +317,13 @@ namespace Gallery.Api.Services
                 foreach (var cardId in await _context.Cards.Where(c => c.CollectionId == collectionId).Select(c => c.Id).ToListAsync(ct))
                     cardIdMap[cardId] = cardId;
                 (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
-                    collectionId, [], exhibitImport.Articles.Where(a => a.ExhibitId == fileExhibitId), fileExhibitId, newExhibitId, cardIdMap);
+                    collectionId, [], fileArticles.Where(a => a == null || a.ExhibitId == fileExhibitId), fileExhibitId, newExhibitId, cardIdMap);
                 foreach (var articleId in await _context.Articles.Where(a => a.CollectionId == collectionId && a.ExhibitId == null).Select(a => a.Id).ToListAsync(ct))
                     articleIdMap[articleId] = articleId;
             }
             // an article of another exhibit was left out, and so is a TeamArticle that names it
-            var leftOutArticleIds = exhibitImport.Articles
-                .Where(a => a.ExhibitId != null && a.ExhibitId != fileExhibitId)
+            var leftOutArticleIds = fileArticles
+                .Where(a => a != null && a.ExhibitId != null && a.ExhibitId != fileExhibitId)
                 .Select(a => a.Id)
                 .ToHashSet();
 
