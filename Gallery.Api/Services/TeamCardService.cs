@@ -122,13 +122,13 @@ namespace Gallery.Api.Services
             if (teamCardToUpdate == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            // a TeamCard can move to another team or card only inside its own exhibit
+            // a TeamCard can move to another team or card only inside its own exhibit, so not at all without one
             var exhibit = teamCardToUpdate.Team.Exhibit;
             if (teamCard.TeamId != teamCardToUpdate.TeamId &&
-                !await _context.Teams.AnyAsync(t => t.Id == teamCard.TeamId && t.ExhibitId == exhibit.Id, ct))
+                (exhibit == null || !await _context.Teams.AnyAsync(t => t.Id == teamCard.TeamId && t.ExhibitId == exhibit.Id, ct)))
                 throw new EntityNotFoundException<Team>();
             if (teamCard.CardId != teamCardToUpdate.CardId &&
-                !await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == exhibit.CollectionId, ct))
+                (exhibit == null || !await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == exhibit.CollectionId, ct)))
                 throw new EntityNotFoundException<Card>();
 
             _mapper.Map(teamCard, teamCardToUpdate);

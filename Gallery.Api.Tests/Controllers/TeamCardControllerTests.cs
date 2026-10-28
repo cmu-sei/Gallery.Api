@@ -376,6 +376,41 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.Equal((team.Id, teamCard.CardId), (stored.TeamId, stored.CardId));
     }
 
+    /// <summary>
+    /// A TeamCard moves only inside its team's exhibit, so one on a team with no exhibit cannot move to another team or
+    /// card at all. ManageExhibits passes the gate without an exhibit to check against.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Update_of_a_team_card_whose_team_has_no_exhibit_answers_a_new_team_or_card_with_not_found(bool newTeam, bool newCard)
+    {
+        var (teamCard, team, card) = await SeedTeamCardWithoutExhibit();
+        var otherTeam = TestData.Team(Guid.Empty, "Other Team");
+        otherTeam.ExhibitId = null;
+        var otherCard = TestData.Card(card.CollectionId, "Other Card");
+        await Seed(otherTeam, otherCard);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = newTeam ? otherTeam.Id : team.Id, cardId = newCard ? otherCard.Id : card.Id, move = 9 }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((team.Id, card.Id, 0), (stored.TeamId, stored.CardId, stored.Move));
+    }
+
+    [Fact]
+    public async Task Update_of_a_team_card_whose_team_has_no_exhibit_keeps_its_team_and_card_and_saves_the_rest()
+    {
+        var (teamCard, team, card) = await SeedTeamCardWithoutExhibit();
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = team.Id, cardId = card.Id, move = 9 }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(9, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).Move);
+    }
+
     [Fact]
     public async Task Delete_removes_the_team_card_for_a_caller_holding_ManageExhibits()
     {
@@ -488,5 +523,18 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         await Seed(collection, exhibit, team, card, teamCard);
 
         return (exhibit, team, teamCard);
+    }
+
+    /// <summary>A TeamCard on a team that belongs to no exhibit, which <c>TeamCreate.ExhibitId</c> allows.</summary>
+    private async Task<(TeamCardEntity TeamCard, TeamEntity Team, CardEntity Card)> SeedTeamCardWithoutExhibit()
+    {
+        var collection = TestData.Collection();
+        var team = TestData.Team(Guid.Empty);
+        team.ExhibitId = null;
+        var card = TestData.Card(collection.Id);
+        var teamCard = TestData.TeamCard(team.Id, card.Id);
+        await Seed(collection, team, card, teamCard);
+
+        return (teamCard, team, card);
     }
 }
