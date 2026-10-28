@@ -111,9 +111,6 @@ namespace Gallery.Api.Controllers
         {
             var teamCard = await _teamCardService.GetAsync(id, ct);
 
-            if (teamCard == null)
-                throw new EntityNotFoundException<TeamCard>();
-
             if (!await _authorizationService.AuthorizeAsync<Team>(teamCard.TeamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 

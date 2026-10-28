@@ -4888,9 +4888,6 @@ namespace Gallery.Api.Client
         [System.Text.Json.Serialization.JsonPropertyName("toTeamIdList")]
         public System.Collections.Generic.ICollection<System.Guid> ToTeamIdList { get; set; }
 
-        [System.Text.Json.Serialization.JsonPropertyName("exhibitId")]
-        public System.Guid ExhibitId { get; set; }
-
         [System.Text.Json.Serialization.JsonPropertyName("subject")]
         public string Subject { get; set; }
 

@@ -92,9 +92,6 @@ namespace Gallery.Api.Controllers
             if (!await _authorizationService.AuthorizeAsync<Team>(teamUser.TeamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
-            if (teamUser == null)
-                throw new EntityNotFoundException<TeamUser>();
-
             return Ok(teamUser);
         }
 

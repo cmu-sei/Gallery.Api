@@ -127,9 +127,6 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
             var card = await _cardService.GetAsync(id, ct);
-            if (card == null)
-                throw new EntityNotFoundException<Card>();
-
             if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
                 throw new ForbiddenException();
 

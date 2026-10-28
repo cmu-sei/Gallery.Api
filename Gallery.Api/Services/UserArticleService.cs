@@ -207,7 +207,7 @@ namespace Gallery.Api.Services
             if (fromUserId != userArticleEntity.UserId)
                 throw new ForbiddenException();
 
-            // the stored UserArticle's exhibit, never the one the body names
+            // the stored UserArticle's exhibit
             var exhibitId = userArticleEntity.ExhibitId;
             var toTeamIds = (shareDetails.ToTeamIdList ?? []).Distinct().ToList();
             var exhibitTeamList = await _context.Teams
@@ -778,7 +778,6 @@ namespace Gallery.Api.Services
     public class ShareDetails
     {
         public Guid[] ToTeamIdList { get; set; }
-        public Guid ExhibitId { get; set; }
         public string Subject { get; set; }
         public string Message { get; set; }
     }

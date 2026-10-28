@@ -84,9 +84,6 @@ namespace Gallery.Api.Controllers
                 throw new ForbiddenException();
 
             var team = await _teamService.GetAsync(id, ct);
-            if (team == null)
-                throw new EntityNotFoundException<Team>();
-
             return Ok(team);
         }
 

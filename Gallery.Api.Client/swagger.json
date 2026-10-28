@@ -9178,10 +9178,6 @@
             },
             "nullable": true
           },
-          "exhibitId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "subject": {
             "type": "string",
             "nullable": true

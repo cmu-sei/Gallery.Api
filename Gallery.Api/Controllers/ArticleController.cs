@@ -52,9 +52,6 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> GetByCard(Guid cardId, CancellationToken ct)
         {
             var card = await _cardService.GetAsync(cardId, ct);
-            if (card == null)
-                throw new EntityNotFoundException<CollectionEntity>();
-
             if (!await _authorizationService.AuthorizeAsync<Collection>(card.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct))
                 throw new ForbiddenException();
 
@@ -119,9 +116,6 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> Get(Guid id, CancellationToken ct)
         {
             var article = await _articleService.GetAsync(id, ct);
-
-            if (article == null)
-                throw new EntityNotFoundException<Article>();
 
             if (!(article.ExhibitId == null && await _authorizationService.AuthorizeAsync<Collection>(article.CollectionId, [SystemPermission.ViewCollections], [CollectionPermission.ViewCollection], ct)) &&
                 !(article.ExhibitId != null && await _authorizationService.AuthorizeAsync<Exhibit>(article.ExhibitId, [SystemPermission.ViewExhibits], [ExhibitPermission.ViewExhibit], ct)) &&
