@@ -68,8 +68,9 @@ namespace Gallery.Api.Services
         /// Asks Steamfitter for the Scenario with the caller's own token rather than Gallery's service account. An
         /// exhibit names the Scenario that its share email goes through with the service account, so it may name only
         /// a Scenario the caller can read. The request is sent directly, because Steamfitter answers an unknown id
-        /// with an empty 200 or 204 to a caller holding ViewScenarios and with a 404 otherwise, and the generated
-        /// client does not tell those apart.
+        /// with an empty 200 or 204 to a caller holding ViewScenarios, and the generated client does not tell that
+        /// apart from a Scenario. Any other caller is answered 403 for an unknown id, as for a Scenario they cannot
+        /// read, so that the answer does not tell which ids exist; an older Steamfitter answers them 404.
         /// </summary>
         public async Task<ScenarioAccess> GetCallerScenarioAccessAsync(Guid scenarioId, CancellationToken ct)
         {
