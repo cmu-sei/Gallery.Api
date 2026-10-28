@@ -629,6 +629,33 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).ScenarioId);
     }
 
+    /// <summary>
+    /// A Steamfitter that cannot be reached, or that fails, leaves the Scenario unchecked, so the edit is refused as
+    /// unavailable rather than failing with a server error.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    public async Task Update_answers_a_steamfitter_that_cannot_check_the_scenario_with_service_unavailable(HttpStatusCode? answer)
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var url = $"http://localhost:4400/api/scenarios/{scenarioId}";
+        if (answer is null)
+            Factory.OutboundHttp.Throws($"api/scenarios/{scenarioId}");
+        else
+            Factory.OutboundHttp.RespondWithStatus(url, answer.Value);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
     // ---- Move and inject -----------------------------------------------------------------------
 
     /// <summary>Moving the exhibit delivers the team articles that are now due to the team's users.</summary>

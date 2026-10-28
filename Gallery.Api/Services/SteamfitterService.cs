@@ -3,6 +3,7 @@
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Options;
 using System;
@@ -76,13 +77,27 @@ namespace Gallery.Api.Services
             if (string.IsNullOrEmpty(authorization))
                 return ScenarioAccess.NotReadable;
 
-            var client = ApiClientsExtensions.GetHttpClient(_httpClientFactory, _clientOptions.SteamfitterApiUrl);
-            client.DefaultRequestHeaders.Add("authorization", authorization);
-            using var response = await client.GetAsync($"api/scenarios/{scenarioId}", ct);
-            switch (response.StatusCode)
+            HttpStatusCode status;
+            string body = null;
+            try
+            {
+                var client = ApiClientsExtensions.GetHttpClient(_httpClientFactory, _clientOptions.SteamfitterApiUrl);
+                client.DefaultRequestHeaders.Add("authorization", authorization);
+                using var response = await client.GetAsync($"api/scenarios/{scenarioId}", ct);
+                status = response.StatusCode;
+                if (status == HttpStatusCode.OK)
+                    body = await response.Content.ReadAsStringAsync(ct);
+            }
+            // Steamfitter is down, timed out or is not configured; a cancelled request is not one of these
+            catch (Exception ex) when (ex is HttpRequestException or UriFormatException or ArgumentNullException ||
+                ex is TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                throw new ServiceUnavailableException("Steamfitter could not be reached to check the Scenario.", ex);
+            }
+
+            switch (status)
             {
                 case HttpStatusCode.OK:
-                    var body = await response.Content.ReadAsStringAsync(ct);
                     return string.IsNullOrWhiteSpace(body) || body.Trim() == "null" ? ScenarioAccess.NotFound : ScenarioAccess.Readable;
                 case HttpStatusCode.NoContent:
                 case HttpStatusCode.NotFound:
@@ -91,8 +106,9 @@ namespace Gallery.Api.Services
                 case HttpStatusCode.Forbidden:
                     return ScenarioAccess.NotReadable;
                 default:
-                    response.EnsureSuccessStatusCode();
-                    return ScenarioAccess.NotReadable;
+                    if ((int)status >= 200 && (int)status < 300)
+                        return ScenarioAccess.NotReadable;
+                    throw new ServiceUnavailableException($"Steamfitter answered {(int)status} when asked for the Scenario.");
             }
         }
 
