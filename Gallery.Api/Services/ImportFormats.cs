@@ -123,7 +123,8 @@ namespace Gallery.Api.Services
             var cardEntities = new List<CardEntity>();
             foreach (var card in cards ?? [])
             {
-                if (card == null || cardIdMap.ContainsKey(card.Id))
+                // a card without an id is imported, but nothing in the file can name it
+                if (card == null || card.Id != Guid.Empty && cardIdMap.ContainsKey(card.Id))
                     throw new BadRequestException("The file lists a card more than once.");
 
                 var cardEntity = new CardEntity
@@ -135,7 +136,8 @@ namespace Gallery.Api.Services
                     Move = card.Move,
                     Inject = card.Inject
                 };
-                cardIdMap[card.Id] = cardEntity.Id;
+                if (card.Id != Guid.Empty)
+                    cardIdMap[card.Id] = cardEntity.Id;
                 cardEntities.Add(cardEntity);
             }
 
@@ -143,7 +145,7 @@ namespace Gallery.Api.Services
             var articleIdMap = new Dictionary<Guid, Guid>();
             foreach (var article in articles ?? [])
             {
-                if (article == null || articleIdMap.ContainsKey(article.Id))
+                if (article == null || article.Id != Guid.Empty && articleIdMap.ContainsKey(article.Id))
                     throw new BadRequestException("The file lists an article more than once.");
 
                 Guid? exhibitId;
@@ -180,7 +182,8 @@ namespace Gallery.Api.Services
                     DatePosted = article.DatePosted,
                     OpenInNewTab = article.OpenInNewTab
                 };
-                articleIdMap[article.Id] = articleEntity.Id;
+                if (article.Id != Guid.Empty)
+                    articleIdMap[article.Id] = articleEntity.Id;
                 articleEntities.Add(articleEntity);
             }
 

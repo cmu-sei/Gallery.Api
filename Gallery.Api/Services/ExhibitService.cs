@@ -322,7 +322,7 @@ namespace Gallery.Api.Services
             }
             // an article of another exhibit was left out, and so is a TeamArticle that names it
             var leftOutArticleIds = fileArticles
-                .Where(a => a != null && a.ExhibitId != null && a.ExhibitId != fileExhibitId)
+                .Where(a => a != null && a.Id != Guid.Empty && a.ExhibitId != null && a.ExhibitId != fileExhibitId)
                 .Select(a => a.Id)
                 .ToHashSet();
 
@@ -342,7 +342,8 @@ namespace Gallery.Api.Services
             var teams = new List<TeamEntity>();
             foreach (var team in exhibitImport.Teams ?? [])
             {
-                if (team == null || teamIdMap.ContainsKey(team.Id))
+                // a team without an id is imported, but nothing in the file can name it
+                if (team == null || team.Id != Guid.Empty && teamIdMap.ContainsKey(team.Id))
                     throw new BadRequestException("The file lists a team more than once.");
                 var teamEntity = new TeamEntity
                 {
@@ -353,7 +354,8 @@ namespace Gallery.Api.Services
                     Email = team.Email,
                     CreatedBy = currentUserId
                 };
-                teamIdMap[team.Id] = teamEntity.Id;
+                if (team.Id != Guid.Empty)
+                    teamIdMap[team.Id] = teamEntity.Id;
                 teams.Add(teamEntity);
             }
             var teamCards = new List<TeamCardEntity>();

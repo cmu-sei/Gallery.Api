@@ -571,6 +571,46 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal(["Named Status"], await ReadBack(db => db.Collections.Select(x => x.Name).ToListAsync(Ct)));
     }
 
+    /// <summary>
+    /// A hand-written file can leave out the records' ids. Each such record is imported with a new id; none is taken
+    /// for a second listing of another.
+    /// </summary>
+    [Fact]
+    public async Task UploadJson_imports_cards_and_articles_that_have_no_id()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "No Ids" },
+              "Cards": [ { "Name": "Card One" }, { "Name": "Card Two" } ],
+              "Articles": [ { "Name": "Article One" }, { "Name": "Article Two" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(["Card One", "Card Two"],
+            await ReadBack(db => db.Cards.Where(x => x.CollectionId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct)));
+        Assert.Equal(["Article One", "Article Two"],
+            await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct)));
+    }
+
+    /// <summary>A record without an id cannot be named, so an article naming the empty id names no card in the file.</summary>
+    [Fact]
+    public async Task UploadJson_answers_an_article_naming_the_empty_id_as_its_card_with_a_bad_request()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "Empty Card Id" },
+              "Cards": [ { "Name": "Card" } ],
+              "Articles": [ { "Name": "Article", "CardId": "00000000-0000-0000-0000-000000000000" } ]
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Card Id"), Ct)));
+    }
+
     [Fact]
     public async Task UploadJson_answers_a_file_that_is_not_json_with_a_bad_request()
     {

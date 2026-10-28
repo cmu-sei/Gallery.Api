@@ -1146,6 +1146,48 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.False(await db.Articles.AnyAsync(x => x.CollectionId == uploaded.CollectionId, Ct));
     }
 
+    /// <summary>Teams without an id are imported with new ids, rather than refused as one team listed twice.</summary>
+    [Fact]
+    public async Task UploadJson_imports_teams_that_have_no_id()
+    {
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "No Team Ids" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "No Team Ids" },
+              "Teams": [ { "Name": "Blue" }, { "Name": "Red" } ],
+              "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(["Blue", "Red"], await db.Teams.Where(x => x.ExhibitId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct));
+    }
+
+    /// <summary>A team card naming the empty id names no team in the file, even when a team in it has no id.</summary>
+    [Fact]
+    public async Task UploadJson_answers_a_team_card_naming_the_empty_id_with_a_bad_request()
+    {
+        var cardId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Empty Team Id" },
+              "Cards": [ { "Id": "{{cardId}}", "Name": "Card" } ], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Empty Team Id" },
+              "Teams": [ { "Name": "Blue" } ],
+              "TeamCards": [ { "TeamId": "00000000-0000-0000-0000-000000000000", "CardId": "{{cardId}}" } ],
+              "TeamArticles": []
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Team Id"), Ct));
+    }
+
     /// <summary>A file whose team card names a card it does not hold is refused before anything is saved.</summary>
     [Fact]
     public async Task UploadJson_answers_a_team_card_naming_a_card_outside_the_file_with_a_bad_request_and_saves_nothing()
