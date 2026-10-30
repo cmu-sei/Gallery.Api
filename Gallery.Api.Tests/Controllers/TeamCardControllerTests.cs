@@ -172,6 +172,23 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.True((await db.TeamCards.SingleAsync(x => x.CardId == card.Id, Ct)).CanPostArticles);
     }
 
+    /// <summary>A TeamCard can name only a card of its team's exhibit collection.</summary>
+    [Fact]
+    public async Task Create_answers_a_card_of_another_collection_with_not_found_and_saves_nothing()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/teamcards",
+            new { teamId = team.Id, cardId = foreignCard.Id, canPostArticles = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_EditExhibit()
     {
@@ -274,26 +291,76 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.Equal(teamCard.Move, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).Move);
     }
 
-    /// <summary>The gate reads the team the body names, so the team card moves onto the caller's team.</summary>
+    /// <summary>The gate reads the stored TeamCard's exhibit, so a manager of another exhibit cannot take the TeamCard.</summary>
     [Fact]
-    public async Task Update_rewrites_another_exhibit_s_team_card_when_the_body_names_a_team_the_caller_manages()
+    public async Task Update_is_forbidden_for_a_manager_of_the_exhibit_the_body_s_team_is_in_and_leaves_the_team_card()
     {
-        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var (exhibit, team, teamCard) = await SeedTeamCard();
         var mine = TestData.Exhibit(exhibit.CollectionId, "Mine");
         var myTeam = TestData.Team(mine.Id, "My Team");
         await Seed(mine, myTeam);
         var actor = await Actor().OnExhibit(mine, [ExhibitPermission.ManageExhibit]).SeedAsync();
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
             new { id = teamCard.Id, teamId = myTeam.Id, cardId = teamCard.CardId, move = 9 }, Ct));
 
         await using var db = NewContext();
         var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
-        Assert.Equal((myTeam.Id, 9), (stored.TeamId, stored.Move));
+        Assert.Equal((team.Id, 0), (stored.TeamId, stored.Move));
     }
 
+    /// <summary>A TeamCard can move to another team of its own exhibit.</summary>
     [Fact]
-    public async Task Update_links_a_team_card_to_a_card_in_a_collection_the_caller_cannot_view()
+    public async Task Update_moves_the_team_card_to_another_team_of_its_exhibit()
+    {
+        var (exhibit, _, teamCard) = await SeedTeamCard();
+        var other = TestData.Team(exhibit.Id, "Other Team");
+        await Seed(other);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = other.Id, cardId = teamCard.CardId, move = 9 }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((other.Id, 9), (stored.TeamId, stored.Move));
+    }
+
+    /// <summary>A manager of both exhibits still cannot move a TeamCard to a team of the other exhibit.</summary>
+    [Fact]
+    public async Task Update_answers_a_team_of_another_exhibit_with_not_found_and_leaves_the_team_card()
+    {
+        var (exhibit, team, teamCard) = await SeedTeamCard();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        var siblingTeam = TestData.Team(sibling.Id, "Sibling Team");
+        await Seed(sibling, siblingTeam);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = siblingTeam.Id, cardId = teamCard.CardId }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(team.Id, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).TeamId);
+    }
+
+    /// <summary>A TeamCard can name only a card of its exhibit's collection.</summary>
+    [Fact]
+    public async Task Update_answers_a_card_of_another_collection_with_not_found_and_leaves_the_team_card()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        var other = TestData.Collection("Other");
+        var foreignCard = TestData.Card(other.Id, "Foreign");
+        await Seed(other, foreignCard);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = team.Id, cardId = foreignCard.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(teamCard.CardId, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).CardId);
+    }
+
+    /// <summary>A manager of the exhibit cannot link its TeamCard to a card of a collection they cannot view.</summary>
+    [Fact]
+    public async Task Update_answers_a_card_of_a_collection_the_caller_cannot_view_with_not_found()
     {
         var (exhibit, team, teamCard) = await SeedTeamCard();
         var other = TestData.Collection("Other");
@@ -301,14 +368,47 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         await Seed(other, card);
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
 
-        var response = await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
-            new { id = teamCard.Id, teamId = team.Id, cardId = card.Id }, Ct);
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { id = teamCard.Id, teamId = team.Id, cardId = card.Id }, Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        Assert.Equal(card.Id, (await ReadAsync<TeamCard>(response)).CardId);
         await using var db = NewContext();
         var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
-        Assert.Equal((team.Id, card.Id), (stored.TeamId, stored.CardId));
+        Assert.Equal((team.Id, teamCard.CardId), (stored.TeamId, stored.CardId));
+    }
+
+    /// <summary>
+    /// A TeamCard moves only inside its team's exhibit, so one on a team with no exhibit cannot move to another team or
+    /// card at all. ManageExhibits passes the gate without an exhibit to check against.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Update_of_a_team_card_whose_team_has_no_exhibit_answers_a_new_team_or_card_with_not_found(bool newTeam, bool newCard)
+    {
+        var (teamCard, team, card) = await SeedTeamCardWithoutExhibit();
+        var otherTeam = TestData.Team(Guid.Empty, "Other Team");
+        otherTeam.ExhibitId = null;
+        var otherCard = TestData.Card(card.CollectionId, "Other Card");
+        await Seed(otherTeam, otherCard);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = newTeam ? otherTeam.Id : team.Id, cardId = newCard ? otherCard.Id : card.Id, move = 9 }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+        Assert.Equal((team.Id, card.Id, 0), (stored.TeamId, stored.CardId, stored.Move));
+    }
+
+    [Fact]
+    public async Task Update_of_a_team_card_whose_team_has_no_exhibit_keeps_its_team_and_card_and_saves_the_rest()
+    {
+        var (teamCard, team, card) = await SeedTeamCardWithoutExhibit();
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = team.Id, cardId = card.Id, move = 9 }, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(9, (await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct)).Move);
     }
 
     [Fact]
@@ -423,5 +523,18 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         await Seed(collection, exhibit, team, card, teamCard);
 
         return (exhibit, team, teamCard);
+    }
+
+    /// <summary>A TeamCard on a team that belongs to no exhibit, which <c>TeamCreate.ExhibitId</c> allows.</summary>
+    private async Task<(TeamCardEntity TeamCard, TeamEntity Team, CardEntity Card)> SeedTeamCardWithoutExhibit()
+    {
+        var collection = TestData.Collection();
+        var team = TestData.Team(Guid.Empty);
+        team.ExhibitId = null;
+        var card = TestData.Card(collection.Id);
+        var teamCard = TestData.TeamCard(team.Id, card.Id);
+        await Seed(collection, team, card, teamCard);
+
+        return (teamCard, team, card);
     }
 }

@@ -27,7 +27,7 @@ namespace Gallery.Api.Services
         Task<ViewModels.TeamUser> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetMineAsync(CancellationToken ct);
         Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct);
-        Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUser teamUser, CancellationToken ct);
+        Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUserCreate teamUser, CancellationToken ct);
         Task<ViewModels.TeamUser> SetObserverAsync(Guid id, bool value, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
@@ -99,11 +99,13 @@ namespace Gallery.Api.Services
                 .Include(tu => tu.User)
                 .Include(tu => tu.Team)
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<TeamUser>();
 
             return _mapper.Map<TeamUser>(item);
         }
 
-        public async Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUser teamUser, CancellationToken ct)
+        public async Task<ViewModels.TeamUser> CreateAsync(ViewModels.TeamUserCreate teamUser, CancellationToken ct)
         {
             var exhibitId = await _context.Teams
                 .Where(t => t.Id == teamUser.TeamId)
@@ -116,10 +118,6 @@ namespace Gallery.Api.Services
             if (alreadyOnExhibitTeam != null)
                 throw new ArgumentException($"The selected user ({teamUser.UserId}) is already on team {alreadyOnExhibitTeam.Name}");
 
-            teamUser.DateCreated = DateTime.UtcNow;
-            teamUser.CreatedBy = _user.GetId();
-            teamUser.DateModified = null;
-            teamUser.ModifiedBy = null;
             var teamUserEntity = _mapper.Map<TeamUserEntity>(teamUser);
             teamUserEntity.Id = teamUserEntity.Id != Guid.Empty ? teamUserEntity.Id : Guid.NewGuid();
 

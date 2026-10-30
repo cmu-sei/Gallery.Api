@@ -12,7 +12,7 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<ExhibitTeamEntity, ExhibitTeam>();
 
-            CreateMap<ExhibitTeam, ExhibitTeamEntity>();
+            CreateMap<ExhibitTeamCreate, ExhibitTeamEntity>(AutoMapper.MemberList.Source);
 
             CreateMap<ExhibitTeamEntity, ExhibitTeamEntity>()
                 .ForMember(e => e.Id, opt => opt.Ignore());

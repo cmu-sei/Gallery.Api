@@ -10,16 +10,16 @@ namespace Gallery.Api.Tests.Infrastructure.Mappings;
 /// <summary>The real AutoMapper profiles with Startup's global convention (<see cref="TestMapper"/>).</summary>
 public class MappingConfigurationTests
 {
-    /// <summary>A view model's id maps onto the entity, so an update body names the key it rewrites.</summary>
+    /// <summary>An edit body has no id, collection or exhibit, so mapping one keeps the entity's.</summary>
     [Fact]
-    public void An_article_body_maps_its_id_onto_the_entity()
+    public void An_article_edit_keeps_the_entity_s_id_collection_and_exhibit()
     {
-        var id = Guid.NewGuid();
-        var entity = new ArticleEntity { Id = Guid.NewGuid() };
+        var entity = new ArticleEntity { Id = Guid.NewGuid(), CollectionId = Guid.NewGuid(), ExhibitId = Guid.NewGuid() };
+        var (id, collectionId, exhibitId) = (entity.Id, entity.CollectionId, entity.ExhibitId);
 
-        TestMapper.Mapper.Map(new Article { Id = id }, entity);
+        TestMapper.Mapper.Map(new ArticleEdit { Name = "Edited" }, entity);
 
-        Assert.Equal(id, entity.Id);
+        Assert.Equal(("Edited", id, collectionId, exhibitId), (entity.Name, entity.Id, entity.CollectionId, entity.ExhibitId));
     }
 
     [Fact]

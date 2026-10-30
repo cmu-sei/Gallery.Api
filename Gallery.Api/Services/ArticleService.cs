@@ -30,10 +30,11 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Article>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Article>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Article>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
-        Task<ViewModels.Article> CreateAsync(ViewModels.Article article, CancellationToken ct);
-        Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct);
+        Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate article, CancellationToken ct);
+        Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.ArticleEdit article, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
-        Task<bool> CanUserPostArticlesAsync(Article article, CancellationToken ct);
+        Task<bool> CanUserPostArticlesAsync(Guid exhibitId, IReadOnlyCollection<Guid?> cardIds, CancellationToken ct);
+        Task RequireCardInCollectionAsync(Guid? cardId, Guid collectionId, CancellationToken ct);
         Task<bool> CanUserViewArticleAsync(Guid articleId, CancellationToken ct);
         Task<bool> LogXApiAsync(Uri verb, Article article, CancellationToken ct);
     }
@@ -66,6 +67,8 @@ namespace Gallery.Api.Services
         public async Task<ViewModels.Article> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Articles.SingleOrDefaultAsync(sm => sm.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<Article>();
 
             return _mapper.Map<Article>(item);
         }
@@ -92,36 +95,45 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Article>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
         {
-            var exhibit = (await _context.Exhibits.FirstAsync(e => e.Id == exhibitId));
+            var exhibit = await _context.Exhibits.SingleOrDefaultAsync(e => e.Id == exhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
             IQueryable<ArticleEntity> articles = _context.Articles
-                .Where(a => a.CollectionId == exhibit.CollectionId
-                     && (a.ExhibitId == null || a.ExhibitId == exhibitId)
-                    && (a.Move < exhibit.CurrentMove
-                        || (a.Move == exhibit.CurrentMove && a.Inject <= exhibit.CurrentInject))
-                )
+                .Where(ArticleScope.InExhibit(exhibit))
+                .Where(a => a.Move < exhibit.CurrentMove
+                    || (a.Move == exhibit.CurrentMove && a.Inject <= exhibit.CurrentInject))
                 .OrderByDescending(a => a.Move)
                 .ThenByDescending(a => a.Inject);
 
             return _mapper.Map<IEnumerable<Article>>(await articles.ToListAsync());
         }
 
-        public async Task<ViewModels.Article> CreateAsync(ViewModels.Article article, CancellationToken ct)
+        public async Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate articleCreate, CancellationToken ct)
         {
-            // Validate required fields
-            if (article.CollectionId == Guid.Empty)
+            var articleEntity = _mapper.Map<ArticleEntity>(articleCreate);
+            if (articleCreate.ExhibitId != null)
+            {
+                // an exhibit's article is in the exhibit's collection, whatever the body names
+                var collectionId = await _context.Exhibits
+                    .Where(e => e.Id == articleCreate.ExhibitId)
+                    .Select(e => (Guid?)e.CollectionId)
+                    .SingleOrDefaultAsync(ct);
+                if (collectionId == null)
+                    throw new EntityNotFoundException<Exhibit>();
+                articleEntity.CollectionId = collectionId.Value;
+            }
+            else if (articleCreate.CollectionId == Guid.Empty)
+            {
                 throw new ArgumentException("CollectionId is required");
+            }
+            await RequireCardInCollectionAsync(articleEntity.CardId, articleEntity.CollectionId, ct);
 
-            // Skip expensive validation queries - rely on database foreign key constraints
-            // This significantly improves performance when creating many articles from the same collection
-            // Database will throw if collection or card doesn't exist
-
-            var articleEntity = _mapper.Map<ArticleEntity>(article);
             articleEntity.Id = articleEntity.Id != Guid.Empty ? articleEntity.Id : Guid.NewGuid();
             articleEntity.DatePosted = articleEntity.DatePosted.Kind == DateTimeKind.Utc ? articleEntity.DatePosted : DateTime.SpecifyKind(articleEntity.DatePosted, DateTimeKind.Utc);
 
             _context.Articles.Add(articleEntity);
             await _context.SaveChangesAsync(ct);
-            article = await GetAsync(articleEntity.Id, ct);
+            var article = await GetAsync(articleEntity.Id, ct);
 
             // add ArticleTeams and UserArticles, if this is a user article for an Exhibit
             if (article.ExhibitId != null)
@@ -163,17 +175,17 @@ namespace Gallery.Api.Services
             return article;
         }
 
-        public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.Article article, CancellationToken ct)
+        public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.ArticleEdit articleEdit, CancellationToken ct)
         {
             var articleToUpdate = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (articleToUpdate == null)
                 throw new EntityNotFoundException<Article>();
 
-            _mapper.Map(article, articleToUpdate);
+            _mapper.Map(articleEdit, articleToUpdate);
             _context.Articles.Update(articleToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            article = await GetAsync(articleToUpdate.Id, ct);
+            var article = await GetAsync(articleToUpdate.Id, ct);
 
             // update UserArticles, if this is a user article for an Exhibit
             if (article.ExhibitId != null)
@@ -246,17 +258,28 @@ namespace Gallery.Api.Services
             return true;
         }
 
-        public async Task<bool> CanUserPostArticlesAsync(Article article, CancellationToken ct)
+        /// <summary>Whether the caller's team in <paramref name="exhibitId"/> can post articles on every one of <paramref name="cardIds"/>.</summary>
+        public async Task<bool> CanUserPostArticlesAsync(Guid exhibitId, IReadOnlyCollection<Guid?> cardIds, CancellationToken ct)
         {
             var userId = _user.GetId();
             var teamUser = await _context.TeamUsers
-                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == article.ExhibitId, ct);
+                .SingleOrDefaultAsync(tu => tu.UserId == userId && tu.Team.ExhibitId == exhibitId, ct);
             if (teamUser == null)
                 return false;
 
-            var canPostArticles = await _context.TeamCards
-                .AnyAsync(tc => tc.TeamId == teamUser.TeamId && tc.CardId == article.CardId && tc.CanPostArticles, ct);
-            return canPostArticles;
+            // no TeamCard names a null card, so a null in the list is never matched
+            var distinctCardIds = cardIds.Distinct().ToList();
+            var postableCardCount = await _context.TeamCards
+                .Where(tc => tc.TeamId == teamUser.TeamId && tc.CanPostArticles && distinctCardIds.Contains(tc.CardId))
+                .CountAsync(ct);
+            return postableCardCount == distinctCardIds.Count;
+        }
+
+        /// <summary>Throws a 404 unless <paramref name="cardId"/> is null or a card of <paramref name="collectionId"/>.</summary>
+        public async Task RequireCardInCollectionAsync(Guid? cardId, Guid collectionId, CancellationToken ct)
+        {
+            if (cardId.HasValue && !await _context.Cards.AnyAsync(c => c.Id == cardId && c.CollectionId == collectionId, ct))
+                throw new EntityNotFoundException<Card>();
         }
 
         /// <summary>

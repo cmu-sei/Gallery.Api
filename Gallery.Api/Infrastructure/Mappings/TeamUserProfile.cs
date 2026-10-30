@@ -18,7 +18,7 @@ namespace Gallery.Api.Infrastructure.Mappings
         {
             CreateMap<TeamUserEntity, TeamUser>();
 
-            CreateMap<TeamUser, TeamUserEntity>();
+            CreateMap<TeamUserCreate, TeamUserEntity>(AutoMapper.MemberList.Source);
         }
     }
 }

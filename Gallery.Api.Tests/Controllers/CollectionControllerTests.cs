@@ -173,19 +173,21 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal(copiedCard.Id, copiedArticle.CardId);
     }
 
-    /// <summary>An article posted during an exhibit is copied too, still naming the source collection's exhibit.</summary>
+    /// <summary>A copy holds the template articles only: an article posted during an exhibit stays with that exhibit.</summary>
     [Fact]
-    public async Task Copy_copies_an_exhibit_s_posted_article_into_the_new_collection()
+    public async Task Copy_leaves_out_an_exhibit_s_posted_article()
     {
         var collection = await SeedCollection("Played");
         var exhibit = TestData.Exhibit(collection.Id);
-        await Seed(exhibit, TestData.Article(collection.Id, exhibitId: exhibit.Id, name: "Posted During Play"));
+        await Seed(exhibit,
+            TestData.Article(collection.Id, name: "Template"),
+            TestData.Article(collection.Id, exhibitId: exhibit.Id, name: "Posted During Play"));
 
         var copy = await ReadAsync<Collection>(await RootClient.PostAsync($"api/collections/{collection.Id}/copy", null, Ct));
 
         await using var db = NewContext();
         var copied = await db.Articles.SingleAsync(x => x.CollectionId == copy.Id, Ct);
-        Assert.Equal(exhibit.Id, copied.ExhibitId);
+        Assert.Equal(("Template", null), (copied.Name, copied.ExhibitId));
     }
 
     [Fact]
@@ -440,6 +442,55 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal("Round Trip Card", (await db.Cards.SingleAsync(x => x.CollectionId == uploaded.Id, Ct)).Name);
     }
 
+    /// <summary>A collection file holds the templates only: an exhibit's own articles stay private to that exhibit.</summary>
+    [Fact]
+    public async Task DownloadJson_holds_the_templates_but_no_exhibit_s_articles()
+    {
+        var collection = await SeedCollection("Downloaded");
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(exhibit,
+            TestData.Article(collection.Id, name: "Template"),
+            TestData.Article(collection.Id, exhibitId: exhibit.Id, name: "Posted During Play"));
+
+        var response = await RootClient.GetAsync($"api/collections/{collection.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var body = await response.Content.ReadAsStringAsync(Ct);
+        Assert.Contains("Template", body);
+        Assert.DoesNotContain("Posted During Play", body);
+    }
+
+    /// <summary>
+    /// A collection file keeps its templates only. An article that names an exhibit is left out, so a file cannot push
+    /// content into that exhibit, and a card it names gets a new id in the new collection.
+    /// </summary>
+    [Fact]
+    public async Task UploadJson_keeps_the_templates_and_leaves_out_an_article_naming_an_exhibit()
+    {
+        var target = await SeedCollection("Target");
+        var exhibit = TestData.Exhibit(target.Id);
+        await Seed(exhibit);
+        var cardId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{target.Id}}", "Name": "Imported" },
+              "Cards": [ { "Id": "{{cardId}}", "Name": "Card" } ],
+              "Articles": [
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Template", "CollectionId": "{{target.Id}}", "CardId": "{{cardId}}" },
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Pushed", "CollectionId": "{{target.Id}}", "ExhibitId": "{{exhibit.Id}}" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        var article = await db.Articles.SingleAsync(x => x.CollectionId == uploaded.Id, Ct);
+        var card = await db.Cards.SingleAsync(x => x.CollectionId == uploaded.Id, Ct);
+        Assert.Equal(("Template", (Guid?)null, (Guid?)card.Id), (article.Name, article.ExhibitId, article.CardId));
+        Assert.NotEqual(cardId, card.Id);
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Pushed", Ct));
+    }
+
     [Fact]
     public async Task UploadJson_creates_the_collection_for_a_caller_holding_CreateCollections()
     {
@@ -518,6 +569,46 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         Assert.Equal("The uploaded file is not valid JSON.", problem.Title);
         Assert.Equal(["Named Status"], await ReadBack(db => db.Collections.Select(x => x.Name).ToListAsync(Ct)));
+    }
+
+    /// <summary>
+    /// A hand-written file can leave out the records' ids. Each such record is imported with a new id; none is taken
+    /// for a second listing of another.
+    /// </summary>
+    [Fact]
+    public async Task UploadJson_imports_cards_and_articles_that_have_no_id()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "No Ids" },
+              "Cards": [ { "Name": "Card One" }, { "Name": "Card Two" } ],
+              "Articles": [ { "Name": "Article One" }, { "Name": "Article Two" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(["Card One", "Card Two"],
+            await ReadBack(db => db.Cards.Where(x => x.CollectionId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct)));
+        Assert.Equal(["Article One", "Article Two"],
+            await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct)));
+    }
+
+    /// <summary>A record without an id cannot be named, so an article naming the empty id names no card in the file.</summary>
+    [Fact]
+    public async Task UploadJson_answers_an_article_naming_the_empty_id_as_its_card_with_a_bad_request()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "Empty Card Id" },
+              "Cards": [ { "Name": "Card" } ],
+              "Articles": [ { "Name": "Article", "CardId": "00000000-0000-0000-0000-000000000000" } ]
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Card Id"), Ct)));
     }
 
     [Fact]

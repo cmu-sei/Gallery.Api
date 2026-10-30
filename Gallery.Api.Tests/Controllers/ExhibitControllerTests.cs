@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -246,13 +247,15 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     // ---- Create --------------------------------------------------------------------------------
 
-    /// <summary>The creator becomes the exhibit's Manager, and the name and description default to the collection's.</summary>
     [Fact]
     public async Task Create_persists_the_exhibit_and_makes_the_creator_its_manager()
     {
         var collection = TestData.Collection("Source Collection");
         await Seed(collection);
-        var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits).SeedAsync();
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits)
+            .OnCollection(collection, [CollectionPermission.ViewCollection])
+            .SeedAsync();
 
         var response = await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct);
 
@@ -262,6 +265,88 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Source Collection", (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).Name);
         var membership = await db.ExhibitMemberships.SingleAsync(x => x.ExhibitId == created.Id, Ct);
         Assert.Equal((actor.Id, TestData.MembershipRoles.Manager), (membership.UserId.Value, membership.RoleId));
+    }
+
+    /// <summary>The creator becomes the exhibit's Manager, so creating one on a collection the caller cannot read is refused.</summary>
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_CreateExhibits_who_cannot_read_the_collection()
+    {
+        var collection = TestData.Collection("Unreadable");
+        await Seed(collection);
+        var actor = await Actor()
+            .WithSystemPermissions(SystemPermission.CreateExhibits)
+            .OnNewCollection(CollectionPermission.ViewCollection)
+            .SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    /// <summary>A create, like an edit, may not name a Scenario that exists in Steamfitter but the caller cannot read.</summary>
+    [Fact]
+    public async Task Create_answers_a_scenario_the_caller_cannot_read_with_not_found_and_creates_nothing()
+    {
+        var collection = TestData.Collection("Scenario Check");
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondWithStatus($"http://localhost:4400/api/scenarios/{scenarioId}", HttpStatusCode.Forbidden);
+
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        Assert.Equal("Scenario not found", problem.Title);
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    /// <summary>
+    /// A create, like an edit, may name only a Scenario Steamfitter answers with. A 404, or an empty 200 or 204, is a
+    /// Scenario the caller cannot use, as a 403 is: an exhibit is linked to its Scenario once the Scenario exists.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.NoContent)]
+    public async Task Create_answers_a_scenario_that_does_not_exist_with_not_found_and_creates_nothing(HttpStatusCode answer)
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}", [], "application/json", answer);
+
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        Assert.Equal("Scenario not found", problem.Title);
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_keeps_a_scenario_the_caller_can_read()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondJson($"http://localhost:4400/api/scenarios/{scenarioId}", new { id = scenarioId, name = "Readable" });
+
+        var created = await ReadAsync<Exhibit>(
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).ScenarioId);
+    }
+
+    [Fact]
+    public async Task Create_is_allowed_for_a_caller_holding_CreateExhibits_and_ViewCollections()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.CreateExhibits, SystemPermission.ViewCollections).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibits", new { collectionId = collection.Id }, Ct));
     }
 
     [Fact]
@@ -306,6 +391,57 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         var stored = await db.Exhibits.SingleAsync(x => x.Id == copy.Id, Ct);
         Assert.Equal((0, 0, exhibit.CollectionId), (stored.CurrentMove, stored.CurrentInject, stored.CollectionId));
         Assert.Equal("Copied Team", (await db.Teams.SingleAsync(x => x.ExhibitId == copy.Id, Ct)).Name);
+    }
+
+    /// <summary>
+    /// A copy keeps the collection's templates where they are and copies the exhibit's own articles to the new exhibit,
+    /// so the copied team articles never point into the source exhibit. A sibling exhibit's article is not copied.
+    /// </summary>
+    [Fact]
+    public async Task Copy_copies_the_exhibit_s_own_articles_and_points_the_team_articles_at_them()
+    {
+        var exhibit = await SeedExhibit();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = await SeedTeam(exhibit, "Copied Team");
+        var template = TestData.Article(exhibit.CollectionId, name: "Template");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        await Seed(sibling, template, own,
+            TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's"),
+            TestData.TeamArticle(exhibit.Id, team.Id, template.Id),
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+
+        var copy = await ReadAsync<Exhibit>(await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        await using var db = NewContext();
+        var copiedOwn = await db.Articles.SingleAsync(x => x.ExhibitId == copy.Id, Ct);
+        Assert.Equal("Own", copiedOwn.Name);
+        var linked = await db.TeamArticles.Where(x => x.ExhibitId == copy.Id).Select(x => x.ArticleId).OrderBy(x => x).ToListAsync(Ct);
+        Assert.Equal(new[] { template.Id, copiedOwn.Id }.Order(), linked);
+        Assert.Equal(1, await db.Articles.CountAsync(x => x.ExhibitId == sibling.Id, Ct));
+    }
+
+    /// <summary>
+    /// Data from before team articles were scoped can link a team to a sibling exhibit's article. The copy leaves that
+    /// link out with the article, rather than refusing a file it built itself.
+    /// </summary>
+    [Fact]
+    public async Task Copy_leaves_out_a_team_article_naming_a_sibling_exhibit_s_article()
+    {
+        var exhibit = await SeedExhibit();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = await SeedTeam(exhibit, "Copied Team");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        var siblings = TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's");
+        await Seed(sibling, own, siblings,
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id),
+            TestData.TeamArticle(exhibit.Id, team.Id, siblings.Id));
+
+        var copy = await ReadAsync<Exhibit>(await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        await using var db = NewContext();
+        var copiedOwn = await db.Articles.SingleAsync(x => x.ExhibitId == copy.Id, Ct);
+        var linked = await db.TeamArticles.Where(x => x.ExhibitId == copy.Id).Select(x => x.ArticleId).ToListAsync(Ct);
+        Assert.Equal([copiedOwn.Id], linked);
     }
 
     [Fact]
@@ -424,21 +560,141 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Before", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
     }
 
+    /// <summary>An edit body's collection is ignored, so an editor cannot point the exhibit at another collection.</summary>
     [Fact]
-    public async Task Update_moves_the_exhibit_to_a_collection_the_caller_cannot_edit()
+    public async Task Update_ignores_the_collection_in_the_body()
     {
-        var exhibit = await SeedExhibit();
+        var exhibit = await SeedExhibit("Before");
         var other = TestData.Collection("Other");
         await Seed(other);
         var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
 
-        var response = await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}",
-            new { id = exhibit.Id, collectionId = other.Id, name = exhibit.Name }, Ct);
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/exhibits/{exhibit.Id}",
+            new { name = "After", collectionId = other.Id }, Ct));
 
-        await AssertStatus(HttpStatusCode.OK, response);
-        Assert.Equal(other.Id, (await ReadAsync<Exhibit>(response)).CollectionId);
         await using var db = NewContext();
-        Assert.Equal(other.Id, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).CollectionId);
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("After", exhibit.CollectionId), (stored.Name, stored.CollectionId));
+    }
+
+    /// <summary>
+    /// Share email goes through the exhibit's Scenario with Gallery's service account, so an edit may name only a
+    /// Scenario the caller can read in Steamfitter with their own token.
+    /// </summary>
+    [Fact]
+    public async Task Update_answers_a_scenario_the_caller_cannot_read_with_not_found_and_keeps_the_scenario()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.RespondWithStatus($"http://localhost:4400/api/scenarios/{scenarioId}", HttpStatusCode.Forbidden);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        var problem = await AssertProblem(HttpStatusCode.NotFound,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        Assert.Equal("Scenario not found", problem.Title);
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
+    /// <summary>An edit, unlike a create, may name only a Scenario that exists and that the caller can read.</summary>
+    [Fact]
+    public async Task Update_answers_a_scenario_that_does_not_exist_with_not_found()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.Null((await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).ScenarioId);
+    }
+
+    [Fact]
+    public async Task Update_sets_a_scenario_the_caller_can_read_asking_steamfitter_with_the_caller_s_token()
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var url = $"http://localhost:4400/api/scenarios/{scenarioId}";
+        Factory.OutboundHttp.RespondJson(url, new { id = scenarioId, name = "Readable" });
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.OK,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        Assert.Equal(CallerToken, Assert.Single(Factory.OutboundHttp.Sent, x => x.Uri == url).Authorization);
+        await using var db = NewContext();
+        Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).ScenarioId);
+    }
+
+    /// <summary>
+    /// A 200 that is not the Scenario, such as a proxy's login page or another Scenario, means Gallery is not talking
+    /// to Steamfitter as it should, so the Scenario is unchecked and the edit is refused as unavailable.
+    /// </summary>
+    [Theory]
+    [InlineData("text/html", "<html><body>Sign in</body></html>")]
+    [InlineData("application/json", """{"id":"00000000-0000-0000-0000-000000000001","name":"Another"}""")]
+    [InlineData("application/json", """[{"name":"Readable"}]""")]
+    [InlineData("application/json", """{"name":"No id"}""")]
+    public async Task Update_answers_a_200_that_is_not_the_scenario_with_service_unavailable(string contentType, string body)
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}", Encoding.UTF8.GetBytes(body), contentType);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
+    }
+
+    [Fact]
+    public async Task Create_answers_a_200_that_is_not_the_scenario_with_service_unavailable_and_creates_nothing()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var scenarioId = Guid.NewGuid();
+        Factory.OutboundHttp.Respond($"http://localhost:4400/api/scenarios/{scenarioId}",
+            Encoding.UTF8.GetBytes("<html><body>Sign in</body></html>"), "text/html");
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await RootClient.SendAsync(WithToken(HttpMethod.Post, "api/exhibits", new { collectionId = collection.Id, scenarioId }), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Exhibits.AnyAsync(x => x.CollectionId == collection.Id, Ct));
+    }
+
+    /// <summary>
+    /// A Steamfitter that cannot be reached, or that fails, leaves the Scenario unchecked, so the edit is refused as
+    /// unavailable rather than failing with a server error.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    public async Task Update_answers_a_steamfitter_that_cannot_check_the_scenario_with_service_unavailable(HttpStatusCode? answer)
+    {
+        var exhibit = await SeedExhibit("Before");
+        var scenarioId = Guid.NewGuid();
+        var url = $"http://localhost:4400/api/scenarios/{scenarioId}";
+        if (answer is null)
+            Factory.OutboundHttp.Throws($"api/scenarios/{scenarioId}");
+        else
+            Factory.OutboundHttp.RespondWithStatus(url, answer.Value);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.ServiceUnavailable,
+            await Client(actor).SendAsync(WithToken(HttpMethod.Put, $"api/exhibits/{exhibit.Id}", new { name = "After", scenarioId }), Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal(("Before", (Guid?)null), (stored.Name, stored.ScenarioId));
     }
 
     // ---- Move and inject -----------------------------------------------------------------------
@@ -741,6 +997,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal(actor.Id, (await db.Exhibits.SingleAsync(x => x.Id == uploaded.Id, Ct)).CreatedBy);
     }
 
+    /// <summary>
+    /// An exhibit file holds the templates and the exhibit's own articles. A sibling exhibit on the same collection
+    /// keeps its articles private from the exhibit's managers.
+    /// </summary>
+    [Fact]
+    public async Task DownloadJson_holds_the_templates_and_own_articles_but_not_a_sibling_exhibit_s()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        await Seed(sibling,
+            TestData.Article(exhibit.CollectionId, name: "Template"),
+            TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own"),
+            TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's"));
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ManageExhibit]).SeedAsync();
+
+        var response = await Client(actor).GetAsync($"api/exhibits/{exhibit.Id}/json", Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        using var file = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        var names = file.RootElement.GetProperty("Articles").GetProperty("$values").EnumerateArray()
+            .Select(a => a.GetProperty("Name").GetString()).Order();
+        Assert.Equal(["Own", "Template"], names);
+    }
+
     /// <summary>The exhibit file keeps an article's status as its stored number, not the color name the API answers with.</summary>
     [Fact]
     public async Task DownloadJson_writes_an_article_s_status_as_its_number()
@@ -786,6 +1066,153 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("The uploaded file is not a valid exhibit file.", problem.Title);
     }
 
+    /// <summary>A file's TeamUsers, their nested users and roles are not read: the upload creates no user and puts no one on a team.</summary>
+    [Fact]
+    public async Task UploadJson_creates_no_user_or_team_member_from_the_file()
+    {
+        var smuggledId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Imported" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Imported" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Blue",
+                "TeamUsers": [ { "UserId": "{{smuggledId}}", "TeamId": "{{teamId}}",
+                  "User": { "Id": "{{smuggledId}}", "Name": "Smuggled", "RoleId": "{{SystemRoleEntityDefaults.AdministratorRoleId}}" } } ] } ],
+              "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Users.AnyAsync(x => x.Id == smuggledId, Ct));
+        var team = await db.Teams.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct);
+        Assert.Equal("Blue", team.Name);
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id, Ct));
+    }
+
+    /// <summary>
+    /// An uploaded exhibit keeps the templates and its own articles, the latter moved to the new exhibit. An article of
+    /// another exhibit on the collection is left out, so a file cannot push content into that exhibit.
+    /// </summary>
+    [Fact]
+    public async Task UploadJson_moves_the_exhibit_s_own_articles_to_the_new_exhibit_and_leaves_out_another_exhibit_s()
+    {
+        var exhibit = await SeedExhibit(createdBy: Root.Id);
+        var sibling = TestData.Exhibit(exhibit.CollectionId, name: "Sibling");
+        var team = TestData.Team(exhibit.Id);
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Own");
+        await Seed(sibling, team, own,
+            TestData.Article(exhibit.CollectionId, name: "Template"),
+            TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+        var downloaded = await (await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/json", Ct)).Content.ReadAsStringAsync(Ct);
+        // a file from before exports were scoped can still hold a sibling exhibit's article
+        var json = JsonNode.Parse(downloaded);
+        var fileArticles = json["Articles"]["$values"].AsArray();
+        if (!fileArticles.Any(a => (string)a["Name"] == "Sibling's"))
+            fileArticles.Add(JsonNode.Parse($$"""
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Sibling's", "CollectionId": "{{exhibit.CollectionId}}", "ExhibitId": "{{sibling.Id}}", "Status": 10 }
+                """));
+        var file = Encoding.UTF8.GetBytes(json.ToJsonString());
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        var articles = await db.Articles.Where(x => x.CollectionId == uploaded.CollectionId).OrderBy(x => x.Name).ToListAsync(Ct);
+        Assert.Equal([("Own", (Guid?)uploaded.Id), ("Template", null)], articles.Select(x => (x.Name, x.ExhibitId)));
+        var teamArticle = await db.TeamArticles.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct);
+        Assert.Equal(articles[0].Id, teamArticle.ArticleId);
+        Assert.False(await db.Articles.AnyAsync(x => x.ExhibitId == sibling.Id, Ct));
+    }
+
+    /// <summary>A file whose article list is null holds no articles, as a file that leaves the list out does.</summary>
+    [Fact]
+    public async Task UploadJson_reads_a_null_article_list_as_no_articles()
+    {
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "No Articles" },
+              "Cards": [], "Articles": null,
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "No Articles" },
+              "Teams": [], "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Articles.AnyAsync(x => x.CollectionId == uploaded.CollectionId, Ct));
+    }
+
+    /// <summary>Teams without an id are imported with new ids, rather than refused as one team listed twice.</summary>
+    [Fact]
+    public async Task UploadJson_imports_teams_that_have_no_id()
+    {
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "No Team Ids" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "No Team Ids" },
+              "Teams": [ { "Name": "Blue" }, { "Name": "Red" } ],
+              "TeamCards": [], "TeamArticles": []
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.Equal(["Blue", "Red"], await db.Teams.Where(x => x.ExhibitId == uploaded.Id).Select(x => x.Name).OrderBy(x => x).ToListAsync(Ct));
+    }
+
+    /// <summary>A team card naming the empty id names no team in the file, even when a team in it has no id.</summary>
+    [Fact]
+    public async Task UploadJson_answers_a_team_card_naming_the_empty_id_with_a_bad_request()
+    {
+        var cardId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Empty Team Id" },
+              "Cards": [ { "Id": "{{cardId}}", "Name": "Card" } ], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Empty Team Id" },
+              "Teams": [ { "Name": "Blue" } ],
+              "TeamCards": [ { "TeamId": "00000000-0000-0000-0000-000000000000", "CardId": "{{cardId}}" } ],
+              "TeamArticles": []
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Team Id"), Ct));
+    }
+
+    /// <summary>A file whose team card names a card it does not hold is refused before anything is saved.</summary>
+    [Fact]
+    public async Task UploadJson_answers_a_team_card_naming_a_card_outside_the_file_with_a_bad_request_and_saves_nothing()
+    {
+        var foreignCard = TestData.Card((await SeedExhibit()).CollectionId);
+        await Seed(foreignCard);
+        var teamId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Refused" },
+              "Cards": [], "Articles": [],
+              "Exhibit": { "Id": "{{Guid.NewGuid()}}", "Name": "Refused" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Blue" } ],
+              "TeamCards": [ { "TeamId": "{{teamId}}", "CardId": "{{foreignCard.Id}}", "CanPostArticles": true } ],
+              "TeamArticles": []
+            }
+            """);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Collections.AnyAsync(x => x.Name.StartsWith("Refused"), Ct));
+        Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
+    }
+
     private async Task<ExhibitEntity> SeedExhibit(string name = "Test Exhibit", int move = 0, int inject = 0, Guid createdBy = default)
     {
         var collection = TestData.Collection();
@@ -806,6 +1233,15 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     private async Task<CollectionEntity> Collection(ExhibitEntity exhibit) =>
         await Db.Collections.SingleAsync(x => x.Id == exhibit.CollectionId, Ct);
+
+    private const string CallerToken = "Bearer the-caller-s-token";
+
+    /// <summary>A request that carries a bearer token as well, which the API forwards to Steamfitter.</summary>
+    private static HttpRequestMessage WithToken(HttpMethod method, string route, object body) => new(method, route)
+    {
+        Content = JsonContent.Create(body),
+        Headers = { { "Authorization", CallerToken } }
+    };
 
     private static object Body(ExhibitEntity exhibit, string name) =>
         new { id = exhibit.Id, collectionId = exhibit.CollectionId, name, currentMove = exhibit.CurrentMove, currentInject = exhibit.CurrentInject };

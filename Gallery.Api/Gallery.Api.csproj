@@ -41,7 +41,7 @@
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.Sqlite" Version="9.0.0" />
-    <PackageReference Include="steamfitter.api.client" Version="1.7.0" />
+    <PackageReference Include="steamfitter.api.client" Version="3.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <PackageReference Include="Crucible.Common.ServiceDefaults" Version="0.0.3"/>
   </ItemGroup>

@@ -60,9 +60,6 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> ViewCard(Guid exhibitId, Guid cardId, CancellationToken ct)
         {
             var card = await _cardService.GetAsync(cardId, ct);
-            if (card == null)
-                throw new EntityNotFoundException<Card>();
-
             var collection = await _collectionService.GetAsync(card.CollectionId, ct);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
@@ -151,13 +148,7 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> ViewArticle(Guid exhibitId, Guid articleId, CancellationToken ct)
         {
             var article = await _articleService.GetAsync(articleId, ct);
-            if (article == null)
-                throw new EntityNotFoundException<Article>();
-
             var card = await _cardService.GetAsync(article.CardId.Value, ct);
-            if (card == null)
-                throw new EntityNotFoundException<Card>();
-
             var collection = await _collectionService.GetAsync(article.CollectionId, ct);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
@@ -188,13 +179,7 @@ namespace Gallery.Api.Controllers
         public async Task<IActionResult> PreiewedArticle(Guid exhibitId, Guid articleId, CancellationToken ct)
         {
             var article = await _articleService.GetAsync(articleId, ct);
-            if (article == null)
-                throw new EntityNotFoundException<Article>();
-
             var card = await _cardService.GetAsync(article.CardId.Value, ct);
-            if (card == null)
-                throw new EntityNotFoundException<Card>();
-
             var collection = await _collectionService.GetAsync(article.CollectionId, ct);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
@@ -229,9 +214,6 @@ namespace Gallery.Api.Controllers
                 throw new EntityNotFoundException<Exhibit>();
 
             var team = await _teamService.GetAsync(teamId, ct);
-            if (team == null)
-                throw new EntityNotFoundException<Team>();
-
             var collection = await _collectionService.GetAsync(exhibit.CollectionId, ct);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();
@@ -262,9 +244,6 @@ namespace Gallery.Api.Controllers
                 throw new EntityNotFoundException<Exhibit>();
 
             var team = await _teamService.GetAsync(teamId, ct);
-            if (team == null)
-                throw new EntityNotFoundException<Team>();
-
             var collection = await _collectionService.GetAsync(exhibit.CollectionId, ct);
             if (collection == null)
                 throw new EntityNotFoundException<Collection>();

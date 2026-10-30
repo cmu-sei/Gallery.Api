@@ -28,7 +28,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid Exhibit, Guid teamId, CancellationToken ct);
         Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct);
         Task<UnreadArticles> GetUnreadCountAsync(Guid exhibitId, Guid userId, CancellationToken ct);
-        Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct);
+        Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticleCreate userArticle, CancellationToken ct);
         Task<ViewModels.UserArticle> ShareAsync(Guid id, ShareDetails shareDetails, CancellationToken ct);
         Task<ViewModels.UserArticle> SetIsReadAsync(Guid id, bool isRead, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
@@ -71,7 +71,9 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.UserArticle> GetAsync(Guid id, CancellationToken ct)
         {
-            var userArticle = await _context.UserArticles.FirstAsync(e => e.Id == id);
+            var userArticle = await _context.UserArticles.SingleOrDefaultAsync(e => e.Id == id, ct);
+            if (userArticle == null)
+                throw new EntityNotFoundException<UserArticle>();
 
             return _mapper.Map<UserArticle>(userArticle);
         }
@@ -175,8 +177,17 @@ namespace Gallery.Api.Services
             return await GetUnreadArticlesAsync(exhibitId, userId, ct);
         }
 
-        public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticle userArticle, CancellationToken ct)
+        public async Task<ViewModels.UserArticle> CreateAsync(ViewModels.UserArticleCreate userArticle, CancellationToken ct)
         {
+            // a UserArticle lets its user read the article, so both must be in the exhibit
+            var exhibit = await _context.Exhibits.SingleOrDefaultAsync(e => e.Id == userArticle.ExhibitId, ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
+            if (!await _context.Articles.Where(ArticleScope.InExhibit(exhibit)).AnyAsync(a => a.Id == userArticle.ArticleId, ct))
+                throw new EntityNotFoundException<Article>();
+            if (!await _context.TeamUsers.AnyAsync(tu => tu.UserId == userArticle.UserId && tu.Team.ExhibitId == exhibit.Id, ct))
+                throw new EntityNotFoundException<User>();
+
             var userArticleEntity = _mapper.Map<UserArticleEntity>(userArticle);
             userArticleEntity.Id = userArticleEntity.Id != Guid.Empty ? userArticleEntity.Id : Guid.NewGuid();
             _context.UserArticles.Add(userArticleEntity);
@@ -196,91 +207,85 @@ namespace Gallery.Api.Services
             if (fromUserId != userArticleEntity.UserId)
                 throw new ForbiddenException();
 
-            var sharedUserArticle = _mapper.Map<UserArticle>(userArticleEntity);
-            var existingUserIdList = await _context.UserArticles
-                .Where(ua => ua.ArticleId == userArticleEntity.ArticleId && ua.ExhibitId == userArticleEntity.ExhibitId)
-                .Select(ua => ua.UserId)
-                .ToListAsync(ct);
-            var exhibitTeamList = _context.Teams
-                .Where(t => t.ExhibitId == shareDetails.ExhibitId)
+            // the stored UserArticle's exhibit
+            var exhibitId = userArticleEntity.ExhibitId;
+            var toTeamIds = (shareDetails.ToTeamIdList ?? []).Distinct().ToList();
+            var exhibitTeamList = await _context.Teams
+                .Where(t => t.ExhibitId == exhibitId)
                 .Include(t => t.TeamUsers)
                 .ThenInclude(tu => tu.User)
-                .AsSingleQuery();
-            var exhibitTeamIdList = exhibitTeamList
-                .Select(t => t.Id);
-            var fromTeamUser = await _context.TeamUsers
-                .Where(tu => tu.UserId == fromUserId && exhibitTeamIdList.Contains(tu.TeamId))
-                .SingleOrDefaultAsync();
-            var fromTeamId = fromTeamUser?.TeamId ?? Guid.Empty;
-            var toTeamUsers = _context.TeamUsers
-                .Where(tu => shareDetails.ToTeamIdList.Contains(tu.TeamId))
-                .Include(tu => tu.Team)
-                .Include(tu => tu.User)
+                .AsSingleQuery()
                 .AsNoTracking()
-                .Distinct();
+                .ToListAsync(ct);
+            if (toTeamIds.Any(teamId => !exhibitTeamList.Any(t => t.Id == teamId)))
+                throw new EntityNotFoundException<Team>();
+
+            var fromTeam = exhibitTeamList.FirstOrDefault(t => t.TeamUsers.Any(tu => tu.UserId == fromUserId));
+            var fromTeamId = fromTeam?.Id ?? Guid.Empty;
+            var toTeams = exhibitTeamList.Where(t => toTeamIds.Contains(t.Id)).ToList();
+            var toUserIds = toTeams.SelectMany(t => t.TeamUsers).Select(tu => tu.UserId).Distinct().ToList();
+
+            // check everything the email needs before anything is saved or sent
+            var sendEmail = _clientOptions.IsEmailActive && toUserIds.Count > 0;
+            string emailFrom = null, emailCc = null, emailTo = null;
+            Guid? scenarioId = null;
+            if (sendEmail)
+            {
+                emailFrom = fromTeam == null ? "" : GetUserEmail(fromUserId, fromTeam);
+                if (emailFrom == "")
+                {
+                    throw new ArgumentException("You nor your team have a valid email address in Gallery.");
+                }
+                emailCc = GetTeamEmail(fromTeam);
+                emailTo = string.Join(",", toTeams.Select(GetTeamEmail).Where(e => !string.IsNullOrEmpty(e)));
+                if (emailTo == "")
+                {
+                    var toTeamNames = string.Join(",", toTeams.Select(t => t.ShortName));
+                    throw new ArgumentException($"The selected teams ({toTeamNames}) have no valid email addresses in Gallery.");
+                }
+                scenarioId = await _context.Exhibits
+                    .Where(e => e.Id == exhibitId)
+                    .Select(e => e.ScenarioId)
+                    .SingleOrDefaultAsync(ct);
+                if (scenarioId == null)
+                    throw new ArgumentException("To share an article, the exhibit " + exhibitId + " must have a Steamfitter Scenario ID defined.");
+            }
 
             // Log xAPI shared statement with all target teams
-            var article = await _context.Articles.Where(a => a.Id == sharedUserArticle.ArticleId).FirstAsync();
+            var article = await _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).FirstAsync(ct);
             var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
-            await LogXApiSharedAsync(verb, _mapper.Map<Article>(article), sharedUserArticle.ExhibitId, fromTeamId, shareDetails.ToTeamIdList, ct);
+            await LogXApiSharedAsync(verb, _mapper.Map<Article>(article), exhibitId, fromTeamId, toTeamIds.ToArray(), ct);
 
-            if (await toTeamUsers.AnyAsync(ct))
+            if (toUserIds.Count > 0)
             {
-                var addUserIds = toTeamUsers
-                    .Where(u => !existingUserIdList.Contains(u.UserId))
-                    .Select(u => u.UserId);
-                if (await addUserIds.AnyAsync(ct))
+                var existingUserIdList = await _context.UserArticles
+                    .Where(ua => ua.ArticleId == userArticleEntity.ArticleId && ua.ExhibitId == exhibitId)
+                    .Select(ua => ua.UserId)
+                    .ToListAsync(ct);
+                var addUserIds = toUserIds.Where(userId => !existingUserIdList.Contains(userId)).ToList();
+                if (addUserIds.Count > 0)
                 {
-                    foreach (var userId in (await addUserIds.ToListAsync(ct)))
+                    foreach (var userId in addUserIds)
                     {
-                        sharedUserArticle.Id = Guid.NewGuid();
-                        sharedUserArticle.UserId = userId;
-                        sharedUserArticle.DateCreated = DateTime.UtcNow;
-                        sharedUserArticle.CreatedBy = fromUserId;
-                        sharedUserArticle.DateModified = null;
-                        sharedUserArticle.ModifiedBy = null;
-                        var sharedArticleEntity =  _mapper.Map<UserArticleEntity>(sharedUserArticle);
-                        _context.UserArticles.Add(sharedArticleEntity);
+                        _context.UserArticles.Add(new UserArticleEntity
+                        {
+                            Id = Guid.NewGuid(),
+                            ExhibitId = exhibitId,
+                            UserId = userId,
+                            ArticleId = userArticleEntity.ArticleId,
+                            ActualDatePosted = userArticleEntity.ActualDatePosted,
+                            IsRead = userArticleEntity.IsRead,
+                            CreatedBy = fromUserId
+                        });
                     }
                     await _context.SaveChangesAsync(ct);
                 }
 
-                // if email is active, send the article sharing email
-                if (_clientOptions.IsEmailActive)
-                {
-                    // determine the emailFrom address
-                    var emailFrom = GetUserEmail(fromUserId, exhibitTeamList.SingleOrDefault(t => t.Id == fromTeamId));
-                    if (emailFrom == "")
-                    {
-                        throw new ArgumentException("You nor your team have a valid email address in Gallery.");
-                    }
-                    // get the emailCc and emailTo addresses
-                    var emailCc = GetTeamEmail(exhibitTeamList.SingleOrDefault(t => t.Id == fromTeamId));
-                    var toTeamEmailList = new List<string>();
-                    foreach (var teamId in shareDetails.ToTeamIdList)
-                    {
-                        var teamEmail = GetTeamEmail(exhibitTeamList.SingleOrDefault(t => t.Id == teamId));
-                        if (!string.IsNullOrEmpty(teamEmail))
-                        {
-                            toTeamEmailList.Add(teamEmail);
-                        }
-                    }
-                    var emailTo = string.Join(",", toTeamEmailList);
-                    if (emailTo == "")
-                    {
-                        var toTeamNames = string.Join(",", exhibitTeamList.Where(t => shareDetails.ToTeamIdList.Contains(t.Id)).Select(t => t.ShortName).ToList());
-                        throw new ArgumentException($"The selected teams ({toTeamNames}) have no valid email addresses in Gallery.");
-                    }
-                    var scenarioId = (await _context.Exhibits
-                        .FirstOrDefaultAsync(e => e.Id == shareDetails.ExhibitId))
-                        .ScenarioId;
-                    if (scenarioId == null)
-                        throw new ArgumentException("To share an article, the exhibit " + userArticleEntity.ExhibitId + " must have a Steamfitter Scenario ID defined.");
-                    // send the message to the user via email from Steamfitter
-                    await SendEmail(emailFrom, emailTo, emailCc, shareDetails.Subject, shareDetails.Message, (Guid)scenarioId, ct);
-                }
+                // send the message to the user via email from Steamfitter
+                if (sendEmail)
+                    await SendEmail(emailFrom, emailTo, emailCc, shareDetails.Subject, shareDetails.Message, scenarioId.Value, ct);
             } else {
-                _logger.LogError("There are no users on the selected teams to receive a shared article.  " + String.Join(",", shareDetails.ToTeamIdList.ToArray()));
+                _logger.LogError("There are no users on the selected teams to receive a shared article.  " + String.Join(",", toTeamIds));
             }
 
             return _mapper.Map<UserArticle>(userArticleEntity);
@@ -507,14 +512,13 @@ namespace Gallery.Api.Services
             Guid scenarioId,
             CancellationToken ct)
         {
-            var task = new SAC.TaskForm()
+            var task = new SAC.TaskCreate()
             {
                 Repeatable = false,
                 UserExecutable = true,
                 Score = 0,
                 TriggerCondition = SAC.TaskTrigger.Manual,
                 TriggerTaskId = null,
-                CurrentIteration = 0,
                 IterationTermination = SAC.TaskIterationTermination.IterationCount,
                 Iterations = 1,
                 IntervalSeconds = 0,
@@ -531,17 +535,15 @@ namespace Gallery.Api.Services
                     {"Account", "stackstorm"},
                     {"Mime", "html"}
                 },
-                ApiUrl = "stackstorm",
+                ApiUrl = "email",
                 VmList = null,
                 VmMask = "",
                 Action = SAC.TaskAction.Send_email,
-                UserId = _user.GetId(),
                 ScenarioId = scenarioId,
                 ScenarioTemplateId = null,
                 Description = "Send email regarding shared Gallery Article",
                 Name = "Send Email from Gallery User " + _user.FindFirst("name")?.Value,
-                ExpectedOutput = "True",
-                AdditionalProperties = new Dictionary<string, Object>(){}
+                ExpectedOutput = "True"
             };
             try
             {
@@ -773,7 +775,6 @@ namespace Gallery.Api.Services
     public class ShareDetails
     {
         public Guid[] ToTeamIdList { get; set; }
-        public Guid ExhibitId { get; set; }
         public string Subject { get; set; }
         public string Message { get; set; }
     }

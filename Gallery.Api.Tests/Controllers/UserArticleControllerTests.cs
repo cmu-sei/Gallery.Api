@@ -181,6 +181,37 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.True(await db.UserArticles.AnyAsync(x => x.ArticleId == article.Id && x.UserId == userArticle.UserId, Ct));
     }
 
+    /// <summary>An editor cannot give themselves a sibling exhibit's private article to read.</summary>
+    [Fact]
+    public async Task Create_answers_a_sibling_exhibit_s_article_with_not_found_and_saves_nothing()
+    {
+        var (exhibit, team, _) = await SeedDelivery();
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        var privateArticle = TestData.Article(exhibit.CollectionId, exhibitId: sibling.Id, name: "Sibling's");
+        await Seed(sibling, privateArticle);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).OnTeam(team).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/userarticles",
+            new { exhibitId = exhibit.Id, userId = actor.Id, articleId = privateArticle.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.ArticleId == privateArticle.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_answers_a_user_on_no_team_of_the_exhibit_with_not_found()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var outsider = TestData.User(name: "Outsider");
+        await Seed(outsider);
+
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PostAsJsonAsync("api/userarticles",
+            new { exhibitId = exhibit.Id, userId = outsider.Id, articleId = userArticle.ArticleId }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.UserId == outsider.Id, Ct));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibit()
     {
@@ -260,6 +291,55 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
 
         await using var db = NewContext();
         Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
+    }
+
+    /// <summary>
+    /// The share uses the stored UserArticle's exhibit, and refuses the whole request if any team is outside it: no
+    /// team of either exhibit receives the article.
+    /// </summary>
+    [Fact]
+    public async Task Share_answers_a_team_of_another_exhibit_with_not_found_and_delivers_to_no_one()
+    {
+        var (exhibit, _, _) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Shared");
+        var toTeam = TestData.Team(exhibit.Id, "Recipients");
+        var recipient = TestData.User(name: "Recipient");
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        var siblingTeam = TestData.Team(sibling.Id, "Sibling Team");
+        var outsider = TestData.User(name: "Outsider");
+        await Seed(article, toTeam, recipient, TestData.TeamUser(toTeam.Id, recipient.Id),
+            sibling, siblingTeam, outsider, TestData.TeamUser(siblingTeam.Id, outsider.Id));
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).OnExhibit(sibling, [ExhibitPermission.EditExhibit]).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, actor.Id, article.Id);
+        await Seed(owned);
+
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = sibling.Id, toTeamIdList = new[] { toTeam.Id, siblingTeam.Id }, subject = "s", message = "m" }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.UserArticles.AnyAsync(x => x.ArticleId == article.Id && x.UserId != actor.Id, Ct));
+    }
+
+    /// <summary>The body's exhibit is ignored: the article is delivered in the stored UserArticle's exhibit.</summary>
+    [Fact]
+    public async Task Share_delivers_in_the_stored_exhibit_whatever_exhibit_the_body_names()
+    {
+        var (exhibit, _, _) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Shared");
+        var toTeam = TestData.Team(exhibit.Id, "Recipients");
+        var recipient = TestData.User(name: "Recipient");
+        var sibling = TestData.Exhibit(exhibit.CollectionId, "Sibling");
+        await Seed(article, toTeam, recipient, TestData.TeamUser(toTeam.Id, recipient.Id), sibling);
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, actor.Id, article.Id);
+        await Seed(owned);
+
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = sibling.Id, toTeamIdList = new[] { toTeam.Id }, subject = "s", message = "m" }, Ct));
+
+        await using var db = NewContext();
+        var delivered = await db.UserArticles.SingleAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct);
+        Assert.Equal(exhibit.Id, delivered.ExhibitId);
     }
 
     [Fact]

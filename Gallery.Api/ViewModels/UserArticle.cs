@@ -16,5 +16,18 @@ namespace Gallery.Api.ViewModels
         public DateTime ActualDatePosted { get; set; }
         public bool IsRead { get; set; }
    }
-}
 
+    /// <summary>
+    /// A UserArticle create request. It names the Article by Id only, so it cannot create or change one.
+    /// </summary>
+    public class UserArticleCreate
+    {
+        /// <summary>The Id to create the UserArticle with. A new one is made when it is empty.</summary>
+        public Guid Id { get; set; }
+        public Guid ExhibitId { get; set; }
+        public Guid UserId { get; set; }
+        public Guid ArticleId { get; set; }
+        public DateTime ActualDatePosted { get; set; }
+        public bool IsRead { get; set; }
+    }
+}

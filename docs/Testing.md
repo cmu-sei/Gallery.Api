@@ -2,7 +2,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 # Testing
 
-The suite has 791 tests.
+The suite has 843 tests.
 
 The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, AutoMapper profiles and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 
@@ -53,7 +53,7 @@ The shared mechanics (per-test databases cloned from a migrated template, `X-Tes
   - `OnCollection(collection, permissions | roleId)` and `OnExhibit(exhibit, permissions | roleId)` create a membership whose role is minted for exactly those permissions. With neither, the role is the seeded `Member` (View and Edit).
   - `OnTeam(team, observer)` creates a `TeamUser`. That grants `ParticipateTeam` and `ViewTeam` on the team, `ParticipateExhibit` on its exhibit and `ParticipateCollection` on its collection. An observer also gets `ViewTeam` on every other team of the exhibit.
   - Near misses use `OnNewCollection(permissions)`, `OnNewExhibit(collectionId, permissions)` and `OnNewTeam(exhibitId)`. The minted ids are on `TestActor.NewCollectionIds`, `NewExhibitIds` and `NewTeamIds`.
-- **Team actors.** Team-gated tests use participants (`OnTeam`) or observers on a sibling team (`OnTeam(siblingTeam, observer: true)`); near misses use `OnNewTeam`. Use `Root` only when the behavior under test does not require a team grant.
+- **Team gates.** Team-gated routes such as `GET teams/{id}` pass a caller holding the system `ViewExhibits` permission, and otherwise read the team claim. Their allowed cases are a `ViewExhibits` holder, a participant (`OnTeam`) and an observer on a sibling team, who holds exactly `ViewTeam` (`OnTeam(siblingTeam, observer: true)`), and their near miss a participant on a sibling team (`OnNewTeam`).
 - **Self-tests.**
   - `DatabaseHarnessTests` probes isolation on the unique `system_roles.name`.
   - `HttpHarnessTests` checks the 401, the 403 for an empty actor, routing, the swagger document and that requests never reach the host database. Its concurrency probes `POST api/system-roles` with one shared name. Role names are uniquely indexed, so two tests sharing a database would collide with a 409.
@@ -73,7 +73,7 @@ Denied cases are near misses (`OnNew*`, or a neighbouring permission), named `<O
 
 A pattern that repeats across routes is one `[Theory]` over a route table (`UnknownIdTests`) with one entry.
 
-For every authorization call site, each permission value it reads has an allowed case whose caller holds exactly that value, never `Root`; for a team gate, that includes an observer on a sibling team, who holds exactly `ViewTeam`. Each tier of a multi-tier gate (system, collection, exhibit, team) has a near miss of its own: a caller holding a neighbouring permission of that tier, or the same value on another resource, refused by that site. The standard's `check-repo.js gates` (run by `verify.sh`) fails any call site that has no allowed case other than `Root` or no near-miss denial. Allow-listed gates and their reasons live outside the repo in `agent-docs/api-test-gaps/gallery.api.txt`.
+For every authorization call site, each permission value it reads has an allowed case whose caller holds exactly that value, never `Root`; for a team gate, that includes an observer on a sibling team, who holds exactly `ViewTeam`. Each tier of a multi-tier gate (system, collection, exhibit, team) has a near miss of its own: a caller holding a neighbouring permission of that tier, or the same value on another resource, refused by that site. The standard's `check-repo.js gates` (run by `verify.sh`) fails any call site that has no allowed case other than `Root` or no near-miss denial. Every gate meets the rule; the two that a characterized defect once kept out (`ArticleController.GetByExhibit` and `ExhibitTeamController.Get` without an id) are fixed and covered.
 
 Where a file needs the same graph in several tests, it has a private seed helper, such as `SeedPostedArticle(canPost)` in `ArticleControllerTests`. It seeds an exhibit, a team whose card allows posting or not, and an article posted on that card, for the exhibit-article gates of create, update and delete.
 

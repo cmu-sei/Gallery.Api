@@ -24,7 +24,7 @@ namespace Gallery.Api.Services
         STT.Task<ExhibitMembership> GetAsync(Guid id, CancellationToken ct);
         STT.Task<IEnumerable<ExhibitMembership>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         STT.Task<ExhibitMembership> CreateAsync(ExhibitMembership exhibitMembership, CancellationToken ct);
-        STT.Task<ExhibitMembership> UpdateAsync(Guid id, ExhibitMembership exhibitMembership, CancellationToken ct);
+        STT.Task<ExhibitMembership> UpdateAsync(Guid id, ExhibitMembershipEdit exhibitMembership, CancellationToken ct);
         STT.Task DeleteAsync(Guid id, CancellationToken ct);
     }
 
@@ -71,11 +71,11 @@ namespace Gallery.Api.Services
 
             return createdExhibit;
         }
-        public async STT.Task<ExhibitMembership> UpdateAsync(Guid id, ExhibitMembership exhibitMembership, CancellationToken ct)
+        public async STT.Task<ExhibitMembership> UpdateAsync(Guid id, ExhibitMembershipEdit exhibitMembership, CancellationToken ct)
         {
             var exhibitMembershipToUpdate = await _context.ExhibitMemberships.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (exhibitMembershipToUpdate == null)
-                throw new EntityNotFoundException<SAVM.Exhibit>();
+                throw new EntityNotFoundException<SAVM.ExhibitMembership>();
 
             exhibitMembershipToUpdate.RoleId = exhibitMembership.RoleId;
             await _context.SaveChangesAsync(ct);
