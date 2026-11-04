@@ -6,3 +6,6 @@ obj/
 **/appsettings.*.json
 .vscode/
 node_modules/
+
+# Test and coverage output (`dotnet test --results-directory TestResults/...`).
+TestResults/
