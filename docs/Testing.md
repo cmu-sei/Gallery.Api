@@ -2,7 +2,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 # Testing
 
-The suite has 843 tests.
+The suite has 866 tests.
 
 The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, AutoMapper profiles and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 
@@ -17,26 +17,35 @@ Docker must be running. The suite starts and disposes its own `postgres:16-alpin
 Filters:
 
 ```bash
-dotnet test Gallery.Api.Tests --filter "FullyQualifiedName~.ExhibitControllerTests"
-dotnet test Gallery.Api.Tests -- xUnit.DiagnosticMessages=true    # prints the provider banner
+dotnet test Gallery.Api.Tests --filter-class "*.ExhibitControllerTests"
+dotnet run --project Gallery.Api.Tests -- --xunit-diagnostics on    # prints the provider banner
 ```
+
+The suite runs on Microsoft.Testing.Platform (`"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`), which xunit.v3 4 requires on the .NET 10 SDK, so test options are xUnit's own (`--filter-class`, `--filter-method`, `--xunit-diagnostics`; see `dotnet test Gallery.Api.Tests --help`) rather than VSTest's `--filter` and `-- xUnit.…` settings. The banner is printed with `dotnet run` because `dotnet test` does not forward the test app's diagnostic messages. Use `--progress off` (not `--no-progress`) to turn off the live progress line.
 
 Never set `diagnosticMessages` in `xunit.runner.json`. If you do, the run hangs after the last test (see the standard's README, "Known pitfalls").
 
 # Coverage
 
 ```bash
-dotnet test Gallery.Api.Tests --collect:"XPlat Code Coverage"
+dotnet test Gallery.Api.Tests --results-directory TestResults/coverage \
+  --coverlet --coverlet-output-format cobertura \
+  --coverlet-include "[Gallery.Api]*" --coverlet-include "[Gallery.Api.Data]*" \
+  --coverlet-exclude "[*.Migrations.PostgreSQL]*" --coverlet-exclude "[*.Tests]*" \
+  --coverlet-exclude-by-file "**/.nuget/packages/**/*.cs" --coverlet-exclude-by-file "**/Migrations/**/*.cs" \
+  --coverlet-exclude-by-attribute GeneratedCodeAttribute --coverlet-exclude-by-attribute CompilerGeneratedAttribute \
+  --coverlet-exclude-by-attribute ExcludeFromCodeCoverageAttribute --coverlet-exclude-by-attribute Obsolete \
+  --coverlet-skip-auto-props
 ```
 
-`Gallery.Api.Tests.csproj` names `coverlet.runsettings` in `RunSettingsFilePath`, so the exclusions always apply. They cover the `Gallery.Api.Migrations.PostgreSQL` assembly, the `Crucible.Common.EntityEvents` content files and generated code. The collector is disabled unless you ask for it. coverlet's cobertura output lists every class twice, so read `lines-covered` and `lines-valid` on the root element rather than summing the classes. CI does not collect coverage.
+Coverage comes from `coverlet.MTP`, the Microsoft.Testing.Platform form of coverlet, and is opt-in through `--coverlet`. The include filters keep the figure to `Gallery.Api` and `Gallery.Api.Data` (without them coverlet also instruments third-party assemblies that ship sources), and the rest exclude the `Gallery.Api.Migrations.PostgreSQL` assembly, the test assembly, the `Crucible.Common.EntityEvents` content files and generated code. On the same code this reports the same figure as the VSTest run did (5,551 of 6,821 lines). coverlet's cobertura output lists every class twice, so read `lines-covered` and `lines-valid` on the root element rather than summing the classes. CI does not collect coverage.
 
 # Build settings
 
 - `Gallery.Api.Tests/Directory.Build.props` is the standard's file. It sets `TreatWarningsAsErrors` for the test project only, which makes the xUnit analyzers fail the build (xUnit1051 for a missing `Ct`, xUnit2000, xUnit2029, and so on). NuGet audit and restore warnings (NU1901-NU1904, NU1510) stay warnings. The repository has no root `Directory.Build.props`, so the application projects are not built with warnings as errors. That is how the standard intends it, and they report warnings today: CS1573 in the controllers, CS8981 in two generated migrations and CS8073 in `CollectionService`. The standard's `verify.sh` counts only the test project's own warnings and lists the application projects' warnings as a note (`note: application projects warn (not counted): CS1573 CS8073 CS8981`), so they never fail the check. The test project itself builds with no warning.
 - The root `.editorconfig` raises xUnit1004, so `[Fact(Skip = ...)]` fails the build. A test with nothing to assert under some condition uses `Assert.SkipWhen`.
 - The repository has no central package management, so the pinned test packages (the standard's `test-packages.props`) are `Version=` attributes in `Gallery.Api.Tests.csproj`. `sync.sh` checks them. That includes the standard's optional `Microsoft.AspNetCore.SignalR.Client` pin (10.0.1), which the hubs' real-connection tests use.
-- The runner is VSTest (`Microsoft.NET.Test.Sdk`, `xunit.runner.visualstudio`, `coverlet.collector`), as in every Crucible API. The standard's README explains why it does not use Microsoft.Testing.Platform yet.
+- The suite runs on Microsoft.Testing.Platform: `global.json` selects it for `dotnet test`, and `UseMicrosoftTestingPlatformRunner` in the project file builds the test app for it. Coverage comes from `coverlet.MTP`; `xunit.runner.visualstudio` and `Microsoft.NET.Test.Sdk` are not referenced (both VSTest only).
 
 # How the harness works
 
@@ -82,7 +91,7 @@ Where a file needs the same graph in several tests, it has a private seed helper
 ```
 Gallery.Api.Tests/
   AssemblyFixtures.cs
-  Directory.Build.props, coverlet.runsettings, xunit.runner.json
+  Directory.Build.props, xunit.runner.json
   Controllers/          every controller over HTTP (CollectionRoleController and ExhibitRoleController in
                         MembershipRoleControllerTests, the three permission controllers in PermissionControllerTests);
                         UnknownIdTests is the route table of unknown-id answers
@@ -110,4 +119,4 @@ Gallery.Api.Tests/
 
 # Continuous integration
 
-`.github/workflows/build-and-test.yml` is the standard's workflow with `Gallery.Api.Tests` filled in, and `sync.sh` keeps it identical. It runs on pull requests and on pushes to `main`. It restores, builds and runs the suite, then greps the `[Gallery.Api.Tests] database provider: PostgreSQL` banner out of the log, and uploads the TRX as `test-results`. Before delivering a change, run `agent-docs/api-testing/verify.sh --app gallery.api <repo>` from the workspace.
+`.github/workflows/build-and-test.yml` calls the shared `dotnet-test.yaml` workflow in cmu-sei/Crucible-Github-Actions, which reads the test runner from `global.json`. It runs on pull requests and on pushes to `main`. It restores, builds and runs the suite, then greps the `[Gallery.Api.Tests] database provider: PostgreSQL` banner out of the log, and uploads the TRX as `test-results`. Before delivering a change, run `agent-docs/api-testing/verify.sh --app gallery.api <repo>` from the workspace.
