@@ -513,6 +513,62 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.True(await db.TeamCards.AnyAsync(x => x.Id == teamCard.Id, Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A created team card keeps every member of the body, and is answered with them.</summary>
+    [Fact]
+    public async Task Create_stores_and_returns_the_body_s_move_inject_and_flags()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var card = TestData.Card(exhibit.CollectionId, "Second Card");
+        await Seed(card);
+
+        var response = await RootClient.PostAsJsonAsync("api/teamcards",
+            new { teamId = team.Id, cardId = card.Id, move = 2, inject = 3, isShownOnWall = false, canPostArticles = true }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<TeamCard>(response);
+        Assert.Equal((team.Id, card.Id, 2, 3, false, true),
+            (created.TeamId, created.CardId, created.Move, created.Inject, created.IsShownOnWall, created.CanPostArticles));
+        var stored = await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal((team.Id, card.Id, 2, 3, false, true),
+            (stored.TeamId, stored.CardId, stored.Move, stored.Inject, stored.IsShownOnWall, stored.CanPostArticles));
+    }
+
+    /// <summary>A body that names no flags creates a team card shown on the wall and closed to posting.</summary>
+    [Fact]
+    public async Task Create_without_flags_stores_a_card_shown_on_the_wall_and_closed_to_posting()
+    {
+        var (exhibit, team, _) = await SeedTeamCard();
+        var card = TestData.Card(exhibit.CollectionId, "Second Card");
+        await Seed(card);
+
+        var created = await ReadAsync<TeamCard>(await RootClient.PostAsJsonAsync("api/teamcards", new { teamId = team.Id, cardId = card.Id }, Ct));
+
+        var stored = await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal((true, false), (stored.IsShownOnWall, stored.CanPostArticles));
+    }
+
+    /// <summary>An edit writes every member of the body, so flags and a move it leaves out take their defaults.</summary>
+    [Fact]
+    public async Task Update_writes_every_member_of_the_body()
+    {
+        var (_, team, teamCard) = await SeedTeamCard();
+        await using (var db = NewContext())
+        {
+            var seeded = await db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct);
+            (seeded.Move, seeded.Inject, seeded.IsShownOnWall, seeded.CanPostArticles) = (4, 5, false, true);
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var updated = await ReadAsync<TeamCard>(await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = team.Id, cardId = teamCard.CardId, inject = 1 }, Ct));
+
+        Assert.Equal((0, 1, true, false), (updated.Move, updated.Inject, updated.IsShownOnWall, updated.CanPostArticles));
+        var stored = await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct));
+        Assert.Equal((0, 1, true, false), (stored.Move, stored.Inject, stored.IsShownOnWall, stored.CanPostArticles));
+    }
+
     private async Task<(ExhibitEntity Exhibit, TeamEntity Team, TeamCardEntity TeamCard)> SeedTeamCard()
     {
         var collection = TestData.Collection();

@@ -374,6 +374,29 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
         Assert.True(await db.ExhibitMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// A body that names no role sends the empty id, which the database's default replaces with the Member
+    /// role; the membership is answered with the role it was stored with.
+    /// </summary>
+    [Fact]
+    public async Task Create_without_a_role_stores_and_returns_the_member_role()
+    {
+        var exhibit = await SeedExhibit();
+        var user = TestData.User(name: "Unroled");
+        await Seed(user);
+
+        var response = await RootClient.PostAsJsonAsync($"api/exhibits/{exhibit.Id}/memberships", new { exhibitId = exhibit.Id, userId = user.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<ExhibitMembership>(response);
+        Assert.Equal((exhibit.Id, (Guid?)user.Id, (Guid?)null, TestData.MembershipRoles.Member),
+            (created.ExhibitId, created.UserId, created.GroupId, created.RoleId));
+        var stored = await ReadBack(db => db.ExhibitMemberships.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal(TestData.MembershipRoles.Member, stored.RoleId);
+    }
+
     private async Task<ExhibitEntity> SeedExhibit()
     {
         var collection = TestData.Collection();

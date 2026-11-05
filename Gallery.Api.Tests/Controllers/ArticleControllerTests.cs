@@ -1153,6 +1153,61 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         return Assert.Single(body.RootElement.GetProperty("errors").GetProperty("$.status").EnumerateArray()).GetString();
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>An article is read with every stored member, and an empty team list that nothing fills.</summary>
+    [Fact]
+    public async Task Get_returns_the_article_with_its_members_and_no_teams()
+    {
+        var (collection, card, article) = await SeedArticle();
+        await using (var db = NewContext())
+        {
+            var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+            stored.Description = "Described";
+            stored.SourceName = "Wire";
+            stored.Url = "https://example.com/a";
+            stored.OpenInNewTab = true;
+            stored.Move = 2;
+            stored.Inject = 3;
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var body = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/articles/{article.Id}", Ct));
+
+        Assert.Equal((article.Id.ToString(), collection.Id.ToString(), card.Id.ToString(), JsonValueKind.Null),
+            (body.GetProperty("id").GetString(), body.GetProperty("collectionId").GetString(), body.GetProperty("cardId").GetString(),
+                body.GetProperty("exhibitId").ValueKind));
+        Assert.Equal(("Test Article", "Seeded by TestData.Article", "Described", "Wire", "https://example.com/a"),
+            (body.GetProperty("name").GetString(), body.GetProperty("summary").GetString(), body.GetProperty("description").GetString(),
+                body.GetProperty("sourceName").GetString(), body.GetProperty("url").GetString()));
+        Assert.Equal((2, 3, true, "Green"),
+            (body.GetProperty("move").GetInt32(), body.GetProperty("inject").GetInt32(), body.GetProperty("openInNewTab").GetBoolean(),
+                body.GetProperty("status").GetString()));
+        Assert.Equal(TestData.DefaultDatePosted, body.GetProperty("datePosted").GetDateTime().ToUniversalTime());
+        Assert.Equal(0, body.GetProperty("teams").GetArrayLength());
+    }
+
+    /// <summary>An edit writes every member of the body, so a description or url it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_and_url_the_body_leaves_out()
+    {
+        var (collection, card, article) = await SeedArticle();
+        await using (var db = NewContext())
+        {
+            var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+            stored.Description = "Described";
+            stored.Url = "https://example.com/a";
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten"), Ct));
+
+        var updated = await ReadBack(db => db.Articles.SingleAsync(x => x.Id == article.Id, Ct));
+        Assert.Equal(("Rewritten", "Body of the article", null, null, card.Id),
+            (updated.Name, updated.Summary, updated.Description, updated.Url, updated.CardId.Value));
+    }
+
     private Task<int> StoredStatus(Guid id) =>
         ReadBack(db => db.Articles.Where(x => x.Id == id).Select(x => (int)x.Status).SingleAsync(Ct));
 

@@ -620,6 +620,40 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal("The uploaded file is not valid JSON.", problem.Title);
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_the_body_leaves_out()
+    {
+        var collection = await SeedCollection("Before");
+
+        var updated = await ReadAsync<Collection>(await RootClient.PutAsJsonAsync($"api/collections/{collection.Id}",
+            new { id = collection.Id, name = "After" }, Ct));
+
+        Assert.Equal(("After", null), (updated.Name, updated.Description));
+        await using var db = NewContext();
+        Assert.Null((await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Description);
+    }
+
+    /// <summary>
+    /// An update writes the body's id onto the stored collection as well. EF Core refuses to change a key,
+    /// so a body naming another id, or none, is answered with a 500 and changes nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_with_a_body_id_other_than_the_route_s_is_a_server_error(bool otherId)
+    {
+        var collection = await SeedCollection("Keyed");
+        object body = otherId ? new { id = Guid.NewGuid(), name = "Rekeyed" } : new { name = "Rekeyed" };
+
+        await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.PutAsJsonAsync($"api/collections/{collection.Id}", body, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Keyed", (await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Name);
+    }
+
     private async Task<CollectionEntity> SeedCollection(string name = "Test Collection")
     {
         var collection = TestData.Collection(name);

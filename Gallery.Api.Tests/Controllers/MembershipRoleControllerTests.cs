@@ -96,4 +96,35 @@ public class MembershipRoleControllerTests(DatabaseFixture fixture, GalleryAppFa
     {
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.GetAsync($"api/exhibit-roles/{Guid.NewGuid()}", Ct));
     }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A membership role stored without permissions is read with an empty list, not null.</summary>
+    [Fact]
+    public async Task GetCollectionRole_returns_a_role_stored_without_permissions_with_an_empty_list()
+    {
+        var role = TestData.CollectionRole();
+        role.Permissions = null;
+        await Seed(role);
+
+        var read = await ReadAsync<CollectionRole>(await RootClient.GetAsync($"api/collection-roles/{role.Id}", Ct));
+        var listed = await ReadAsync<List<CollectionRole>>(await RootClient.GetAsync("api/collection-roles", Ct));
+
+        Assert.Equal([], read.Permissions);
+        Assert.Equal([], Assert.Single(listed, x => x.Id == role.Id).Permissions);
+    }
+
+    [Fact]
+    public async Task GetExhibitRole_returns_a_role_stored_without_permissions_with_an_empty_list()
+    {
+        var role = TestData.ExhibitRole();
+        role.Permissions = null;
+        await Seed(role);
+
+        var read = await ReadAsync<ExhibitRole>(await RootClient.GetAsync($"api/exhibit-roles/{role.Id}", Ct));
+        var listed = await ReadAsync<List<ExhibitRole>>(await RootClient.GetAsync("api/exhibit-roles", Ct));
+
+        Assert.Equal([], read.Permissions);
+        Assert.Equal([], Assert.Single(listed, x => x.Id == role.Id).Permissions);
+    }
 }

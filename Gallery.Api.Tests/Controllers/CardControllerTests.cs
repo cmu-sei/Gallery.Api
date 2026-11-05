@@ -479,6 +479,57 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>Each way of reading cards returns every stored member of the card.</summary>
+    [Theory]
+    [InlineData("card")]
+    [InlineData("all")]
+    [InlineData("collection")]
+    [InlineData("exhibit")]
+    [InlineData("team")]
+    public async Task Every_read_returns_the_card_with_its_members(string route)
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, "Shaped Card", move: 2, inject: 3);
+        card.Description = "Described";
+        var exhibit = TestData.Exhibit(collection.Id, move: 5);
+        var team = TestData.Team(exhibit.Id);
+        await Seed(collection, card, exhibit, team, TestData.TeamCard(team.Id, card.Id));
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        var url = route switch
+        {
+            "card" => $"api/cards/{card.Id}",
+            "all" => "api/cards",
+            "collection" => $"api/collections/{collection.Id}/cards",
+            "exhibit" => $"api/exhibits/{exhibit.Id}/cards",
+            _ => $"api/exhibits/{exhibit.Id}/teams/{team.Id}/cards"
+        };
+
+        var response = await RootClient.GetAsync(url, Ct);
+        var got = route == "card" ? await ReadAsync<Card>(response) : Assert.Single(await ReadAsync<List<Card>>(response), x => x.Id == card.Id);
+
+        Assert.Equal((card.Id, "Shaped Card", "Described", 2, 3, collection.Id),
+            (got.Id, got.Name, got.Description, got.Move, got.Inject, got.CollectionId));
+        Assert.Equal((stored.DateCreated, stored.CreatedBy, stored.DateModified, stored.ModifiedBy),
+            (got.DateCreated.ToUniversalTime(), got.CreatedBy, got.DateModified, got.ModifiedBy));
+    }
+
+    /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_the_body_leaves_out()
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, move: 2);
+        card.Description = "Described";
+        await Seed(collection, card);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}", new { name = "Renamed" }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", null, 0), (stored.Name, stored.Description, stored.Move));
+    }
+
     private async Task<(CollectionEntity Collection, CardEntity Card)> SeedCard(string name = "Test Card")
     {
         var collection = TestData.Collection();

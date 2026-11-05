@@ -562,6 +562,25 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     /// <summary>An edit body's collection is ignored, so an editor cannot point the exhibit at another collection.</summary>
     [Fact]
+    public async Task Update_clears_the_scenario_and_description_the_body_leaves_out()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id, "Before", move: 2, inject: 3);
+        exhibit.ScenarioId = Guid.NewGuid();
+        exhibit.Description = "Described";
+        exhibit.ShowAdvanceButton = true;
+        await Seed(collection, exhibit);
+
+        var updated = await ReadAsync<Exhibit>(await RootClient.PutAsJsonAsync($"api/exhibits/{exhibit.Id}", new { name = "After" }, Ct));
+
+        Assert.Equal(("After", null, (Guid?)null, 0, 0, false),
+            (updated.Name, updated.Description, updated.ScenarioId, updated.CurrentMove, updated.CurrentInject, updated.ShowAdvanceButton));
+        await using var db = NewContext();
+        var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
+        Assert.Equal((null, (Guid?)null, 0, false), (stored.Description, stored.ScenarioId, stored.CurrentMove, stored.ShowAdvanceButton));
+    }
+
+    [Fact]
     public async Task Update_ignores_the_collection_in_the_body()
     {
         var exhibit = await SeedExhibit("Before");
