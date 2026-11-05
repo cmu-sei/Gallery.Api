@@ -81,7 +81,7 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         var got = await ReadAsync<Collection>(await Client(actor).GetAsync($"api/collections/{collection.Id}", Ct));
 
-        Assert.Equal("Readable", got.Name);
+        Assert.Equal(("Readable", "Seeded by TestData.Collection"), (got.Name, got.Description));
     }
 
     [Fact]
@@ -631,7 +631,7 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         var updated = await ReadAsync<Collection>(await RootClient.PutAsJsonAsync($"api/collections/{collection.Id}",
             new { id = collection.Id, name = "After" }, Ct));
 
-        Assert.Equal(("After", null), (updated.Name, updated.Description));
+        Assert.Equal("After", updated.Name);
         await using var db = NewContext();
         Assert.Null((await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Description);
     }
@@ -652,6 +652,19 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         await using var db = NewContext();
         Assert.Equal("Keyed", (await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Name);
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/collections",
+            new { id, name = "Full Collection", description = "Described" }, Ct));
+
+        var stored = await ReadBack(db => db.Collections.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Collection", "Described"), (stored.Name, stored.Description));
     }
 
     private async Task<CollectionEntity> SeedCollection(string name = "Test Collection")

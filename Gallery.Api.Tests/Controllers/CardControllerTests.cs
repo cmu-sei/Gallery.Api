@@ -540,6 +540,35 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal(("Renamed", null, 0), (stored.Name, stored.Description, stored.Move));
     }
 
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/cards",
+            new { id, name = "Full Card", description = "Described", move = 2, inject = 3, collectionId = collection.Id }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Card", "Described", 2, 3, collection.Id),
+            (stored.Name, stored.Description, stored.Move, stored.Inject, stored.CollectionId));
+    }
+
+    /// <summary>An edit whose every value differs from the stored card stores each of them.</summary>
+    [Fact]
+    public async Task Update_stores_every_member_of_the_body()
+    {
+        var (_, card) = await SeedCard();
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}",
+            new { name = "Renamed", description = "Redescribed", move = 2, inject = 3 }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", "Redescribed", 2, 3), (stored.Name, stored.Description, stored.Move, stored.Inject));
+    }
+
     private async Task<(CollectionEntity Collection, CardEntity Card)> SeedCard(string name = "Test Card")
     {
         var collection = TestData.Collection();

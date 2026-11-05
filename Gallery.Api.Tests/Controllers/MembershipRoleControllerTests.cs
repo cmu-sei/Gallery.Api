@@ -84,6 +84,16 @@ public class MembershipRoleControllerTests(DatabaseFixture fixture, GalleryAppFa
         Assert.Equal([ExhibitPermission.ViewExhibit], role.Permissions);
     }
 
+    /// <summary>The seeded exhibit Manager role is read with AllPermissions set.</summary>
+    [Fact]
+    public async Task GetExhibitRole_returns_AllPermissions_of_the_manager_role()
+    {
+        var role = await ReadAsync<ExhibitRole>(
+            await Client(await RoleViewer()).GetAsync($"api/exhibit-roles/{TestData.MembershipRoles.Manager}", Ct));
+
+        Assert.True(role.AllPermissions);
+    }
+
     [Fact]
     public async Task GetExhibitRole_is_forbidden_for_a_caller_holding_only_ViewGroups()
     {

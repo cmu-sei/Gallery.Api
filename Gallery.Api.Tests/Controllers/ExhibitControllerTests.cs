@@ -200,6 +200,23 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Visible", got.Name);
     }
 
+    /// <summary>An exhibit is read with every stored member, its scenario, description and advance button included.</summary>
+    [Fact]
+    public async Task Get_returns_the_exhibit_with_its_members()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id, "Shaped", move: 2, inject: 3);
+        exhibit.ScenarioId = Guid.NewGuid();
+        exhibit.Description = "Described";
+        exhibit.ShowAdvanceButton = true;
+        await Seed(collection, exhibit);
+
+        var got = await ReadAsync<Exhibit>(await RootClient.GetAsync($"api/exhibits/{exhibit.Id}", Ct));
+
+        Assert.Equal((exhibit.Id, collection.Id, "Shaped", "Described"), (got.Id, got.CollectionId, got.Name, got.Description));
+        Assert.Equal((exhibit.ScenarioId, 2, 3, true), (got.ScenarioId, got.CurrentMove, got.CurrentInject, got.ShowAdvanceButton));
+    }
+
     [Fact]
     public async Task Get_is_forbidden_for_a_caller_holding_only_ViewCollections()
     {
@@ -337,6 +354,30 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         await using var db = NewContext();
         Assert.Equal(scenarioId, (await db.Exhibits.SingleAsync(x => x.Id == created.Id, Ct)).ScenarioId);
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/exhibits", new
+        {
+            id,
+            collectionId = collection.Id,
+            name = "Full Exhibit",
+            description = "Described",
+            currentMove = 2,
+            currentInject = 3,
+            showAdvanceButton = true
+        }, Ct));
+
+        var stored = await ReadBack(db => db.Exhibits.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal((collection.Id, "Full Exhibit", "Described"), (stored.CollectionId, stored.Name, stored.Description));
+        Assert.Equal((2, 3, true), (stored.CurrentMove, stored.CurrentInject, stored.ShowAdvanceButton));
     }
 
     [Fact]
@@ -560,7 +601,7 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.Equal("Before", (await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct)).Name);
     }
 
-    /// <summary>An edit body's collection is ignored, so an editor cannot point the exhibit at another collection.</summary>
+    /// <summary>An edit writes every member of the body, so a scenario, description, move or flag it leaves out is cleared.</summary>
     [Fact]
     public async Task Update_clears_the_scenario_and_description_the_body_leaves_out()
     {
@@ -573,11 +614,11 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
         var updated = await ReadAsync<Exhibit>(await RootClient.PutAsJsonAsync($"api/exhibits/{exhibit.Id}", new { name = "After" }, Ct));
 
-        Assert.Equal(("After", null, (Guid?)null, 0, 0, false),
-            (updated.Name, updated.Description, updated.ScenarioId, updated.CurrentMove, updated.CurrentInject, updated.ShowAdvanceButton));
+        Assert.Equal("After", updated.Name);
         await using var db = NewContext();
         var stored = await db.Exhibits.SingleAsync(x => x.Id == exhibit.Id, Ct);
-        Assert.Equal((null, (Guid?)null, 0, false), (stored.Description, stored.ScenarioId, stored.CurrentMove, stored.ShowAdvanceButton));
+        Assert.Equal((null, (Guid?)null, 0, 0, false),
+            (stored.Description, stored.ScenarioId, stored.CurrentMove, stored.CurrentInject, stored.ShowAdvanceButton));
     }
 
     [Fact]

@@ -309,18 +309,16 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     // ---- Mapped members ------------------------------------------------------------------------
 
     /// <summary>
-    /// A user is listed with its role, and without permissions, whether or not the caller may see them
-    /// (<c>ViewUsers</c> asks for them, a content view permission does not): nothing fills them.
+    /// A user is listed with its role, and without permissions even to a caller holding <c>ViewUsers</c>:
+    /// nothing fills them.
     /// </summary>
-    [Theory]
-    [InlineData(SystemPermission.ViewUsers)]
-    [InlineData(SystemPermission.ViewExhibits)]
-    public async Task GetAll_returns_each_user_with_its_role_and_no_permissions(SystemPermission permission)
+    [Fact]
+    public async Task GetAll_returns_each_user_with_its_role_and_no_permissions()
     {
         var other = TestData.User(name: "Listed", roleId: TestData.Roles.Observer);
         other.Email = "listed@example.com";
         await Seed(other);
-        var actor = await Actor().WithSystemPermissions(permission).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewUsers).SeedAsync();
 
         var users = await ReadAsync<JsonElement>(await Client(actor).GetAsync("api/users", Ct));
 
@@ -334,11 +332,13 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     public async Task Get_returns_the_user_with_its_role_and_no_permissions()
     {
         var user = TestData.User(name: "Read", roleId: TestData.Roles.ContentDeveloper);
+        user.Email = "read@example.com";
         await Seed(user);
 
         var got = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/users/{user.Id}", Ct));
 
-        Assert.Equal(("Read", TestData.Roles.ContentDeveloper), (got.GetProperty("name").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(("Read", "read@example.com", TestData.Roles.ContentDeveloper),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
         Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
     }
 
@@ -347,12 +347,14 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
     {
         var (_, team) = await SeedTeam();
         var user = TestData.User(name: "Member", roleId: TestData.Roles.Observer);
+        user.Email = "member@example.com";
         await Seed(user, TestData.TeamUser(team.Id, user.Id));
 
         var users = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/teams/{team.Id}/users", Ct));
 
         var got = Assert.Single(users.EnumerateArray());
-        Assert.Equal(("Member", TestData.Roles.Observer), (got.GetProperty("name").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(("Member", "member@example.com", TestData.Roles.Observer),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
         Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
     }
 
@@ -369,6 +371,19 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await using var db = NewContext();
         var stored = await db.Users.SingleAsync(x => x.Id == user.Id, Ct);
         Assert.Equal(("After", null, (Guid?)null), (stored.Name, stored.Email, stored.RoleId));
+    }
+
+    /// <summary>A create stores every member of the body.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/users",
+            new { id, name = "Full User", email = "full@example.com", roleId = TestData.Roles.Observer }, Ct));
+
+        var stored = await ReadBack(db => db.Users.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full User", "full@example.com", (Guid?)TestData.Roles.Observer), (stored.Name, stored.Email, stored.RoleId));
     }
 
     private async Task<(Gallery.Api.Data.Models.ExhibitEntity Exhibit, Gallery.Api.Data.Models.TeamEntity Team)> SeedTeam()

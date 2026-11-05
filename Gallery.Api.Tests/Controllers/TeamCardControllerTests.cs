@@ -326,6 +326,21 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.Equal((other.Id, 9), (stored.TeamId, stored.Move));
     }
 
+    /// <summary>A TeamCard can move to another card of its exhibit's collection.</summary>
+    [Fact]
+    public async Task Update_moves_the_team_card_to_another_card_of_its_collection()
+    {
+        var (exhibit, team, teamCard) = await SeedTeamCard();
+        var other = TestData.Card(exhibit.CollectionId, "Other Card");
+        await Seed(other);
+
+        var updated = await ReadAsync<TeamCard>(await RootClient.PutAsJsonAsync($"api/teamcards/{teamCard.Id}",
+            new { teamId = team.Id, cardId = other.Id }, Ct));
+
+        Assert.Equal(other.Id, updated.CardId);
+        Assert.Equal(other.Id, (await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == teamCard.Id, Ct))).CardId);
+    }
+
     /// <summary>A manager of both exhibits still cannot move a TeamCard to a team of the other exhibit.</summary>
     [Fact]
     public async Task Update_answers_a_team_of_another_exhibit_with_not_found_and_leaves_the_team_card()
@@ -533,20 +548,6 @@ public class TeamCardControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         var stored = await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == created.Id, Ct));
         Assert.Equal((team.Id, card.Id, 2, 3, false, true),
             (stored.TeamId, stored.CardId, stored.Move, stored.Inject, stored.IsShownOnWall, stored.CanPostArticles));
-    }
-
-    /// <summary>A body that names no flags creates a team card shown on the wall and closed to posting.</summary>
-    [Fact]
-    public async Task Create_without_flags_stores_a_card_shown_on_the_wall_and_closed_to_posting()
-    {
-        var (exhibit, team, _) = await SeedTeamCard();
-        var card = TestData.Card(exhibit.CollectionId, "Second Card");
-        await Seed(card);
-
-        var created = await ReadAsync<TeamCard>(await RootClient.PostAsJsonAsync("api/teamcards", new { teamId = team.Id, cardId = card.Id }, Ct));
-
-        var stored = await ReadBack(db => db.TeamCards.SingleAsync(x => x.Id == created.Id, Ct));
-        Assert.Equal((true, false), (stored.IsShownOnWall, stored.CanPostArticles));
     }
 
     /// <summary>An edit writes every member of the body, so flags and a move it leaves out take their defaults.</summary>

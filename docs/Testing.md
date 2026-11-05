@@ -2,7 +2,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 # Testing
 
-The suite has 910 tests.
+The suite has 923 tests.
 
 The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, mappers and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 
@@ -67,7 +67,7 @@ The shared mechanics (per-test databases cloned from a migrated template, `X-Tes
   - `DatabaseHarnessTests` probes isolation on the unique `system_roles.name`.
   - `HttpHarnessTests` checks the 401, the 403 for an empty actor, routing, the swagger document and that requests never reach the host database. Its concurrency probes `POST api/system-roles` with one shared name. Role names are uniquely indexed, so two tests sharing a database would collide with a 409.
   - `TestActorTests` checks each actor shape against the real `UserClaimsService`.
-- **Hubs and handlers.** Each hub's own `[Authorize]` is tested over a real SignalR connection (`MainHubConnectionTests`, `CiteHubConnectionTests`): an actor connects over WebSockets (`SkipNegotiation`, a `WebSocketFactory` over `Factory.Server.CreateWebSocketClient()` carrying the actor's `X-Test-User`/`X-Test-Name` and the test's `X-Test-Session` headers) and invokes `Join`, and a negotiate with no identity is a 401. WebSockets because under long polling an invocation has no request carrying `X-Test-Session`. Hub methods are driven with `HubHarness` (`Hubs/`). Entity event handlers are reached over HTTP and read on the recorders by a group a test-owned id names (`Infrastructure/EventHandlers/`). The membership handlers send to `Clients.Groups(name)`. `MembershipHandlerTests` reads those sends with the recorder's `ToGroups(name)`, keyed on a membership id the test created.
+- **Hubs and handlers.** Each hub's own `[Authorize]` is tested over a real SignalR connection (`MainHubConnectionTests`, `CiteHubConnectionTests`): an actor connects over WebSockets (`SkipNegotiation`, a `WebSocketFactory` over `Factory.Server.CreateWebSocketClient()` carrying the actor's `X-Test-User`/`X-Test-Name` and the test's `X-Test-Session` headers) and invokes `Join`, and a negotiate with no identity is a 401. WebSockets because under long polling an invocation has no request carrying `X-Test-Session`. Hub methods are driven with `HubHarness` (`Hubs/`). Entity event handlers are reached over HTTP (`TeamHandlerTests` also drives the team handlers directly, with team users loaded) and read on the recorders by a group a test-owned id names (`Infrastructure/EventHandlers/`). The membership handlers send to `Clients.Groups(name)`. `MembershipHandlerTests` reads those sends with the recorder's `ToGroups(name)`, keyed on a membership id the test created.
 
 # Adding a test
 
@@ -108,7 +108,7 @@ Gallery.Api.Tests/
                         (DatabaseExtensionsTests)
     JsonConverters/     ItemStatusJsonConverter: color names, legacy names, numbers
   Services/             UserClaimsService: user rows, claims caching (which the host turns off), roles and groups
-                        from the token
+                        from the token; TeamService: the team list no route reaches
   StartupTests.cs       the SignalR protocol's JSON options, read from the host (no connection receives a broadcast)
   Support/              DatabaseFixture, GalleryContextFactory, GalleryAppFactory, TestConfiguration,
                         DatabaseTestBase, ApiTestBase, TestActor, TestData, ClaimsPrincipalBuilder,

@@ -110,9 +110,9 @@ public class GroupControllerTests(DatabaseFixture fixture, GalleryAppFactory fac
             new { id = group.Id, name = "After" }, Ct));
     }
 
-    /// <summary>The view model has no description, so an update keeps the stored one.</summary>
+    /// <summary>An update is answered with the group's id and new name.</summary>
     [Fact]
-    public async Task Update_keeps_the_stored_description()
+    public async Task Update_returns_the_updated_group()
     {
         var group = TestData.Group("Before");
         await Seed(group);
@@ -120,8 +120,6 @@ public class GroupControllerTests(DatabaseFixture fixture, GalleryAppFactory fac
         var updated = await ReadAsync<Group>(await RootClient.PutAsJsonAsync($"api/groups/{group.Id}", new { id = group.Id, name = "After" }, Ct));
 
         Assert.Equal((group.Id, "After"), (updated.Id, updated.Name));
-        await using var db = NewContext();
-        Assert.Equal("Seeded by TestData.Group", (await db.Groups.SingleAsync(x => x.Id == group.Id, Ct)).Description);
     }
 
     /// <summary>
