@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -16,24 +15,22 @@ using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class CardHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly ICardService _CardService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public CardHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICardService CardService,
             IHubContext<MainHub> mainHub)
         {
             _db = db;
-            _mapper = mapper;
             _CardService = CardService;
             _mainHub = mainHub;
         }
@@ -101,7 +98,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetGroups(cardEntity, cancellationToken);
-            var card = _mapper.Map<ViewModels.Card>(cardEntity);
+            var card = cardEntity.ToCard();
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
@@ -117,9 +114,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CardCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICardService cardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, cardService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, cardService, mainHub) { }
 
         public async Task Handle(EntityCreated<CardEntity> notification, CancellationToken cancellationToken)
         {
@@ -131,9 +127,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CardUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICardService cardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, cardService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, cardService, mainHub) { }
 
         public async Task Handle(EntityUpdated<CardEntity> notification, CancellationToken cancellationToken)
         {
@@ -149,9 +144,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CardDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICardService cardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, cardService, mainHub)
+            IHubContext<MainHub> mainHub) : base(db, cardService, mainHub)
         {
         }
 

@@ -4,7 +4,7 @@ Gallery.Api has an automated test suite in the `Gallery.Api.Tests` project. This
 
 The suite has 866 tests.
 
-The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, AutoMapper profiles and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
+The suite uses xUnit v3 and NSubstitute, and runs against a real PostgreSQL instance in a container. Most tests are not isolated unit tests. A typical test sends an HTTP request to the application hosted in process, through the real routes, MVC filters, `ExceptionMiddleware`, claims transformer, authorization handlers, services, mappers and entity event handlers, over a real database. It then asserts on the response, on the database and on what the hubs were sent. Only collaborators that leave the process are replaced.
 
 # Running the tests
 
@@ -107,13 +107,12 @@ Gallery.Api.Tests/
                         StringExtensions (ExtensionTests), InitializeDatabase's seed file over a bare host
                         (DatabaseExtensionsTests)
     JsonConverters/     ItemStatusJsonConverter: color names, legacy names, numbers
-    Mappings/           AutoMapper profiles through TestMapper
   Services/             UserClaimsService: user rows, claims caching (which the host turns off), roles and groups
                         from the token
   StartupTests.cs       the SignalR protocol's JSON options, read from the host (no connection receives a broadcast)
   Support/              DatabaseFixture, GalleryContextFactory, GalleryAppFactory, TestConfiguration,
                         DatabaseTestBase, ApiTestBase, TestActor, TestData, ClaimsPrincipalBuilder,
-                        AuthorizationHarness, TestMapper, and the three self-test classes
+                        AuthorizationHarness, and the three self-test classes
     Shared/             the standard's shared files (sync.sh), never edited here
 ```
 

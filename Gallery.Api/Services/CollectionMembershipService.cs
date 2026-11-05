@@ -7,13 +7,13 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using STT = System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.ViewModels;
 using System.Linq;
 using Gallery.Api.Data.Models;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -30,13 +30,11 @@ namespace Gallery.Api.Services
     {
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public CollectionMembershipService(GalleryDbContext context, IPrincipal user, IMapper mapper)
+        public CollectionMembershipService(GalleryDbContext context, IPrincipal user)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async STT.Task<CollectionMembership> GetAsync(Guid id, CancellationToken ct)
@@ -47,7 +45,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<CollectionMembership>();
 
-            return _mapper.Map<CollectionMembership>(item);
+            return item.ToCollectionMembership();
         }
 
         public async STT.Task<IEnumerable<CollectionMembership>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
@@ -56,12 +54,12 @@ namespace Gallery.Api.Services
                 .Where(m => m.CollectionId == collectionId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<CollectionMembership>>(items);
+            return items.Select(x => x.ToCollectionMembership()).ToList();
         }
 
         public async STT.Task<CollectionMembership> CreateAsync(CollectionMembership collectionMembership, CancellationToken ct)
         {
-            var collectionMembershipEntity = _mapper.Map<CollectionMembershipEntity>(collectionMembership);
+            var collectionMembershipEntity = collectionMembership.ToEntity();
 
             _context.CollectionMemberships.Add(collectionMembershipEntity);
             await _context.SaveChangesAsync(ct);
@@ -78,7 +76,7 @@ namespace Gallery.Api.Services
             collectionMembershipToUpdate.RoleId = collectionMembership.RoleId;
             await _context.SaveChangesAsync(ct);
 
-            return _mapper.Map<CollectionMembership>(collectionMembershipToUpdate);
+            return collectionMembershipToUpdate.ToCollectionMembership();
         }
         public async STT.Task DeleteAsync(Guid id, CancellationToken ct)
         {

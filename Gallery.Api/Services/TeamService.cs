@@ -8,8 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -19,6 +17,7 @@ using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -40,22 +39,20 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IMapper _mapper;
         private readonly ILogger<ITeamService> _logger;
 
-        public TeamService(GalleryDbContext context, IPrincipal team, IAuthorizationService authorizationService, ILogger<ITeamService> logger, IMapper mapper)
+        public TeamService(GalleryDbContext context, IPrincipal team, IAuthorizationService authorizationService, ILogger<ITeamService> logger)
         {
             _context = context;
             _user = team as ClaimsPrincipal;
             _authorizationService = authorizationService;
-            _mapper = mapper;
             _logger = logger;
         }
 
         public async Task<IEnumerable<ViewModels.Team>> GetAsync(CancellationToken ct)
         {
             var items = await _context.Teams
-                .ProjectTo<ViewModels.Team>(_mapper.ConfigurationProvider)
+                .ProjectToTeam()
                 .ToArrayAsync(ct);
             return items;
         }
@@ -63,7 +60,7 @@ namespace Gallery.Api.Services
         public async Task<ViewModels.Team> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Teams
-                .ProjectTo<ViewModels.Team>(_mapper.ConfigurationProvider, dest => dest.Users)
+                .ProjectToTeamWithUsers()
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
             if (item == null)
                 throw new EntityNotFoundException<Team>();
@@ -93,7 +90,7 @@ namespace Gallery.Api.Services
                     .ToList();
             }
 
-            return _mapper.Map<IEnumerable<Team>>(items);
+            return items.Select(x => x.ToTeam()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Team>> GetByUserAsync(Guid userId, CancellationToken ct)
@@ -103,7 +100,7 @@ namespace Gallery.Api.Services
                 .Select(x => x.Team)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<Team>>(items);
+            return items.Select(x => x.ToTeam()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Team>> GetByCardAsync(Guid cardId, CancellationToken ct)
@@ -113,7 +110,7 @@ namespace Gallery.Api.Services
                 .Select(x => x.Team)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<Team>>(items);
+            return items.Select(x => x.ToTeam()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Team>> GetByExhibitAsync(Guid exhibitId, bool checkForTeamMembership, CancellationToken ct)
@@ -132,12 +129,12 @@ namespace Gallery.Api.Services
                 .Where(t => t.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<Team>>(items);
+            return items.Select(x => x.ToTeam()).ToList();
         }
 
         public async Task<ViewModels.Team> CreateAsync(ViewModels.TeamCreate team, CancellationToken ct)
         {
-            var teamEntity = _mapper.Map<TeamEntity>(team);
+            var teamEntity = team.ToEntity();
             teamEntity.Id = teamEntity.Id != Guid.Empty ? teamEntity.Id : Guid.NewGuid();
 
             _context.Teams.Add(teamEntity);
@@ -152,7 +149,7 @@ namespace Gallery.Api.Services
             if (teamToUpdate == null)
                 throw new EntityNotFoundException<Team>();
 
-            _mapper.Map(team, teamToUpdate);
+            team.ApplyTo(teamToUpdate);
 
             _context.Teams.Update(teamToUpdate);
             await _context.SaveChangesAsync(ct);

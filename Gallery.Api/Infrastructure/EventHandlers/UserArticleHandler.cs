@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +14,7 @@ using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 
 namespace Gallery.Api.Infrastructure.EventHandlers
@@ -22,20 +22,17 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     public class UserArticleHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly IUserArticleService _UserArticleService;
         protected readonly IHubContext<MainHub> _mainHub;
         protected readonly IHubContext<CiteHub> _citeHub;
 
         public UserArticleHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IUserArticleService UserArticleService,
             IHubContext<MainHub> mainHub,
             IHubContext<CiteHub> citeHub)
         {
             _db = db;
-            _mapper = mapper;
             _UserArticleService = UserArticleService;
             _mainHub = mainHub;
             _citeHub = citeHub;
@@ -57,7 +54,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             if (userArticleEntity.Article.Move < exhibit.CurrentMove ||
                 (userArticleEntity.Article.Move == exhibit.CurrentMove && userArticleEntity.Article.Inject <= exhibit.CurrentInject))
             {
-                var userArticle = _mapper.Map<ViewModels.UserArticle>(userArticleEntity);
+                var userArticle = userArticleEntity.ToUserArticle();
                 var tasks = new List<Task>();
                 // Main Hub task
                 tasks.Add(_mainHub.Clients.Group(userArticleEntity.UserId.ToString()).SendAsync(method, userArticle, modifiedProperties, cancellationToken));
@@ -100,10 +97,9 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public UserArticleCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, userArticleService, mainHub, citeHub) { }
+            IHubContext<CiteHub> citeHub) : base(db, userArticleService, mainHub, citeHub) { }
 
         public async Task Handle(EntityCreated<UserArticleEntity> notification, CancellationToken cancellationToken)
         {
@@ -118,10 +114,9 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public UserArticleUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, userArticleService, mainHub, citeHub) { }
+            IHubContext<CiteHub> citeHub) : base(db, userArticleService, mainHub, citeHub) { }
 
         public async Task Handle(EntityUpdated<UserArticleEntity> notification, CancellationToken cancellationToken)
         {
@@ -140,10 +135,9 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public UserArticleDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, userArticleService, mainHub, citeHub)
+            IHubContext<CiteHub> citeHub) : base(db, userArticleService, mainHub, citeHub)
         {
         }
 

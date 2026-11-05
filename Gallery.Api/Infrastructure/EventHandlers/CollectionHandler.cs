@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -16,24 +15,22 @@ using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class CollectionHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly ICollectionService _CollectionService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public CollectionHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICollectionService CollectionService,
             IHubContext<MainHub> mainHub)
         {
             _db = db;
-            _mapper = mapper;
             _CollectionService = CollectionService;
             _mainHub = mainHub;
         }
@@ -69,7 +66,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetGroups(collectionEntity, cancellationToken);
-            var collection = _mapper.Map<ViewModels.Collection>(collectionEntity);
+            var collection = collectionEntity.ToCollection();
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
@@ -85,9 +82,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CollectionCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICollectionService collectionService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, collectionService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, collectionService, mainHub) { }
 
         public async Task Handle(EntityCreated<CollectionEntity> notification, CancellationToken cancellationToken)
         {
@@ -99,9 +95,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CollectionUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICollectionService collectionService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, collectionService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, collectionService, mainHub) { }
 
         public async Task Handle(EntityUpdated<CollectionEntity> notification, CancellationToken cancellationToken)
         {
@@ -117,9 +112,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public CollectionDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ICollectionService collectionService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, collectionService, mainHub)
+            IHubContext<MainHub> mainHub) : base(db, collectionService, mainHub)
         {
         }
 

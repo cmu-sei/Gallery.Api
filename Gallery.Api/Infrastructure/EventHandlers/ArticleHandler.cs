@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -15,24 +14,22 @@ using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class ArticleHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly IArticleService _ArticleService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public ArticleHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IArticleService ArticleService,
             IHubContext<MainHub> mainHub)
         {
             _db = db;
-            _mapper = mapper;
             _ArticleService = ArticleService;
             _mainHub = mainHub;
         }
@@ -70,7 +67,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetGroups(articleEntity, cancellationToken);
-            var article = _mapper.Map<ViewModels.Article>(articleEntity);
+            var article = articleEntity.ToArticle();
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
@@ -86,9 +83,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ArticleCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IArticleService articleService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, articleService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, articleService, mainHub) { }
 
         public async Task Handle(EntityCreated<ArticleEntity> notification, CancellationToken cancellationToken)
         {
@@ -100,9 +96,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ArticleUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IArticleService articleService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, articleService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, articleService, mainHub) { }
 
         public async Task Handle(EntityUpdated<ArticleEntity> notification, CancellationToken cancellationToken)
         {
@@ -118,9 +113,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ArticleDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IArticleService articleService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, articleService, mainHub)
+            IHubContext<MainHub> mainHub) : base(db, articleService, mainHub)
         {
         }
 

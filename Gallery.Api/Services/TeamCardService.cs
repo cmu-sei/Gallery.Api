@@ -8,7 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -16,6 +15,7 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -37,14 +37,12 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public TeamCardService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user, IMapper mapper)
+        public TeamCardService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetAsync(CancellationToken ct)
@@ -52,7 +50,7 @@ namespace Gallery.Api.Services
             var items = await _context.TeamCards
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -61,7 +59,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.Team.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
@@ -70,7 +68,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.TeamId == teamId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct)
@@ -79,7 +77,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.CardId == cardId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct)
@@ -89,7 +87,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            return _mapper.Map<TeamCard>(item);
+            return item.ToTeamCard();
         }
 
         public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct)
@@ -104,7 +102,7 @@ namespace Gallery.Api.Services
             if (!await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == collectionId, ct))
                 throw new EntityNotFoundException<Card>();
 
-            var teamCardEntity = _mapper.Map<TeamCardEntity>(teamCard);
+            var teamCardEntity = teamCard.ToEntity();
             teamCardEntity.Id = teamCardEntity.Id != Guid.Empty ? teamCardEntity.Id : Guid.NewGuid();
 
             _context.TeamCards.Add(teamCardEntity);
@@ -131,7 +129,7 @@ namespace Gallery.Api.Services
                 (exhibit == null || !await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == exhibit.CollectionId, ct)))
                 throw new EntityNotFoundException<Card>();
 
-            _mapper.Map(teamCard, teamCardToUpdate);
+            teamCard.ApplyTo(teamCardToUpdate);
             await _context.SaveChangesAsync(ct);
 
             return await GetAsync(teamCardToUpdate.Id, ct);

@@ -12,7 +12,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -21,6 +20,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -42,18 +42,15 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IUserClaimsService _userClaimsService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
         public CollectionService(
             GalleryDbContext context,
             IUserClaimsService userClaimsService,
-            IPrincipal user,
-            IMapper mapper)
+            IPrincipal user)
         {
             _context = context;
             _userClaimsService = userClaimsService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetAsync(bool canViewAll, CancellationToken ct)
@@ -72,7 +69,7 @@ namespace Gallery.Api.Services
                     .ToListAsync(ct);
             }
 
-            return _mapper.Map<IEnumerable<Collection>>(collections);
+            return collections.Select(x => x.ToCollection()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct)
@@ -84,19 +81,19 @@ namespace Gallery.Api.Services
                 .Distinct()
                 .OrderBy(c => c.Name);
 
-            return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());
+            return (await collections.ToListAsync()).Select(x => x.ToCollection()).ToList();
         }
 
         public async Task<ViewModels.Collection> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Collections.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
-            return _mapper.Map<Collection>(item);
+            return item.ToCollection();
         }
 
         public async Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct)
         {
-            var collectionEntity = _mapper.Map<CollectionEntity>(collection);
+            var collectionEntity = collection.ToEntity();
             var userId = _user.GetId();
             collectionEntity.Id = collectionEntity.Id != Guid.Empty ? collectionEntity.Id : Guid.NewGuid();
             collectionEntity.CreatedBy = userId;
@@ -140,7 +137,7 @@ namespace Gallery.Api.Services
                 Articles = articles.Select(ImportBuilder.ToImport).ToList()
             };
             var newCollectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
-            var collection = _mapper.Map<Collection>(newCollectionEntity);
+            var collection = newCollectionEntity.ToCollection();
 
             return collection;
         }
@@ -251,7 +248,7 @@ namespace Gallery.Api.Services
             // make a copy and add it to the database
             var collectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
 
-            return _mapper.Map<Collection>(collectionEntity);
+            return collectionEntity.ToCollection();
         }
 
         public async Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct)
@@ -260,7 +257,7 @@ namespace Gallery.Api.Services
             if (collectionToUpdate == null)
                 throw new EntityNotFoundException<Collection>();
 
-            _mapper.Map(collection, collectionToUpdate);
+            collection.ApplyTo(collectionToUpdate);
             collectionToUpdate.ModifiedBy = _user.GetId();
 
             _context.Collections.Update(collectionToUpdate);
