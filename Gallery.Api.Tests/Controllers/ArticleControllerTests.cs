@@ -1155,14 +1155,23 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
 
     // ---- Mapped members ------------------------------------------------------------------------
 
-    /// <summary>An article is read with every stored member, and an empty team list that nothing fills.</summary>
+    /// <summary>
+    /// An article is read with every stored member, and an empty team list that nothing fills. The audit
+    /// fields are all set (a seed has no actor, so its creator is kept, and an edit keeps its editor).
+    /// </summary>
     [Fact]
     public async Task Get_returns_the_article_with_its_members_and_no_teams()
     {
-        var (collection, card, article) = await SeedArticle();
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id);
+        var article = TestData.Article(collection.Id, card.Id);
+        var (creator, editor) = (Guid.NewGuid(), Guid.NewGuid());
+        article.CreatedBy = creator;
+        await Seed(collection, card, article);
         await using (var db = NewContext())
         {
             var stored = await db.Articles.SingleAsync(x => x.Id == article.Id, Ct);
+            stored.ModifiedBy = editor;
             stored.Description = "Described";
             stored.SourceName = "Wire";
             stored.Url = "https://example.com/a";
@@ -1184,7 +1193,12 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
             (body.GetProperty("move").GetInt32(), body.GetProperty("inject").GetInt32(), body.GetProperty("openInNewTab").GetBoolean(),
                 body.GetProperty("status").GetString()));
         Assert.Equal(TestData.DefaultDatePosted, body.GetProperty("datePosted").GetDateTime().ToUniversalTime());
+        Assert.Equal("News", body.GetProperty("sourceType").GetString());
         Assert.Equal(0, body.GetProperty("teams").GetArrayLength());
+        var audited = await ReadBack(db => db.Articles.SingleAsync(x => x.Id == article.Id, Ct));
+        Assert.Equal((creator.ToString(), editor.ToString()), (body.GetProperty("createdBy").GetString(), body.GetProperty("modifiedBy").GetString()));
+        Assert.Equal((audited.DateCreated, audited.DateModified.Value),
+            (body.GetProperty("dateCreated").GetDateTime().ToUniversalTime(), body.GetProperty("dateModified").GetDateTime().ToUniversalTime()));
     }
 
     /// <summary>An edit writes every member of the body, so a description or url it leaves out is cleared.</summary>

@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Tests.Support;
 using Gallery.Api.ViewModels;
@@ -321,11 +322,12 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await Seed(other);
         var actor = await Actor().WithSystemPermissions(permission).SeedAsync();
 
-        var users = await ReadAsync<List<User>>(await Client(actor).GetAsync("api/users", Ct));
+        var users = await ReadAsync<JsonElement>(await Client(actor).GetAsync("api/users", Ct));
 
-        var got = Assert.Single(users, x => x.Id == other.Id);
-        Assert.Equal(("Listed", "listed@example.com", (Guid?)TestData.Roles.Observer), (got.Name, got.Email, got.RoleId));
-        Assert.Null(got.Permissions);
+        var got = Assert.Single(users.EnumerateArray(), x => x.GetProperty("id").GetGuid() == other.Id);
+        Assert.Equal(("Listed", "listed@example.com", TestData.Roles.Observer),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
     }
 
     [Fact]
@@ -334,10 +336,10 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var user = TestData.User(name: "Read", roleId: TestData.Roles.ContentDeveloper);
         await Seed(user);
 
-        var got = await ReadAsync<User>(await RootClient.GetAsync($"api/users/{user.Id}", Ct));
+        var got = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/users/{user.Id}", Ct));
 
-        Assert.Equal(("Read", (Guid?)TestData.Roles.ContentDeveloper), (got.Name, got.RoleId));
-        Assert.Null(got.Permissions);
+        Assert.Equal(("Read", TestData.Roles.ContentDeveloper), (got.GetProperty("name").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
     }
 
     [Fact]
@@ -347,11 +349,11 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var user = TestData.User(name: "Member", roleId: TestData.Roles.Observer);
         await Seed(user, TestData.TeamUser(team.Id, user.Id));
 
-        var users = await ReadAsync<List<User>>(await RootClient.GetAsync($"api/teams/{team.Id}/users", Ct));
+        var users = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/teams/{team.Id}/users", Ct));
 
-        var got = Assert.Single(users);
-        Assert.Equal(("Member", (Guid?)TestData.Roles.Observer), (got.Name, got.RoleId));
-        Assert.Null(got.Permissions);
+        var got = Assert.Single(users.EnumerateArray());
+        Assert.Equal(("Member", TestData.Roles.Observer), (got.GetProperty("name").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
     }
 
     /// <summary>An edit writes every member of the body, so an email or role it leaves out is cleared.</summary>

@@ -481,7 +481,10 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
     // ---- Mapped members ------------------------------------------------------------------------
 
-    /// <summary>Each way of reading cards returns every stored member of the card.</summary>
+    /// <summary>
+    /// Each way of reading cards returns every stored member of the card. The audit fields are all set (a
+    /// seed has no actor, so its creator is kept, and an edit keeps its editor).
+    /// </summary>
     [Theory]
     [InlineData("card")]
     [InlineData("all")]
@@ -493,9 +496,15 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var collection = TestData.Collection();
         var card = TestData.Card(collection.Id, "Shaped Card", move: 2, inject: 3);
         card.Description = "Described";
+        card.CreatedBy = Guid.NewGuid();
         var exhibit = TestData.Exhibit(collection.Id, move: 5);
         var team = TestData.Team(exhibit.Id);
         await Seed(collection, card, exhibit, team, TestData.TeamCard(team.Id, card.Id));
+        await using (var db = NewContext())
+        {
+            (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).ModifiedBy = Guid.NewGuid();
+            await db.SaveChangesAsync(Ct);
+        }
         var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
         var url = route switch
         {
@@ -511,8 +520,9 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
         Assert.Equal((card.Id, "Shaped Card", "Described", 2, 3, collection.Id),
             (got.Id, got.Name, got.Description, got.Move, got.Inject, got.CollectionId));
+        Assert.NotNull(stored.DateModified);
         Assert.Equal((stored.DateCreated, stored.CreatedBy, stored.DateModified, stored.ModifiedBy),
-            (got.DateCreated.ToUniversalTime(), got.CreatedBy, got.DateModified, got.ModifiedBy));
+            (got.DateCreated.ToUniversalTime(), got.CreatedBy, got.DateModified?.ToUniversalTime(), got.ModifiedBy));
     }
 
     /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
