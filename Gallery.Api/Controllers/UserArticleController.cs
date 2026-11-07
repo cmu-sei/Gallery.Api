@@ -127,10 +127,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "shareUserArticle")]
         public async Task<IActionResult> Share([FromRoute] Guid id, [FromBody] ShareDetails shareDetails, CancellationToken ct)
         {
-            var userArticle = await _userArticleService.GetAsync(id, ct);
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(userArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
-                throw new ForbiddenException();
-
+            // Sharing is a participant action: the service lets only the UserArticle's owner share it.
             var sharedUserArticle = await _userArticleService.ShareAsync(id, shareDetails, ct);
             return Ok(sharedUserArticle);
         }
