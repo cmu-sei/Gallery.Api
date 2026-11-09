@@ -342,8 +342,11 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.Equal(exhibit.Id, delivered.ExhibitId);
     }
 
+    /// <summary>
+    /// Sharing is a participant action: the owner of the UserArticle may share it whatever exhibit permissions they hold.
+    /// </summary>
     [Fact]
-    public async Task Share_is_forbidden_for_an_owner_holding_only_ViewExhibits()
+    public async Task Share_delivers_the_article_for_its_owner_holding_only_ViewExhibits()
     {
         var (exhibit, _, _) = await SeedDelivery();
         var article = TestData.Article(exhibit.CollectionId, name: "Shared");
@@ -354,35 +357,40 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         var owned = TestData.UserArticle(exhibit.Id, actor.Id, article.Id);
         await Seed(owned);
 
-        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
             new { exhibitId = exhibit.Id, toTeamIdList = new[] { toTeam.Id }, subject = "s", message = "m" }, Ct));
 
         await using var db = NewContext();
-        Assert.False(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
+        Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == article.Id, Ct));
     }
 
-    /// <summary>A participant sharing an article delivered to them is refused; being on a team grants no EditExhibit.</summary>
+    /// <summary>A participant shares an article delivered to them with another team of the exhibit.</summary>
     [Fact]
-    public async Task Share_is_forbidden_for_the_participant_who_owns_the_user_article()
+    public async Task Share_delivers_the_article_for_the_participant_who_owns_the_user_article()
     {
         var (exhibit, team, userArticle) = await SeedDelivery();
+        var toTeam = TestData.Team(exhibit.Id, "Recipients");
+        var recipient = TestData.User(name: "Recipient");
+        await Seed(toTeam, recipient, TestData.TeamUser(toTeam.Id, recipient.Id));
         var participant = await Actor().OnTeam(team).SeedAsync();
         var owned = TestData.UserArticle(exhibit.Id, participant.Id, userArticle.ArticleId);
         await Seed(owned);
 
-        await AssertProblem(HttpStatusCode.Forbidden, await Client(participant).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
-            new { exhibitId = exhibit.Id, toTeamIdList = new[] { team.Id } }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await Client(participant).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+            new { exhibitId = exhibit.Id, toTeamIdList = new[] { toTeam.Id }, subject = "s", message = "m" }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.UserArticles.AnyAsync(x => x.UserId == recipient.Id && x.ArticleId == userArticle.ArticleId, Ct));
     }
 
+    /// <summary>A participant cannot share a UserArticle that belongs to someone else, even a teammate.</summary>
     [Fact]
-    public async Task Share_is_forbidden_for_an_owner_holding_EditExhibit_only_on_another_exhibit()
+    public async Task Share_is_forbidden_for_a_participant_who_does_not_own_the_user_article()
     {
         var (exhibit, team, userArticle) = await SeedDelivery();
-        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
-        var owned = TestData.UserArticle(exhibit.Id, actor.Id, userArticle.ArticleId);
-        await Seed(owned);
+        var participant = await Actor().OnTeam(team).SeedAsync();
 
-        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/userarticles/{owned.Id}/share",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(participant).PutAsJsonAsync($"api/userarticles/{userArticle.Id}/share",
             new { exhibitId = exhibit.Id, toTeamIdList = new[] { team.Id } }, Ct));
     }
 
