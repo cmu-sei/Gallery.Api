@@ -327,7 +327,7 @@ namespace Gallery.Api.Services
             {
                 Id = newExhibitId,
                 CollectionId = collectionId,
-                Name = exhibitImport.Exhibit.Name,
+                Name = exhibitImport.Exhibit.Name + " - " + username,
                 Description = exhibitImport.Exhibit.Description,
                 ShowAdvanceButton = exhibitImport.Exhibit.ShowAdvanceButton,
                 CurrentMove = 0,
