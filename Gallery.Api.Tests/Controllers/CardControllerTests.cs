@@ -479,6 +479,96 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// Each way of reading cards returns every stored member of the card. The audit fields are all set (a
+    /// seed has no actor, so its creator is kept, and an edit keeps its editor).
+    /// </summary>
+    [Theory]
+    [InlineData("card")]
+    [InlineData("all")]
+    [InlineData("collection")]
+    [InlineData("exhibit")]
+    [InlineData("team")]
+    public async Task Every_read_returns_the_card_with_its_members(string route)
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, "Shaped Card", move: 2, inject: 3);
+        card.Description = "Described";
+        card.CreatedBy = Guid.NewGuid();
+        var exhibit = TestData.Exhibit(collection.Id, move: 5);
+        var team = TestData.Team(exhibit.Id);
+        await Seed(collection, card, exhibit, team, TestData.TeamCard(team.Id, card.Id));
+        await using (var db = NewContext())
+        {
+            (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).ModifiedBy = Guid.NewGuid();
+            await db.SaveChangesAsync(Ct);
+        }
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        var url = route switch
+        {
+            "card" => $"api/cards/{card.Id}",
+            "all" => "api/cards",
+            "collection" => $"api/collections/{collection.Id}/cards",
+            "exhibit" => $"api/exhibits/{exhibit.Id}/cards",
+            _ => $"api/exhibits/{exhibit.Id}/teams/{team.Id}/cards"
+        };
+
+        var response = await RootClient.GetAsync(url, Ct);
+        var got = route == "card" ? await ReadAsync<Card>(response) : Assert.Single(await ReadAsync<List<Card>>(response), x => x.Id == card.Id);
+
+        Assert.Equal((card.Id, "Shaped Card", "Described", 2, 3, collection.Id),
+            (got.Id, got.Name, got.Description, got.Move, got.Inject, got.CollectionId));
+        Assert.NotNull(stored.DateModified);
+        Assert.Equal((stored.DateCreated, stored.CreatedBy, stored.DateModified, stored.ModifiedBy),
+            (got.DateCreated.ToUniversalTime(), got.CreatedBy, got.DateModified?.ToUniversalTime(), got.ModifiedBy));
+    }
+
+    /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_the_body_leaves_out()
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, move: 2);
+        card.Description = "Described";
+        await Seed(collection, card);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}", new { name = "Renamed" }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", null, 0), (stored.Name, stored.Description, stored.Move));
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/cards",
+            new { id, name = "Full Card", description = "Described", move = 2, inject = 3, collectionId = collection.Id }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Card", "Described", 2, 3, collection.Id),
+            (stored.Name, stored.Description, stored.Move, stored.Inject, stored.CollectionId));
+    }
+
+    /// <summary>An edit whose every value differs from the stored card stores each of them.</summary>
+    [Fact]
+    public async Task Update_stores_every_member_of_the_body()
+    {
+        var (_, card) = await SeedCard();
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}",
+            new { name = "Renamed", description = "Redescribed", move = 2, inject = 3 }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", "Redescribed", 2, 3), (stored.Name, stored.Description, stored.Move, stored.Inject));
+    }
+
     private async Task<(CollectionEntity Collection, CardEntity Card)> SeedCard(string name = "Test Card")
     {
         var collection = TestData.Collection();

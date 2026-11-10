@@ -8,7 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -16,6 +15,7 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -35,20 +35,17 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
 
         public TeamArticleService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
-            IMapper mapper,
             IUserArticleService userArticleService)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
             _userArticleService = userArticleService;
         }
 
@@ -58,7 +55,7 @@ namespace Gallery.Api.Services
                 .Where(ta => ta.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamArticle>>(items);
+            return items.Select(x => x.ToTeamArticle()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamArticle>> GetByTeamAsync(Guid teamId, CancellationToken ct)
@@ -71,7 +68,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.TeamId == teamId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamArticle>>(items);
+            return items.Select(x => x.ToTeamArticle()).ToList();
         }
 
         public async Task<ViewModels.TeamArticle> GetAsync(Guid id, CancellationToken ct)
@@ -83,7 +80,7 @@ namespace Gallery.Api.Services
                 throw new EntityNotFoundException<TeamArticle>($"TeamArticle {id} was not found.");
             }
 
-            return _mapper.Map<TeamArticle>(item);
+            return item.ToTeamArticle();
         }
 
         public async Task<ViewModels.TeamArticle> CreateAsync(ViewModels.TeamArticleCreate teamArticle, CancellationToken ct)
@@ -97,7 +94,7 @@ namespace Gallery.Api.Services
             if (!await _context.Articles.Where(ArticleScope.InExhibit(exhibit)).AnyAsync(a => a.Id == teamArticle.ArticleId, ct))
                 throw new EntityNotFoundException<Article>();
 
-            var teamArticleEntity = _mapper.Map<TeamArticleEntity>(teamArticle);
+            var teamArticleEntity = teamArticle.ToEntity();
             teamArticleEntity.Id = teamArticleEntity.Id != Guid.Empty ? teamArticleEntity.Id : Guid.NewGuid();
 
             _context.TeamArticles.Add(teamArticleEntity);

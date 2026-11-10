@@ -122,7 +122,8 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
             new { exhibitId = exhibit.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct));
 
         await using var db = NewContext();
-        Assert.Equal(exhibit.Id, (await db.ExhibitMemberships.SingleAsync(x => x.UserId == user.Id, Ct)).ExhibitId);
+        var stored = await db.ExhibitMemberships.SingleAsync(x => x.UserId == user.Id, Ct);
+        Assert.Equal((exhibit.Id, TestData.MembershipRoles.Observer), (stored.ExhibitId, stored.RoleId));
     }
 
     [Fact]
@@ -149,7 +150,8 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
             new { exhibitId = exhibit.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct));
 
         await using var db = NewContext();
-        Assert.Equal(exhibit.Id, (await db.ExhibitMemberships.SingleAsync(x => x.UserId == user.Id, Ct)).ExhibitId);
+        var stored = await db.ExhibitMemberships.SingleAsync(x => x.UserId == user.Id, Ct);
+        Assert.Equal((exhibit.Id, TestData.MembershipRoles.Observer), (stored.ExhibitId, stored.RoleId));
     }
 
     [Fact]
@@ -372,6 +374,27 @@ public class ExhibitMembershipControllerTests(DatabaseFixture fixture, GalleryAp
 
         await using var db = NewContext();
         Assert.True(await db.ExhibitMemberships.AnyAsync(x => x.Id == membership.Id, Ct));
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A membership created with a role other than the default is stored and answered with that role.</summary>
+    [Fact]
+    public async Task Create_stores_and_returns_the_role_sent()
+    {
+        var exhibit = await SeedExhibit();
+        var user = TestData.User(name: "Observer");
+        await Seed(user);
+
+        var response = await RootClient.PostAsJsonAsync($"api/exhibits/{exhibit.Id}/memberships",
+            new { exhibitId = exhibit.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<ExhibitMembership>(response);
+        Assert.Equal((exhibit.Id, (Guid?)user.Id, TestData.MembershipRoles.Observer),
+            (created.ExhibitId, created.UserId, created.RoleId));
+        var stored = await ReadBack(db => db.ExhibitMemberships.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal(TestData.MembershipRoles.Observer, stored.RoleId);
     }
 
     private async Task<ExhibitEntity> SeedExhibit()

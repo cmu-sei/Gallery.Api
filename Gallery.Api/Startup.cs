@@ -17,7 +17,6 @@ using Crucible.Common.EntityEvents.Extensions;
 using Gallery.Api.Data;
 using Gallery.Api.Infrastructure.Identity;
 using Gallery.Api.Infrastructure.JsonConverters;
-using Gallery.Api.Infrastructure.Mapping;
 using Gallery.Api.Infrastructure.Options;
 using Gallery.Api.Services;
 using System;
@@ -31,7 +30,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.JsonWebTokens;
-using AutoMapper.Internal;
 using Crucible.Common.ServiceDefaults;
 
 namespace Gallery.Api;
@@ -223,12 +221,6 @@ public class Startup
 
         ApplyPolicies(services);
 
-        services.AddAutoMapper(cfg =>
-        {
-            cfg.Internal().ForAllPropertyMaps(
-                pm => pm.SourceType != null && Nullable.GetUnderlyingType(pm.SourceType) == pm.DestinationType,
-                (pm, c) => c.MapFrom<object, object, object, object>(new IgnoreNullSourceValues(), pm.SourceMember.Name));
-        }, typeof(Startup));
         services
             .Configure<ResourceOwnerAuthorizationOptions>(Configuration.GetSection("ResourceOwnerAuthorization"))
             .AddScoped(config => config.GetService<IOptionsMonitor<ResourceOwnerAuthorizationOptions>>().CurrentValue);

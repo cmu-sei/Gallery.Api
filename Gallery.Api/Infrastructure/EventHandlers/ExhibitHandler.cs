@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -17,13 +16,13 @@ using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class ExhibitHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly IExhibitService _ExhibitService;
         protected readonly IUserArticleService _UserArticleService;
         protected readonly IHubContext<MainHub> _mainHub;
@@ -31,14 +30,12 @@ namespace Gallery.Api.Infrastructure.EventHandlers
 
         public ExhibitHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IExhibitService ExhibitService,
             IUserArticleService UserArticleService,
             IHubContext<MainHub> mainHub,
             IHubContext<CiteHub> citeHub)
         {
             _db = db;
-            _mapper = mapper;
             _ExhibitService = ExhibitService;
             _UserArticleService = UserArticleService;
             _mainHub = mainHub;
@@ -88,7 +85,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetMainGroups(exhibitEntity, cancellationToken);
-            var exhibit = _mapper.Map<ViewModels.Exhibit>(exhibitEntity);
+            var exhibit = exhibitEntity.ToExhibit();
             var tasks = new List<Task>();
             // Main Hub tasks
             foreach (var groupId in groupIds)
@@ -120,11 +117,10 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ExhibitCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IExhibitService exhibitService,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, exhibitService, userArticleService, mainHub, citeHub) { }
+            IHubContext<CiteHub> citeHub) : base(db, exhibitService, userArticleService, mainHub, citeHub) { }
 
         public async Task Handle(EntityCreated<ExhibitEntity> notification, CancellationToken cancellationToken)
         {
@@ -136,11 +132,10 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ExhibitUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IExhibitService exhibitService,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, exhibitService, userArticleService, mainHub, citeHub) { }
+            IHubContext<CiteHub> citeHub) : base(db, exhibitService, userArticleService, mainHub, citeHub) { }
 
         public async Task Handle(EntityUpdated<ExhibitEntity> notification, CancellationToken cancellationToken)
         {
@@ -159,11 +154,10 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public ExhibitDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             IExhibitService exhibitService,
             IUserArticleService userArticleService,
             IHubContext<MainHub> mainHub,
-            IHubContext<CiteHub> citeHub) : base(db, mapper, exhibitService, userArticleService, mainHub, citeHub)
+            IHubContext<CiteHub> citeHub) : base(db, exhibitService, userArticleService, mainHub, citeHub)
         {
         }
 

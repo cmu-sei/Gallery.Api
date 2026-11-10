@@ -302,6 +302,40 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.True(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A link is read with its ids and audit fields, and without the team or exhibit it names, which no read loads.</summary>
+    [Fact]
+    public async Task Get_returns_the_link_with_its_ids_and_no_team_or_exhibit()
+    {
+        var (team, link) = await SeedLink();
+        var stored = await ReadBack(db => db.ExhibitTeams.SingleAsync(x => x.Id == link.Id, Ct));
+
+        var got = await ReadAsync<ExhibitTeam>(await RootClient.GetAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        Assert.Equal((link.Id, team.Id, link.ExhibitId), (got.Id, got.TeamId, got.ExhibitId));
+        Assert.Equal((stored.DateCreated, stored.CreatedBy), (got.DateCreated.ToUniversalTime(), got.CreatedBy));
+        Assert.Null(got.Team);
+        Assert.Null(got.Exhibit);
+    }
+
+    /// <summary>A created link keeps the body's exhibit and team.</summary>
+    [Fact]
+    public async Task Create_returns_the_link_with_the_body_s_exhibit_and_team()
+    {
+        var (_, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
+
+        var response = await RootClient.PostAsJsonAsync("api/exhibitteams", new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<ExhibitTeam>(response);
+        Assert.Equal((other.Id, otherTeam.Id), (created.ExhibitId, created.TeamId));
+    }
+
     /// <summary>Seeds an exhibit, a team and the link between them; <paramref name="idOfTheTeam"/> gives the link the team's id.</summary>
     private async Task<(TeamEntity Team, ExhibitTeamEntity Link)> SeedLink(bool idOfTheTeam = false)
     {

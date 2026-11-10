@@ -81,7 +81,7 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         var got = await ReadAsync<Collection>(await Client(actor).GetAsync($"api/collections/{collection.Id}", Ct));
 
-        Assert.Equal("Readable", got.Name);
+        Assert.Equal(("Readable", "Seeded by TestData.Collection"), (got.Name, got.Description));
     }
 
     [Fact]
@@ -618,6 +618,53 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
             await RootClient.PostAsync("api/collections/json", Upload(Encoding.UTF8.GetBytes("not json")), Ct));
 
         Assert.Equal("The uploaded file is not valid JSON.", problem.Title);
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_the_body_leaves_out()
+    {
+        var collection = await SeedCollection("Before");
+
+        var updated = await ReadAsync<Collection>(await RootClient.PutAsJsonAsync($"api/collections/{collection.Id}",
+            new { id = collection.Id, name = "After" }, Ct));
+
+        Assert.Equal("After", updated.Name);
+        await using var db = NewContext();
+        Assert.Null((await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Description);
+    }
+
+    /// <summary>
+    /// An update writes the body's id onto the stored collection as well. EF Core refuses to change a key,
+    /// so a body naming another id, or none, is answered with a 500 and changes nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_with_a_body_id_other_than_the_route_s_is_a_server_error(bool otherId)
+    {
+        var collection = await SeedCollection("Keyed");
+        object body = otherId ? new { id = Guid.NewGuid(), name = "Rekeyed" } : new { name = "Rekeyed" };
+
+        await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.PutAsJsonAsync($"api/collections/{collection.Id}", body, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Keyed", (await db.Collections.SingleAsync(x => x.Id == collection.Id, Ct)).Name);
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/collections",
+            new { id, name = "Full Collection", description = "Described" }, Ct));
+
+        var stored = await ReadBack(db => db.Collections.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Collection", "Described"), (stored.Name, stored.Description));
     }
 
     private async Task<CollectionEntity> SeedCollection(string name = "Test Collection")

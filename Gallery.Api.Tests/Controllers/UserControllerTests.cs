@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Tests.Support;
 using Gallery.Api.ViewModels;
@@ -303,6 +304,86 @@ public class UserControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
 
         await using var db = NewContext();
         Assert.True(await db.Users.AnyAsync(x => x.Id == user.Id, Ct));
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// A user is listed with its role, and without permissions even to a caller holding <c>ViewUsers</c>:
+    /// nothing fills them.
+    /// </summary>
+    [Fact]
+    public async Task GetAll_returns_each_user_with_its_role_and_no_permissions()
+    {
+        var other = TestData.User(name: "Listed", roleId: TestData.Roles.Observer);
+        other.Email = "listed@example.com";
+        await Seed(other);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewUsers).SeedAsync();
+
+        var users = await ReadAsync<JsonElement>(await Client(actor).GetAsync("api/users", Ct));
+
+        var got = Assert.Single(users.EnumerateArray(), x => x.GetProperty("id").GetGuid() == other.Id);
+        Assert.Equal(("Listed", "listed@example.com", TestData.Roles.Observer),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
+    }
+
+    [Fact]
+    public async Task Get_returns_the_user_with_its_role_and_no_permissions()
+    {
+        var user = TestData.User(name: "Read", roleId: TestData.Roles.ContentDeveloper);
+        user.Email = "read@example.com";
+        await Seed(user);
+
+        var got = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/users/{user.Id}", Ct));
+
+        Assert.Equal(("Read", "read@example.com", TestData.Roles.ContentDeveloper),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
+    }
+
+    [Fact]
+    public async Task GetByTeam_returns_each_user_with_its_role_and_no_permissions()
+    {
+        var (_, team) = await SeedTeam();
+        var user = TestData.User(name: "Member", roleId: TestData.Roles.Observer);
+        user.Email = "member@example.com";
+        await Seed(user, TestData.TeamUser(team.Id, user.Id));
+
+        var users = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/teams/{team.Id}/users", Ct));
+
+        var got = Assert.Single(users.EnumerateArray());
+        Assert.Equal(("Member", "member@example.com", TestData.Roles.Observer),
+            (got.GetProperty("name").GetString(), got.GetProperty("email").GetString(), got.GetProperty("roleId").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, got.GetProperty("permissions").ValueKind);
+    }
+
+    /// <summary>An edit writes every member of the body, so an email or role it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_email_and_role_the_body_leaves_out()
+    {
+        var user = TestData.User(name: "Before", roleId: TestData.Roles.Observer);
+        user.Email = "before@example.com";
+        await Seed(user);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/users/{user.Id}", new { id = user.Id, name = "After" }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Users.SingleAsync(x => x.Id == user.Id, Ct);
+        Assert.Equal(("After", null, (Guid?)null), (stored.Name, stored.Email, stored.RoleId));
+    }
+
+    /// <summary>A create stores every member of the body.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/users",
+            new { id, name = "Full User", email = "full@example.com", roleId = TestData.Roles.Observer }, Ct));
+
+        var stored = await ReadBack(db => db.Users.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full User", "full@example.com", (Guid?)TestData.Roles.Observer), (stored.Name, stored.Email, stored.RoleId));
     }
 
     private async Task<(Gallery.Api.Data.Models.ExhibitEntity Exhibit, Gallery.Api.Data.Models.TeamEntity Team)> SeedTeam()

@@ -8,8 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -19,6 +17,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -39,25 +38,22 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
         public CardService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
-            IPrincipal user,
-            IMapper mapper)
+            IPrincipal user)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.Card>> GetAsync(CancellationToken ct)
         {
             IQueryable<CardEntity> cards = _context.Cards;
 
-            return _mapper.Map<IEnumerable<Card>>(await cards.ToListAsync());
+            return (await cards.ToListAsync()).Select(x => x.ToCard()).ToList();
         }
 
         public async Task<ViewModels.Card> GetAsync(Guid id, CancellationToken ct)
@@ -66,7 +62,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<Card>();
 
-            return _mapper.Map<Card>(item);
+            return item.ToCard();
         }
 
         public async Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
@@ -75,7 +71,7 @@ namespace Gallery.Api.Services
                 .Where(c => c.CollectionId == collectionId)
                 .OrderBy(c => c.Move)
                 .ThenBy(c => c.Inject)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync(ct);
 
             return cards;
@@ -93,7 +89,7 @@ namespace Gallery.Api.Services
             var cards = await _context.Cards
                 .Where(c => c.CollectionId == exhibit.CollectionId)
                 .OrderBy(c => c.Inject)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync(ct);
 
             return cards;
@@ -108,7 +104,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
                 .Include(tc => tc.Card)
                 .Select(tc => tc.Card)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync();
 
             return cards;
@@ -116,7 +112,7 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Card> CreateAsync(ViewModels.CardCreate card, CancellationToken ct)
         {
-            var cardEntity = _mapper.Map<CardEntity>(card);
+            var cardEntity = card.ToEntity();
             cardEntity.Id = cardEntity.Id != Guid.Empty ? cardEntity.Id : Guid.NewGuid();
 
             _context.Cards.Add(cardEntity);
@@ -131,7 +127,7 @@ namespace Gallery.Api.Services
             if (cardToUpdate == null)
                 throw new EntityNotFoundException<Card>();
 
-            _mapper.Map(card, cardToUpdate);
+            card.ApplyTo(cardToUpdate);
 
             _context.Cards.Update(cardToUpdate);
             await _context.SaveChangesAsync(ct);

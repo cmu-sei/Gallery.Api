@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Tests.Support;
@@ -360,11 +361,102 @@ public class TeamControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.True(await db.Teams.AnyAsync(x => x.Id == team.Id, Ct));
     }
 
-    private async Task<(ExhibitEntity Exhibit, TeamEntity Team)> SeedTeam(string name = "Test Team")
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// One team is read with its users (through its team users) and its exhibit. A user carries no
+    /// permissions and the exhibit no caller permissions, and <c>Articles</c> is never filled.
+    /// </summary>
+    [Fact]
+    public async Task Get_returns_the_team_with_its_users_and_its_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam("Shaped Team", "ST", "shaped@example.com");
+        var user = TestData.User(name: "On The Team", roleId: TestData.Roles.Observer);
+        user.Email = "member@example.com";
+        await Seed(user, TestData.TeamUser(team.Id, user.Id));
+
+        var got = await ReadAsync<Team>(await RootClient.GetAsync($"api/teams/{team.Id}", Ct));
+
+        var member = Assert.Single(got.Users);
+        Assert.Equal((user.Id, "On The Team", "member@example.com", (Guid?)TestData.Roles.Observer),
+            (member.Id, member.Name, member.Email, member.RoleId));
+        Assert.Null(member.Permissions);
+        Assert.Equal((exhibit.Id, exhibit.Name, exhibit.CollectionId), (got.Exhibit.Id, got.Exhibit.Name, got.Exhibit.CollectionId));
+        Assert.Null(got.Exhibit.ExhibitPermissions);
+        Assert.Null(got.Articles);
+        Assert.Equal(("Shaped Team", "ST", "shaped@example.com", (Guid?)exhibit.Id), (got.Name, got.ShortName, got.Email, got.ExhibitId));
+    }
+
+    /// <summary>A team with no users and no exhibit is read with an empty user list and a null exhibit.</summary>
+    [Fact]
+    public async Task Get_returns_a_team_without_users_or_an_exhibit_with_an_empty_list_and_no_exhibit()
+    {
+        var team = TestData.Team(Guid.Empty, "Alone");
+        team.ExhibitId = null;
+        await Seed(team);
+
+        var body = await ReadAsync<JsonElement>(await RootClient.GetAsync($"api/teams/{team.Id}", Ct));
+
+        Assert.Equal(JsonValueKind.Array, body.GetProperty("users").ValueKind);
+        Assert.Equal(0, body.GetProperty("users").GetArrayLength());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("exhibit").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("articles").ValueKind);
+    }
+
+    /// <summary>The exhibit's teams are each read with their members and users, and no articles.</summary>
+    [Fact]
+    public async Task GetByExhibit_returns_each_team_with_its_users()
+    {
+        var (exhibit, team) = await SeedTeam("Listed Team", "LT", "listed@example.com");
+        var user = TestData.User(name: "Listed Member");
+        user.Email = "member@example.com";
+        await Seed(user, TestData.TeamUser(team.Id, user.Id));
+
+        var teams = await ReadAsync<List<Team>>(await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/teams", Ct));
+
+        var got = Assert.Single(teams);
+        Assert.Equal(("Listed Team", "LT", "listed@example.com", (Guid?)exhibit.Id), (got.Name, got.ShortName, got.Email, got.ExhibitId));
+        var member = Assert.Single(got.Users);
+        Assert.Equal(("Listed Member", "member@example.com"), (member.Name, member.Email));
+        Assert.Null(got.Articles);
+    }
+
+    /// <summary>An edit writes every member of the body, so a short name or email it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_short_name_and_email_the_body_leaves_out()
     {
         var collection = TestData.Collection();
         var exhibit = TestData.Exhibit(collection.Id);
-        var team = TestData.Team(exhibit.Id, name);
+        var team = TestData.Team(exhibit.Id, "Before", "team@example.com");
+        await Seed(collection, exhibit, team);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/teams/{team.Id}", new { name = "Renamed" }, Ct));
+
+        await using var db = NewContext();
+        var updated = await db.Teams.SingleAsync(x => x.Id == team.Id, Ct);
+        Assert.Equal(("Renamed", null, null), (updated.Name, updated.ShortName, updated.Email));
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var (exhibit, _) = await SeedTeam();
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/teams",
+            new { id, name = "Full Team", shortName = "FT", email = "full@example.com", exhibitId = exhibit.Id }, Ct));
+
+        var stored = await ReadBack(db => db.Teams.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Team", "FT", "full@example.com", (Guid?)exhibit.Id), (stored.Name, stored.ShortName, stored.Email, stored.ExhibitId));
+    }
+
+    private async Task<(ExhibitEntity Exhibit, TeamEntity Team)> SeedTeam(string name = "Test Team", string shortName = null, string email = null)
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        var team = TestData.Team(exhibit.Id, name, email);
+        team.ShortName = shortName ?? name;
         await Seed(collection, exhibit, team);
 
         return (exhibit, team);

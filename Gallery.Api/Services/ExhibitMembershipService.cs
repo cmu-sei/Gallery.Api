@@ -7,7 +7,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using STT = System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Enumerations;
@@ -16,6 +15,7 @@ using SAVM = Gallery.Api.ViewModels;
 using Gallery.Api.ViewModels;
 using System.Linq;
 using Gallery.Api.Data.Models;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -32,13 +32,11 @@ namespace Gallery.Api.Services
     {
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public ExhibitMembershipService(GalleryDbContext context, IPrincipal user, IMapper mapper)
+        public ExhibitMembershipService(GalleryDbContext context, IPrincipal user)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async STT.Task<ExhibitMembership> GetAsync(Guid id, CancellationToken ct)
@@ -49,7 +47,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<ExhibitMembership>();
 
-            return _mapper.Map<SAVM.ExhibitMembership>(item);
+            return item.ToExhibitMembership();
         }
 
         public async STT.Task<IEnumerable<ExhibitMembership>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -58,12 +56,12 @@ namespace Gallery.Api.Services
                 .Where(m => m.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<SAVM.ExhibitMembership>>(items);
+            return items.Select(x => x.ToExhibitMembership()).ToList();
         }
 
         public async STT.Task<ExhibitMembership> CreateAsync(ExhibitMembership exhibitMembership, CancellationToken ct)
         {
-            var exhibitMembershipEntity = _mapper.Map<ExhibitMembershipEntity>(exhibitMembership);
+            var exhibitMembershipEntity = exhibitMembership.ToEntity();
 
             _context.ExhibitMemberships.Add(exhibitMembershipEntity);
             await _context.SaveChangesAsync(ct);
@@ -80,7 +78,7 @@ namespace Gallery.Api.Services
             exhibitMembershipToUpdate.RoleId = exhibitMembership.RoleId;
             await _context.SaveChangesAsync(ct);
 
-            return _mapper.Map<SAVM.ExhibitMembership>(exhibitMembershipToUpdate);
+            return exhibitMembershipToUpdate.ToExhibitMembership();
         }
         public async STT.Task DeleteAsync(Guid id, CancellationToken ct)
         {

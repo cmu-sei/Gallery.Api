@@ -3,31 +3,28 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Hubs;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class ExhibitMembershipCreatedSignalRHandler : INotificationHandler<EntityCreated<ExhibitMembershipEntity>>
     {
         private readonly IHubContext<MainHub> _mainHub;
-        private readonly IMapper _mapper;
 
         public ExhibitMembershipCreatedSignalRHandler(
-            IHubContext<MainHub> mainHub,
-            IMapper mapper)
+            IHubContext<MainHub> mainHub)
         {
             _mainHub = mainHub;
-            _mapper = mapper;
         }
 
         public async Task Handle(EntityCreated<ExhibitMembershipEntity> notification, CancellationToken cancellationToken)
         {
-            var scenarioMembership = _mapper.Map<ViewModels.ExhibitMembership>(notification.Entity);
+            var scenarioMembership = notification.Entity.ToExhibitMembership();
             await _mainHub.Clients
                 .Groups(MainHub.EXHIBIT_GROUP)
                 .SendAsync(MainHubMethods.ExhibitMembershipCreated, scenarioMembership);
@@ -55,19 +52,16 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     public class ExhibitMembershipUpdatedSignalRHandler : INotificationHandler<EntityUpdated<ExhibitMembershipEntity>>
     {
         private readonly IHubContext<MainHub> _mainHub;
-        private readonly IMapper _mapper;
 
         public ExhibitMembershipUpdatedSignalRHandler(
-            IHubContext<MainHub> mainHub,
-            IMapper mapper)
+            IHubContext<MainHub> mainHub)
         {
             _mainHub = mainHub;
-            _mapper = mapper;
         }
 
         public async Task Handle(EntityUpdated<ExhibitMembershipEntity> notification, CancellationToken cancellationToken)
         {
-            var scenarioMembership = _mapper.Map<ViewModels.ExhibitMembership>(notification.Entity);
+            var scenarioMembership = notification.Entity.ToExhibitMembership();
             await _mainHub.Clients
                 .Groups(MainHub.EXHIBIT_GROUP)
                 .SendAsync(MainHubMethods.ExhibitMembershipUpdated, scenarioMembership);

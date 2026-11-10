@@ -475,6 +475,86 @@ public class UserArticleControllerTests(DatabaseFixture fixture, GalleryAppFacto
         Assert.True(await db.UserArticles.AnyAsync(x => x.Id == userArticle.Id, Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// A created user article keeps the body's exhibit, read flag and posting date. It is answered with its
+    /// article, which the request has already loaded.
+    /// </summary>
+    [Fact]
+    public async Task Create_stores_and_returns_the_exhibit_the_read_flag_and_the_posting_date()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+        var article = TestData.Article(exhibit.CollectionId, name: "Handed Out");
+        await Seed(article);
+        var posted = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+
+        var response = await RootClient.PostAsJsonAsync("api/userarticles",
+            new { exhibitId = exhibit.Id, userId = userArticle.UserId, articleId = article.Id, actualDatePosted = posted, isRead = true }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        var created = await ReadAsync<UserArticle>(response);
+        Assert.Equal((exhibit.Id, userArticle.UserId, article.Id, true, posted),
+            (created.ExhibitId, created.UserId, created.ArticleId, created.IsRead, created.ActualDatePosted.ToUniversalTime()));
+        Assert.Equal((article.Id, "Handed Out"), (created.Article.Id, created.Article.Name));
+        var stored = await ReadBack(db => db.UserArticles.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal((exhibit.Id, true, posted), (stored.ExhibitId, stored.IsRead, stored.ActualDatePosted));
+    }
+
+    /// <summary>A participant's own user articles, and an observer's view of another team's, carry their article.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetByExhibitTeam_returns_each_user_article_with_its_article(bool observer)
+    {
+        var (exhibit, team, userArticle) = await SeedDelivery();
+        var reader = observer
+            ? await Actor().OnTeam(await SeedObserverTeam(exhibit), observer: true).SeedAsync()
+            : await Actor().OnTeam(team).SeedAsync();
+
+        var userArticles = await ReadAsync<List<UserArticle>>(
+            await Client(reader).GetAsync($"api/exhibits/{exhibit.Id}/teams/{team.Id}/userarticles", Ct));
+
+        var got = Assert.Single(userArticles);
+        Assert.Equal((userArticle.ArticleId, "Test Article", "Seeded by TestData.Article", ItemStatus.Green),
+            (got.Article.Id, got.Article.Name, got.Article.Summary, got.Article.Status));
+        Assert.Empty(got.Article.Teams);
+    }
+
+    /// <summary>The exhibit-wide list loads no article, so each user article is answered without one.</summary>
+    [Fact]
+    public async Task GetByExhibit_returns_each_user_article_without_its_article()
+    {
+        var (exhibit, _, userArticle) = await SeedDelivery();
+
+        var userArticles = await ReadAsync<List<UserArticle>>(await RootClient.GetAsync($"api/exhibits/{exhibit.Id}/userarticles", Ct));
+
+        var got = Assert.Single(userArticles);
+        Assert.Equal((userArticle.Id, userArticle.ArticleId, TestData.DefaultDatePosted), (got.Id, got.ArticleId, got.ActualDatePosted.ToUniversalTime()));
+        Assert.Null(got.Article);
+    }
+
+    [Fact]
+    public async Task SetIsRead_returns_the_user_article_with_its_article()
+    {
+        var (exhibit, team, userArticle) = await SeedDelivery();
+        var owner = await Actor().OnTeam(team).SeedAsync();
+        var owned = TestData.UserArticle(exhibit.Id, owner.Id, userArticle.ArticleId);
+        await Seed(owned);
+
+        var got = await ReadAsync<UserArticle>(await Client(owner).PutAsJsonAsync($"api/userarticles/{owned.Id}/isread", true, Ct));
+
+        Assert.Equal((owned.Id, true, "Test Article"), (got.Id, got.IsRead, got.Article.Name));
+    }
+
+    private async Task<TeamEntity> SeedObserverTeam(ExhibitEntity exhibit)
+    {
+        var observers = TestData.Team(exhibit.Id, "Observers");
+        await Seed(observers);
+
+        return observers;
+    }
+
     /// <summary>An exhibit at move 0 inject 0 with a team, a team article of the given status that is due, and its delivery to one user.</summary>
     private async Task<(ExhibitEntity Exhibit, TeamEntity Team, UserArticleEntity UserArticle)> SeedDelivery(ItemStatus status = ItemStatus.Green)
     {

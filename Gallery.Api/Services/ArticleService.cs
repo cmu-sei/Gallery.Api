@@ -13,7 +13,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -21,6 +20,7 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -44,7 +44,6 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
         private readonly IXApiService _xApiService;
 
@@ -52,14 +51,12 @@ namespace Gallery.Api.Services
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
-            IMapper mapper,
             IXApiService xApiService,
             IUserArticleService userArticleService)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
             _userArticleService = userArticleService;
             _xApiService = xApiService;
         }
@@ -70,7 +67,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<Article>();
 
-            return _mapper.Map<Article>(item);
+            return item.ToArticle();
         }
 
         public async Task<IEnumerable<ViewModels.Article>> GetByCardAsync(Guid cardId, CancellationToken ct)
@@ -80,7 +77,7 @@ namespace Gallery.Api.Services
                 .OrderBy(a => a.Move)
                 .ThenBy(a => a.Inject);
 
-            return _mapper.Map<IEnumerable<Article>>(await articles.ToListAsync());
+            return (await articles.ToListAsync()).Select(x => x.ToArticle()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Article>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
@@ -90,7 +87,7 @@ namespace Gallery.Api.Services
                 .OrderBy(a => a.Move)
                 .ThenBy(a => a.Inject);
 
-            return _mapper.Map<IEnumerable<Article>>(await articles.ToListAsync());
+            return (await articles.ToListAsync()).Select(x => x.ToArticle()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Article>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -105,12 +102,12 @@ namespace Gallery.Api.Services
                 .OrderByDescending(a => a.Move)
                 .ThenByDescending(a => a.Inject);
 
-            return _mapper.Map<IEnumerable<Article>>(await articles.ToListAsync());
+            return (await articles.ToListAsync()).Select(x => x.ToArticle()).ToList();
         }
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate articleCreate, CancellationToken ct)
         {
-            var articleEntity = _mapper.Map<ArticleEntity>(articleCreate);
+            var articleEntity = articleCreate.ToEntity();
             if (articleCreate.ExhibitId != null)
             {
                 // an exhibit's article is in the exhibit's collection, whatever the body names
@@ -181,7 +178,7 @@ namespace Gallery.Api.Services
             if (articleToUpdate == null)
                 throw new EntityNotFoundException<Article>();
 
-            _mapper.Map(articleEdit, articleToUpdate);
+            articleEdit.ApplyTo(articleToUpdate);
             _context.Articles.Update(articleToUpdate);
             await _context.SaveChangesAsync(ct);
 

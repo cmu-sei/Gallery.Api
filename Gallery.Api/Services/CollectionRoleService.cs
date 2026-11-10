@@ -7,11 +7,12 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using STT = System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
+using System.Linq;
 
 namespace Gallery.Api.Services
 {
@@ -25,13 +26,11 @@ namespace Gallery.Api.Services
     {
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public CollectionRoleService(GalleryDbContext context, IPrincipal user, IMapper mapper)
+        public CollectionRoleService(GalleryDbContext context, IPrincipal user)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async STT.Task<IEnumerable<CollectionRole>> GetAsync(CancellationToken ct)
@@ -39,7 +38,7 @@ namespace Gallery.Api.Services
             var items = await _context.CollectionRoles
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<CollectionRole>>(items);
+            return items.Select(x => x.ToCollectionRole()).ToList();
         }
 
         public async STT.Task<CollectionRole> GetAsync(Guid id, CancellationToken ct)
@@ -50,7 +49,7 @@ namespace Gallery.Api.Services
             if (item == null)
                 throw new EntityNotFoundException<CollectionRole>();
 
-            return _mapper.Map<CollectionRole>(item);
+            return item.ToCollectionRole();
         }
 
     }

@@ -12,7 +12,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -21,6 +20,7 @@ using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
 using Microsoft.IdentityModel.Tokens;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -47,7 +47,6 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
         private readonly IUserArticleService _userArticleService;
         private readonly IUserClaimsService _userClaimsService;
         private readonly ISteamfitterService _steamfitterService;
@@ -56,7 +55,6 @@ namespace Gallery.Api.Services
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
-            IMapper mapper,
             IUserArticleService userArticleService,
             IUserClaimsService userClaimsService,
             ISteamfitterService steamfitterService)
@@ -65,7 +63,6 @@ namespace Gallery.Api.Services
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
             _userArticleService = userArticleService;
             _userClaimsService = userClaimsService;
         }
@@ -86,7 +83,7 @@ namespace Gallery.Api.Services
                     .ToListAsync();
             }
 
-            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
+            return exhibits.Select(x => x.ToExhibit()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineAsync(CancellationToken ct)
@@ -104,7 +101,7 @@ namespace Gallery.Api.Services
                 .Distinct()
                 .ToListAsync();
 
-            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
+            return exhibits.Select(x => x.ToExhibit()).ToList();
         }
 
         public async Task<ViewModels.Exhibit> GetAsync(Guid id, bool checkForTeamMembership, CancellationToken ct)
@@ -119,7 +116,7 @@ namespace Gallery.Api.Services
             }
             var item = await _context.Exhibits.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
-            return _mapper.Map<Exhibit>(item);
+            return item.ToExhibit();
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetByCollectionAsync(Guid collectionId, bool canViewAll, CancellationToken ct)
@@ -142,7 +139,7 @@ namespace Gallery.Api.Services
                     .ToListAsync();
             }
 
-            return _mapper.Map<IEnumerable<Exhibit>>(exhibits);
+            return exhibits.Select(x => x.ToExhibit()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Exhibit>> GetMineByCollectionAsync(Guid collectionId, CancellationToken ct)
@@ -154,7 +151,7 @@ namespace Gallery.Api.Services
                 .Distinct()
                 .OrderByDescending(a => a.DateCreated);
 
-            return _mapper.Map<IEnumerable<Exhibit>>(await exhibits.ToListAsync());
+            return (await exhibits.ToListAsync()).Select(x => x.ToExhibit()).ToList();
         }
 
         public async Task<ViewModels.Exhibit> CreateAsync(ViewModels.ExhibitCreate exhibit, CancellationToken ct)
@@ -175,7 +172,7 @@ namespace Gallery.Api.Services
             if (exhibit.ScenarioId.HasValue &&
                 !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
                 throw new EntityNotFoundException<Exhibit>("Scenario not found");
-            var exhibitEntity = _mapper.Map<ExhibitEntity>(exhibit);
+            var exhibitEntity = exhibit.ToEntity();
             exhibitEntity.Id = exhibitEntity.Id != Guid.Empty ? exhibitEntity.Id : Guid.NewGuid();
 
             _context.Exhibits.Add(exhibitEntity);
@@ -197,7 +194,7 @@ namespace Gallery.Api.Services
         {
             var exhibitFileObject = await BuildExhibitFileObject(exhibitId, ct);
             var newExhibitEntity = await privateExhibitCopyAsync(ToImport(exhibitFileObject), false, ct);
-            var exhibit = _mapper.Map<Exhibit>(newExhibitEntity);
+            var exhibit = newExhibitEntity.ToExhibit();
 
             return exhibit;
         }
@@ -463,7 +460,7 @@ namespace Gallery.Api.Services
             // make a copy and add it to the database
             var exhibitEntity = await privateExhibitCopyAsync(exhibitImport, true, ct);
 
-            return _mapper.Map<Exhibit>(exhibitEntity);
+            return exhibitEntity.ToExhibit();
         }
 
         public async Task<ViewModels.Exhibit> UpdateAsync(Guid id, ViewModels.ExhibitEdit exhibit, CancellationToken ct)
@@ -477,7 +474,7 @@ namespace Gallery.Api.Services
                 !await _steamfitterService.CanCallerReadScenarioAsync(exhibit.ScenarioId.Value, ct))
                 throw new EntityNotFoundException<Exhibit>("Scenario not found");
 
-            _mapper.Map(exhibit, exhibitToUpdate);
+            exhibit.ApplyTo(exhibitToUpdate);
             _context.Exhibits.Update(exhibitToUpdate);
             await _context.SaveChangesAsync(ct);
             await _userArticleService.LoadUserArticlesAsync(exhibitToUpdate, ct);

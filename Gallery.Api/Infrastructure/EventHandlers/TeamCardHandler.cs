@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -15,24 +14,22 @@ using Gallery.Api.Services;
 using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class TeamCardHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly ITeamCardService _TeamCardService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public TeamCardHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamCardService TeamCardService,
             IHubContext<MainHub> mainHub)
         {
             _db = db;
-            _mapper = mapper;
             _TeamCardService = TeamCardService;
             _mainHub = mainHub;
         }
@@ -62,7 +59,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetGroups(teamCardEntity, cancellationToken);
-            var teamCard = _mapper.Map<ViewModels.TeamCard>(teamCardEntity);
+            var teamCard = teamCardEntity.ToTeamCard();
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
@@ -78,9 +75,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamCardCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamCardService teamCardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamCardService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, teamCardService, mainHub) { }
 
         public async Task Handle(EntityCreated<TeamCardEntity> notification, CancellationToken cancellationToken)
         {
@@ -92,9 +88,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamCardUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamCardService teamCardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamCardService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, teamCardService, mainHub) { }
 
         public async Task Handle(EntityUpdated<TeamCardEntity> notification, CancellationToken cancellationToken)
         {
@@ -110,9 +105,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamCardDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamCardService teamCardService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamCardService, mainHub)
+            IHubContext<MainHub> mainHub) : base(db, teamCardService, mainHub)
         {
         }
 

@@ -8,8 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,6 +16,7 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -36,31 +35,23 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IMapper _mapper;
         private readonly ILogger<ITeamUserService> _logger;
 
-        public UserService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, ILogger<ITeamUserService> logger, IMapper mapper)
+        public UserService(GalleryDbContext context, IPrincipal user, IAuthorizationService authorizationService, ILogger<ITeamUserService> logger)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
             _authorizationService = authorizationService;
             _logger = logger;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.User>> GetAsync(bool includePermissions, CancellationToken ct)
         {
-            var items = new List<ViewModels.User>();
-            if(includePermissions) {
-                items = await _context.Users
-                    .ProjectTo<ViewModels.User>(_mapper.ConfigurationProvider, dest => dest.Permissions)
-                    .ToListAsync(ct);
-            } else {
-                items = await _context.Users
-                    .ProjectTo<ViewModels.User>(_mapper.ConfigurationProvider)
-                    .ToListAsync(ct);
-            }
-            return items;
+            // Nothing fills User.Permissions, so both callers get the same projection; the AutoMapper
+            // expansion this flag asked for named a member no map filled.
+            return await _context.Users
+                .ProjectToUser()
+                .ToListAsync(ct);
         }
 
         public async Task<IEnumerable<ViewModels.User>> GetByTeamAsync(Guid teamId, CancellationToken ct)
@@ -70,20 +61,20 @@ namespace Gallery.Api.Services
                 .Select(tu => tu.User)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<User>>(items);
+            return items.Select(x => x.ToUser()).ToList();
         }
 
         public async Task<ViewModels.User> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Users
-                .ProjectTo<ViewModels.User>(_mapper.ConfigurationProvider, dest => dest.Permissions)
+                .ProjectToUser()
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
             return item;
         }
 
         public async Task<ViewModels.User> CreateAsync(ViewModels.User user, CancellationToken ct)
         {
-            var userEntity = _mapper.Map<UserEntity>(user);
+            var userEntity = user.ToEntity();
             userEntity.Id = userEntity.Id != Guid.Empty ? userEntity.Id : Guid.NewGuid();
             _context.Users.Add(userEntity);
             await _context.SaveChangesAsync(ct);
@@ -101,7 +92,7 @@ namespace Gallery.Api.Services
             if (userToUpdate == null)
                 throw new EntityNotFoundException<User>();
 
-            _mapper.Map(user, userToUpdate);
+            user.ApplyTo(userToUpdate);
             _context.Users.Update(userToUpdate);
             await _context.SaveChangesAsync(ct);
             _logger.LogWarning($"User {userToUpdate.Name} ({userToUpdate.Id}) updated by {_user.GetId()}");

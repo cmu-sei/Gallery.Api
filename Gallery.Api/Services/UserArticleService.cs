@@ -8,7 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -19,6 +18,7 @@ using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Options;
 using Gallery.Api.ViewModels;
 using SAC = Steamfitter.Api.Client;
+using Gallery.Api.Infrastructure.Mappings;
 namespace Gallery.Api.Services
 {
     public interface IUserArticleService
@@ -43,7 +43,6 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
         private readonly ClientOptions _clientOptions;
         private readonly ISteamfitterService _steamfitterService;
         private readonly ILogger<UserArticleService> _logger;
@@ -53,7 +52,6 @@ namespace Gallery.Api.Services
             GalleryDbContext context,
             IAuthorizationService authorizationService,
             IPrincipal user,
-            IMapper mapper,
             ClientOptions clientOptions,
             ISteamfitterService steamfitterService,
             IXApiService xApiService,
@@ -62,7 +60,6 @@ namespace Gallery.Api.Services
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
             _clientOptions = clientOptions;
             _steamfitterService = steamfitterService;
             _logger = logger;
@@ -75,7 +72,7 @@ namespace Gallery.Api.Services
             if (userArticle == null)
                 throw new EntityNotFoundException<UserArticle>();
 
-            return _mapper.Map<UserArticle>(userArticle);
+            return userArticle.ToUserArticle();
         }
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -92,7 +89,7 @@ namespace Gallery.Api.Services
                 .OrderByDescending(ua => ua.Article.Move)
                 .ThenByDescending(ua => ua.Article.Inject);
 
-            return _mapper.Map<IEnumerable<UserArticle>>(await articles.ToListAsync());
+            return (await articles.ToListAsync()).Select(x => x.ToUserArticle()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.UserArticle>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
@@ -164,7 +161,7 @@ namespace Gallery.Api.Services
                     .ToList();
             }
 
-            return _mapper.Map<IEnumerable<UserArticle>>(userArticleEntityList);
+            return userArticleEntityList.Select(x => x.ToUserArticle()).ToList();
         }
 
         public async Task<UnreadArticles> GetMyUnreadCountAsync(Guid exhibitId, CancellationToken ct)
@@ -188,12 +185,12 @@ namespace Gallery.Api.Services
             if (!await _context.TeamUsers.AnyAsync(tu => tu.UserId == userArticle.UserId && tu.Team.ExhibitId == exhibit.Id, ct))
                 throw new EntityNotFoundException<User>();
 
-            var userArticleEntity = _mapper.Map<UserArticleEntity>(userArticle);
+            var userArticleEntity = userArticle.ToEntity();
             userArticleEntity.Id = userArticleEntity.Id != Guid.Empty ? userArticleEntity.Id : Guid.NewGuid();
             _context.UserArticles.Add(userArticleEntity);
             await _context.SaveChangesAsync(ct);
 
-            return _mapper.Map<UserArticle>(userArticleEntity);
+            return userArticleEntity.ToUserArticle();
         }
 
         public async Task<ViewModels.UserArticle> ShareAsync(Guid id, ShareDetails shareDetails, CancellationToken ct)
@@ -254,7 +251,7 @@ namespace Gallery.Api.Services
             // Log xAPI shared statement with all target teams
             var article = await _context.Articles.Where(a => a.Id == userArticleEntity.ArticleId).FirstAsync(ct);
             var verb = new Uri("https://w3id.org/xapi/dod-isd/verbs/shared");
-            await LogXApiSharedAsync(verb, _mapper.Map<Article>(article), exhibitId, fromTeamId, toTeamIds.ToArray(), ct);
+            await LogXApiSharedAsync(verb, article.ToArticle(), exhibitId, fromTeamId, toTeamIds.ToArray(), ct);
 
             if (toUserIds.Count > 0)
             {
@@ -288,7 +285,7 @@ namespace Gallery.Api.Services
                 _logger.LogError("There are no users on the selected teams to receive a shared article.  " + String.Join(",", toTeamIds));
             }
 
-            return _mapper.Map<UserArticle>(userArticleEntity);
+            return userArticleEntity.ToUserArticle();
         }
 
         public async Task<ViewModels.UserArticle> SetIsReadAsync(Guid id, bool isRead, CancellationToken ct)
@@ -311,9 +308,9 @@ namespace Gallery.Api.Services
             if (!isRead) {
                 verb = new Uri("http://id.tincanapi.com/verb/marked-unread");
             }
-            await LogXApiAsync(verb, _mapper.Map<Article>(article), userArticleEntity.ExhibitId, ct);
+            await LogXApiAsync(verb, article.ToArticle(), userArticleEntity.ExhibitId, ct);
 
-            return _mapper.Map<UserArticle>(userArticleEntity);
+            return userArticleEntity.ToUserArticle();
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)
