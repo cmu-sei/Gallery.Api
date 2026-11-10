@@ -29,5 +29,15 @@ namespace Gallery.Api.ViewModels
         public Boolean IsObserver { get; set; }
     }
 
+    /// <summary>
+    /// A TeamUser create request. It names the User and the Team by Id only, so it cannot create or change either.
+    /// </summary>
+    public class TeamUserCreate
+    {
+        /// <summary>The Id to create the TeamUser with. A new one is made when it is empty.</summary>
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public Guid TeamId { get; set; }
+        public bool IsObserver { get; set; }
+    }
 }
-

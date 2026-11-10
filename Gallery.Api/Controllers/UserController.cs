@@ -97,7 +97,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getTeamUsers")]
         public async Task<IActionResult> GetByTeam(Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _userService.GetByTeamAsync(teamId, ct);

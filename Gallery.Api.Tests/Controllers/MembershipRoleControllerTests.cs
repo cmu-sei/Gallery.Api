@@ -84,6 +84,16 @@ public class MembershipRoleControllerTests(DatabaseFixture fixture, GalleryAppFa
         Assert.Equal([ExhibitPermission.ViewExhibit], role.Permissions);
     }
 
+    /// <summary>The seeded exhibit Manager role is read with AllPermissions set.</summary>
+    [Fact]
+    public async Task GetExhibitRole_returns_AllPermissions_of_the_manager_role()
+    {
+        var role = await ReadAsync<ExhibitRole>(
+            await Client(await RoleViewer()).GetAsync($"api/exhibit-roles/{TestData.MembershipRoles.Manager}", Ct));
+
+        Assert.True(role.AllPermissions);
+    }
+
     [Fact]
     public async Task GetExhibitRole_is_forbidden_for_a_caller_holding_only_ViewGroups()
     {
@@ -95,5 +105,36 @@ public class MembershipRoleControllerTests(DatabaseFixture fixture, GalleryAppFa
     public async Task GetExhibitRole_reports_an_unknown_role_as_not_found()
     {
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.GetAsync($"api/exhibit-roles/{Guid.NewGuid()}", Ct));
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A membership role stored without permissions is read with an empty list, not null.</summary>
+    [Fact]
+    public async Task GetCollectionRole_returns_a_role_stored_without_permissions_with_an_empty_list()
+    {
+        var role = TestData.CollectionRole();
+        role.Permissions = null;
+        await Seed(role);
+
+        var read = await ReadAsync<CollectionRole>(await RootClient.GetAsync($"api/collection-roles/{role.Id}", Ct));
+        var listed = await ReadAsync<List<CollectionRole>>(await RootClient.GetAsync("api/collection-roles", Ct));
+
+        Assert.Equal([], read.Permissions);
+        Assert.Equal([], Assert.Single(listed, x => x.Id == role.Id).Permissions);
+    }
+
+    [Fact]
+    public async Task GetExhibitRole_returns_a_role_stored_without_permissions_with_an_empty_list()
+    {
+        var role = TestData.ExhibitRole();
+        role.Permissions = null;
+        await Seed(role);
+
+        var read = await ReadAsync<ExhibitRole>(await RootClient.GetAsync($"api/exhibit-roles/{role.Id}", Ct));
+        var listed = await ReadAsync<List<ExhibitRole>>(await RootClient.GetAsync("api/exhibit-roles", Ct));
+
+        Assert.Equal([], read.Permissions);
+        Assert.Equal([], Assert.Single(listed, x => x.Id == role.Id).Permissions);
     }
 }

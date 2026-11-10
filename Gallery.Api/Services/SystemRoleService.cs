@@ -7,12 +7,13 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using STT = System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
+using System.Linq;
 
 namespace Gallery.Api.Services
 {
@@ -29,13 +30,11 @@ namespace Gallery.Api.Services
     {
         private readonly GalleryDbContext _context;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public SystemRoleService(GalleryDbContext context, IPrincipal user, IMapper mapper)
+        public SystemRoleService(GalleryDbContext context, IPrincipal user)
         {
             _context = context;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async STT.Task<IEnumerable<SystemRole>> GetAsync(CancellationToken ct)
@@ -43,7 +42,7 @@ namespace Gallery.Api.Services
             var items = await _context.SystemRoles
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<SystemRole>>(items);
+            return items.Select(x => x.ToSystemRole()).ToList();
         }
 
         public async STT.Task<SystemRole> GetAsync(Guid id, CancellationToken ct)
@@ -51,12 +50,12 @@ namespace Gallery.Api.Services
             var item = await _context.SystemRoles
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
 
-            return _mapper.Map<SystemRole>(item);
+            return item.ToSystemRole();
         }
 
         public async STT.Task<SystemRole> CreateAsync(SystemRole systemRole, CancellationToken ct)
         {
-            var systemRoleEntity = _mapper.Map<SystemRoleEntity>(systemRole);
+            var systemRoleEntity = systemRole.ToEntity();
 
             _context.SystemRoles.Add(systemRoleEntity);
             await _context.SaveChangesAsync(ct);
@@ -71,12 +70,12 @@ namespace Gallery.Api.Services
             if (systemRoleToUpdate == null)
                 throw new EntityNotFoundException<SystemRole>();
 
-            _mapper.Map(systemRole, systemRoleToUpdate);
+            systemRole.ApplyTo(systemRoleToUpdate);
 
             _context.SystemRoles.Update(systemRoleToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            return _mapper.Map(systemRoleToUpdate, systemRole);
+            return systemRoleToUpdate.ToSystemRole();
         }
 
         public async STT.Task<bool> DeleteAsync(Guid id, CancellationToken ct)

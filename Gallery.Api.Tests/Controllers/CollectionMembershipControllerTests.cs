@@ -355,6 +355,27 @@ public class CollectionMembershipControllerTests(DatabaseFixture fixture, Galler
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.DeleteAsync($"api/collections/memberships/{Guid.NewGuid()}", Ct));
     }
 
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A membership created with a role other than the default is stored and answered with that role.</summary>
+    [Fact]
+    public async Task Create_stores_and_returns_the_role_sent()
+    {
+        var collection = TestData.Collection();
+        var user = TestData.User(name: "Observer");
+        await Seed(collection, user);
+
+        var response = await RootClient.PostAsJsonAsync($"api/collections/{collection.Id}/memberships",
+            new { collectionId = collection.Id, userId = user.Id, roleId = TestData.MembershipRoles.Observer }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<CollectionMembership>(response);
+        Assert.Equal((collection.Id, (Guid?)user.Id, TestData.MembershipRoles.Observer),
+            (created.CollectionId, created.UserId, created.RoleId));
+        var stored = await ReadBack(db => db.CollectionMemberships.SingleAsync(x => x.Id == created.Id, Ct));
+        Assert.Equal(TestData.MembershipRoles.Observer, stored.RoleId);
+    }
+
     private async Task<(CollectionEntity Collection, CollectionMembershipEntity Membership)> SeedMembership()
     {
         var collection = TestData.Collection();

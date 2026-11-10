@@ -73,6 +73,7 @@ namespace Gallery.Api.Data
 
         private void UpdateBaseEntityFields()
         {
+            var actorId = ServiceProvider?.GetService<ICurrentActor>()?.Id;
             var addedEntries = ChangeTracker.Entries().Where(x => x.State == EntityState.Added);
             var modifiedEntries = ChangeTracker.Entries().Where(x => x.State == EntityState.Modified);
             foreach (var entry in addedEntries)
@@ -81,6 +82,8 @@ namespace Gallery.Api.Data
                 try
                 {
                     ((BaseEntity)entry.Entity).DateCreated = DateTime.UtcNow;
+                    if (actorId.HasValue)
+                        ((BaseEntity)entry.Entity).CreatedBy = actorId.Value;
                     ((BaseEntity)entry.Entity).DateModified = null;
                     ((BaseEntity)entry.Entity).ModifiedBy = null;
                 }
@@ -93,6 +96,8 @@ namespace Gallery.Api.Data
                 try
                 {
                     ((BaseEntity)entry.Entity).DateModified = DateTime.UtcNow;
+                    if (actorId.HasValue)
+                        ((BaseEntity)entry.Entity).ModifiedBy = actorId.Value;
                     ((BaseEntity)entry.Entity).CreatedBy = (Guid)entry.OriginalValues["CreatedBy"];
                     ((BaseEntity)entry.Entity).DateCreated = DateTime.SpecifyKind((DateTime)entry.OriginalValues["DateCreated"], DateTimeKind.Utc);
                 }

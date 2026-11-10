@@ -90,9 +90,10 @@ public class ExhibitMembershipsController : BaseController
     [HttpPut("Exhibits/Memberships/{id}")]
     [ProducesResponseType(typeof(ExhibitMembership), (int)HttpStatusCode.OK)]
     [SwaggerOperation(OperationId = "updateExhibitMembership")]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] ExhibitMembership exhibitMembership, CancellationToken ct)
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] ExhibitMembershipEdit exhibitMembership, CancellationToken ct)
     {
-        if (!await _authorizationService.AuthorizeAsync<Exhibit>(exhibitMembership.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
+        var storedMembership = await _exhibitMembershipService.GetAsync(id, ct);
+        if (!await _authorizationService.AuthorizeAsync<Exhibit>(storedMembership.ExhibitId, [SystemPermission.ManageExhibits], [ExhibitPermission.ManageExhibit], ct))
             throw new ForbiddenException();
 
         var updatedExhibitMembership = await _exhibitMembershipService.UpdateAsync(id, exhibitMembership, ct);

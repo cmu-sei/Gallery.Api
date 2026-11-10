@@ -17,10 +17,10 @@ namespace Gallery.Api.Infrastructure.Authorization
 
         public TeamPermissionRequirement(
             TeamPermission[] requiredPermissions,
-            Guid projectId)
+            Guid teamId)
         {
             RequiredPermissions = requiredPermissions;
-            TeamId = projectId;
+            TeamId = teamId;
         }
     }
 
@@ -54,11 +54,8 @@ namespace Gallery.Api.Infrastructure.Authorization
                 {
                     context.Fail();
                 }
-                else if (requirement.RequiredPermissions == null || requirement.RequiredPermissions.Length == 0)
-                {
-                    context.Succeed(requirement);
-                }
-                else if (requirement.RequiredPermissions.Any(x => teamPermissionsClaim.Permissions.Contains(x)))
+                // an empty or missing list grants nothing, even to a caller with a claim for the scope
+                else if (requirement.RequiredPermissions != null && requirement.RequiredPermissions.Any(x => teamPermissionsClaim.Permissions.Contains(x)))
                 {
                     context.Succeed(requirement);
                 }

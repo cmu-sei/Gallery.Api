@@ -102,7 +102,7 @@ namespace Gallery.Api.Hubs
             var team = await context.Teams.SingleOrDefaultAsync(t => t.Id == teamId);
             if (team != null)
             {
-                var canSee = await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], Context.ConnectionAborted);
+                var canSee = await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], Context.ConnectionAborted);
                 if (canSee)
                 {
                     idList.Add(teamId.ToString());

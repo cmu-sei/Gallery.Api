@@ -64,7 +64,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "getExhibitTeamUserArticles")]
         public async Task<IActionResult> GetByExhibitTeam(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [TeamPermission.ViewTeam], ct))
+            if (!await _authorizationService.AuthorizeAsync<Team>(teamId, [SystemPermission.ViewExhibits], [TeamPermission.ViewTeam], ct))
                 throw new ForbiddenException();
 
             var list = await _userArticleService.GetByExhibitTeamAsync(exhibitId, teamId, ct);
@@ -104,7 +104,7 @@ namespace Gallery.Api.Controllers
         [HttpPost("userArticles")]
         [ProducesResponseType(typeof(UserArticle), (int)HttpStatusCode.Created)]
         [SwaggerOperation(OperationId = "createUserArticle")]
-        public async Task<IActionResult> Create([FromBody] UserArticle userArticle, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] UserArticleCreate userArticle, CancellationToken ct)
         {
             if (!await _authorizationService.AuthorizeAsync<Exhibit>(userArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
                 throw new ForbiddenException();
@@ -127,10 +127,7 @@ namespace Gallery.Api.Controllers
         [SwaggerOperation(OperationId = "shareUserArticle")]
         public async Task<IActionResult> Share([FromRoute] Guid id, [FromBody] ShareDetails shareDetails, CancellationToken ct)
         {
-            var userArticle = await _userArticleService.GetAsync(id, ct);
-            if (!await _authorizationService.AuthorizeAsync<Exhibit>(userArticle.ExhibitId, [SystemPermission.EditExhibits], [ExhibitPermission.EditExhibit], ct))
-                throw new ForbiddenException();
-
+            // Sharing is a participant action: the service lets only the UserArticle's owner share it.
             var sharedUserArticle = await _userArticleService.ShareAsync(id, shareDetails, ct);
             return Ok(sharedUserArticle);
         }

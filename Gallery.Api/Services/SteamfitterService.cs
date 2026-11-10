@@ -3,12 +3,15 @@
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.Infrastructure.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using SAC = Steamfitter.Api.Client;
@@ -17,7 +20,8 @@ namespace Gallery.Api.Services
 {
     public interface ISteamfitterService
     {
-        Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskForm taskForm, CancellationToken ct);
+        Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskCreate taskForm, CancellationToken ct);
+        Task<bool> CanCallerReadScenarioAsync(Guid scenarioId, CancellationToken ct);
     }
 
     public class SteamfitterService : ISteamfitterService
@@ -25,18 +29,21 @@ namespace Gallery.Api.Services
         private readonly ResourceOwnerAuthorizationOptions _resourceOwnerAuthorizationOptions;
         private readonly ClientOptions _clientOptions;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public SteamfitterService(
             IHttpClientFactory httpClientFactory,
+            IHttpContextAccessor httpContextAccessor,
             ClientOptions clientOptions,
             ResourceOwnerAuthorizationOptions resourceOwnerAuthorizationOptions)
         {
             _httpClientFactory = httpClientFactory;
+            _httpContextAccessor = httpContextAccessor;
             _clientOptions = clientOptions;
             _resourceOwnerAuthorizationOptions = resourceOwnerAuthorizationOptions;
         }
 
-        public async Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskForm taskForm, CancellationToken ct)
+        public async Task<ICollection<SAC.Result>> CreateAndExecuteTaskAsnyc(SAC.TaskCreate taskForm, CancellationToken ct)
         {
             var client = ApiClientsExtensions.GetHttpClient(_httpClientFactory, _clientOptions.SteamfitterApiUrl);
             var tokenResponse = await ApiClientsExtensions.RequestTokenAsync(_resourceOwnerAuthorizationOptions, client);
@@ -45,6 +52,95 @@ namespace Gallery.Api.Services
             var results = await steamfitterApiClient.CreateAndExecuteTaskAsync(taskForm, ct);
 
             return results;
+        }
+
+        /// <summary>
+        /// Asks Steamfitter for the Scenario with the caller's own token rather than Gallery's service account. An
+        /// exhibit names the Scenario that its share email goes through with the service account, so it may name only
+        /// a Scenario the caller can read, and one that does not exist is no more readable than one they cannot see.
+        /// A 403, a 404 or an empty answer all mean the caller cannot use it; which one Steamfitter gives for an id
+        /// it does not know depends on its version and on what the caller may see. A server error is answered as
+        /// unavailable. The request is sent directly so that every answer, an empty one included, can be read. Only an
+        /// answer that is the Scenario itself makes it readable: a 200 carrying something else, such as a proxy's
+        /// login page, means Gallery is not talking to Steamfitter, and is answered as unavailable.
+        /// </summary>
+        public async Task<bool> CanCallerReadScenarioAsync(Guid scenarioId, CancellationToken ct)
+        {
+            var authorization = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+            if (string.IsNullOrEmpty(authorization))
+                return false;
+
+            HttpStatusCode status;
+            string body = null;
+            try
+            {
+                var client = ApiClientsExtensions.GetHttpClient(_httpClientFactory, _clientOptions.SteamfitterApiUrl);
+                client.DefaultRequestHeaders.Add("authorization", authorization);
+                using var response = await client.GetAsync(ScenarioUri(_clientOptions.SteamfitterApiUrl, scenarioId), ct);
+                status = response.StatusCode;
+                if (status == HttpStatusCode.OK)
+                    body = await response.Content.ReadAsStringAsync(ct);
+            }
+            // Steamfitter is down, timed out or is not configured; a cancelled request is not one of these
+            catch (Exception ex) when (ex is HttpRequestException or UriFormatException or ArgumentNullException ||
+                ex is TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                throw new ServiceUnavailableException("Steamfitter could not be reached to check the Scenario.", ex);
+            }
+
+            switch (status)
+            {
+                case HttpStatusCode.OK:
+                    if (string.IsNullOrWhiteSpace(body) || body.Trim() == "null")
+                        return false;
+                    if (!IsTheScenario(body, scenarioId))
+                        throw new ServiceUnavailableException("Steamfitter's answer was not the Scenario.");
+                    return true;
+                case HttpStatusCode.NoContent:
+                case HttpStatusCode.NotFound:
+                case HttpStatusCode.Unauthorized:
+                case HttpStatusCode.Forbidden:
+                    return false;
+                default:
+                    if ((int)status >= 200 && (int)status < 300)
+                        return false;
+                    throw new ServiceUnavailableException($"Steamfitter answered {(int)status} when asked for the Scenario.");
+            }
+        }
+
+        /// <summary>
+        /// The Scenario's address under <paramref name="steamfitterApiUrl"/>. A relative path resolved against a base
+        /// without a trailing slash replaces the base's last segment, so the slash is added first.
+        /// </summary>
+        public static Uri ScenarioUri(string steamfitterApiUrl, Guid scenarioId)
+        {
+            ArgumentNullException.ThrowIfNull(steamfitterApiUrl);
+            var baseUri = new Uri(steamfitterApiUrl.EndsWith('/') ? steamfitterApiUrl : steamfitterApiUrl + "/");
+            // an empty url would otherwise become "/", which .NET reads as a file path on Linux
+            if (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps)
+                throw new UriFormatException($"The Steamfitter API url '{steamfitterApiUrl}' is not an http or https url.");
+
+            return new Uri(baseUri, $"api/scenarios/{scenarioId}");
+        }
+
+        /// <summary>Whether <paramref name="body"/> is a JSON object whose <c>id</c> is <paramref name="scenarioId"/>.</summary>
+        private static bool IsTheScenario(string body, Guid scenarioId)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                var root = document.RootElement;
+
+                return root.ValueKind == JsonValueKind.Object &&
+                    root.TryGetProperty("id", out var id) &&
+                    id.ValueKind == JsonValueKind.String &&
+                    id.TryGetGuid(out var answeredId) &&
+                    answeredId == scenarioId;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
 
     }

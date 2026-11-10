@@ -8,7 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -17,6 +16,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -25,7 +25,7 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.ExhibitTeam>> GetAsync(CancellationToken ct);
         Task<ViewModels.ExhibitTeam> GetAsync(Guid id, CancellationToken ct);
         Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
-        Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct);
+        Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeamCreate exhibitTeam, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
     }
@@ -35,14 +35,12 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public ExhibitTeamService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal team, IMapper mapper)
+        public ExhibitTeamService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal team)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = team as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.ExhibitTeam>> GetAsync(CancellationToken ct)
@@ -50,15 +48,17 @@ namespace Gallery.Api.Services
             var items = await _context.ExhibitTeams
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<ExhibitTeam>>(items);
+            return items.Select(x => x.ToExhibitTeam()).ToList();
         }
 
         public async Task<ViewModels.ExhibitTeam> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.ExhibitTeams
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<ExhibitTeam>();
 
-            return _mapper.Map<ExhibitTeam>(item);
+            return item.ToExhibitTeam();
         }
 
         public async Task<IEnumerable<ViewModels.ExhibitTeam>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -67,12 +67,15 @@ namespace Gallery.Api.Services
                 .Where(et => et.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<ExhibitTeam>>(items);
+            return items.Select(x => x.ToExhibitTeam()).ToList();
         }
 
-        public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeam exhibitTeam, CancellationToken ct)
+        public async Task<ViewModels.ExhibitTeam> CreateAsync(ViewModels.ExhibitTeamCreate exhibitTeam, CancellationToken ct)
         {
-            var exhibitTeamEntity = _mapper.Map<ExhibitTeamEntity>(exhibitTeam);
+            if (!await _context.Teams.AnyAsync(t => t.Id == exhibitTeam.TeamId && t.ExhibitId == exhibitTeam.ExhibitId, ct))
+                throw new EntityNotFoundException<Team>();
+
+            var exhibitTeamEntity = exhibitTeam.ToEntity();
             exhibitTeamEntity.Id = exhibitTeamEntity.Id != Guid.Empty ? exhibitTeamEntity.Id : Guid.NewGuid();
             _context.ExhibitTeams.Add(exhibitTeamEntity);
             await _context.SaveChangesAsync(ct);

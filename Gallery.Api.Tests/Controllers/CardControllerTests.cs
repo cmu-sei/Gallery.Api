@@ -252,6 +252,24 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal(collection.Id, (await db.Cards.SingleAsync(x => x.Id == created.Id, Ct)).CollectionId);
     }
 
+    /// <summary>The audit fields come from the caller, never from the body.</summary>
+    [Fact]
+    public async Task Create_and_update_stamp_the_caller_over_the_body_s_audit_fields()
+    {
+        var (collection, _) = await SeedCard();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+        var spoofed = Guid.NewGuid();
+
+        var created = await ReadAsync<Card>(await Client(actor).PostAsJsonAsync("api/cards",
+            new { name = "New Card", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{created.Id}",
+            new { id = created.Id, name = "Edited", collectionId = collection.Id, createdBy = spoofed, modifiedBy = spoofed }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Cards.SingleAsync(x => x.Id == created.Id, Ct);
+        Assert.Equal((actor.Id, (Guid?)actor.Id), (stored.CreatedBy, stored.ModifiedBy));
+    }
+
     [Fact]
     public async Task Create_is_forbidden_for_a_caller_holding_only_ViewCollection()
     {
@@ -348,20 +366,42 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal("Before", (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).Name);
     }
 
-    /// <summary>The gate reads the collection the body names, so the card moves into the caller's collection.</summary>
+    /// <summary>The gate reads the stored card's collection, so an editor of another collection cannot take the card.</summary>
     [Fact]
-    public async Task Update_moves_another_collection_s_card_when_the_body_names_a_collection_the_caller_edits()
+    public async Task Update_is_forbidden_for_an_editor_of_the_collection_the_body_names_and_leaves_the_card()
     {
-        var (_, card) = await SeedCard("Theirs");
+        var (collection, card) = await SeedCard("Theirs");
         var actor = await Actor().OnNewCollection(CollectionPermission.EditCollection).SeedAsync();
         var mine = Assert.Single(actor.NewCollectionIds);
 
-        await AssertStatus(HttpStatusCode.OK, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/cards/{card.Id}",
             new { id = card.Id, name = "Taken", collectionId = mine }, Ct));
 
         await using var db = NewContext();
         var stored = await db.Cards.SingleAsync(x => x.Id == card.Id, Ct);
-        Assert.Equal(("Taken", mine), (stored.Name, stored.CollectionId));
+        Assert.Equal(("Theirs", collection.Id), (stored.Name, stored.CollectionId));
+    }
+
+    /// <summary>An edit body's collection is ignored: the card stays in its collection.</summary>
+    [Fact]
+    public async Task Update_ignores_the_collection_in_the_body()
+    {
+        var (collection, card) = await SeedCard();
+        var other = TestData.Collection("Other");
+        await Seed(other);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}",
+            new { id = card.Id, name = "Renamed", collectionId = other.Id }, Ct));
+
+        await using var db = NewContext();
+        var stored = await db.Cards.SingleAsync(x => x.Id == card.Id, Ct);
+        Assert.Equal(("Renamed", collection.Id), (stored.Name, stored.CollectionId));
+    }
+
+    [Fact]
+    public async Task Update_of_an_unknown_card_is_not_found()
+    {
+        await AssertProblem(HttpStatusCode.NotFound, await RootClient.PutAsJsonAsync($"api/cards/{Guid.NewGuid()}", new { name = "Nobody" }, Ct));
     }
 
     [Fact]
@@ -431,15 +471,102 @@ public class CardControllerTests(DatabaseFixture fixture, GalleryAppFactory fact
         await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
     }
 
-    /// <summary>An id that names no card is answered with a 500 for a caller whose edit right is a collection membership.</summary>
     [Fact]
-    public async Task Delete_of_an_unknown_card_answers_a_collection_editor_with_a_server_error()
+    public async Task Delete_of_an_unknown_card_is_not_found_for_a_collection_editor()
     {
         var actor = await Actor().OnNewCollection(CollectionPermission.EditCollection).SeedAsync();
 
-        var problem = await AssertProblem(HttpStatusCode.InternalServerError, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).DeleteAsync($"api/cards/{Guid.NewGuid()}", Ct));
+    }
 
-        Assert.Equal("Object reference not set to an instance of an object.", problem.Detail);
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// Each way of reading cards returns every stored member of the card. The audit fields are all set (a
+    /// seed has no actor, so its creator is kept, and an edit keeps its editor).
+    /// </summary>
+    [Theory]
+    [InlineData("card")]
+    [InlineData("all")]
+    [InlineData("collection")]
+    [InlineData("exhibit")]
+    [InlineData("team")]
+    public async Task Every_read_returns_the_card_with_its_members(string route)
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, "Shaped Card", move: 2, inject: 3);
+        card.Description = "Described";
+        card.CreatedBy = Guid.NewGuid();
+        var exhibit = TestData.Exhibit(collection.Id, move: 5);
+        var team = TestData.Team(exhibit.Id);
+        await Seed(collection, card, exhibit, team, TestData.TeamCard(team.Id, card.Id));
+        await using (var db = NewContext())
+        {
+            (await db.Cards.SingleAsync(x => x.Id == card.Id, Ct)).ModifiedBy = Guid.NewGuid();
+            await db.SaveChangesAsync(Ct);
+        }
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        var url = route switch
+        {
+            "card" => $"api/cards/{card.Id}",
+            "all" => "api/cards",
+            "collection" => $"api/collections/{collection.Id}/cards",
+            "exhibit" => $"api/exhibits/{exhibit.Id}/cards",
+            _ => $"api/exhibits/{exhibit.Id}/teams/{team.Id}/cards"
+        };
+
+        var response = await RootClient.GetAsync(url, Ct);
+        var got = route == "card" ? await ReadAsync<Card>(response) : Assert.Single(await ReadAsync<List<Card>>(response), x => x.Id == card.Id);
+
+        Assert.Equal((card.Id, "Shaped Card", "Described", 2, 3, collection.Id),
+            (got.Id, got.Name, got.Description, got.Move, got.Inject, got.CollectionId));
+        Assert.NotNull(stored.DateModified);
+        Assert.Equal((stored.DateCreated, stored.CreatedBy, stored.DateModified, stored.ModifiedBy),
+            (got.DateCreated.ToUniversalTime(), got.CreatedBy, got.DateModified?.ToUniversalTime(), got.ModifiedBy));
+    }
+
+    /// <summary>An edit writes every member of the body, so a description it leaves out is cleared.</summary>
+    [Fact]
+    public async Task Update_clears_the_description_the_body_leaves_out()
+    {
+        var collection = TestData.Collection();
+        var card = TestData.Card(collection.Id, move: 2);
+        card.Description = "Described";
+        await Seed(collection, card);
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}", new { name = "Renamed" }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", null, 0), (stored.Name, stored.Description, stored.Move));
+    }
+
+    /// <summary>A create stores every member of the body, its id included.</summary>
+    [Fact]
+    public async Task Create_stores_every_member_of_the_body()
+    {
+        var collection = TestData.Collection();
+        await Seed(collection);
+        var id = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/cards",
+            new { id, name = "Full Card", description = "Described", move = 2, inject = 3, collectionId = collection.Id }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == id, Ct));
+        Assert.Equal(("Full Card", "Described", 2, 3, collection.Id),
+            (stored.Name, stored.Description, stored.Move, stored.Inject, stored.CollectionId));
+    }
+
+    /// <summary>An edit whose every value differs from the stored card stores each of them.</summary>
+    [Fact]
+    public async Task Update_stores_every_member_of_the_body()
+    {
+        var (_, card) = await SeedCard();
+
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}",
+            new { name = "Renamed", description = "Redescribed", move = 2, inject = 3 }, Ct));
+
+        var stored = await ReadBack(db => db.Cards.SingleAsync(x => x.Id == card.Id, Ct));
+        Assert.Equal(("Renamed", "Redescribed", 2, 3), (stored.Name, stored.Description, stored.Move, stored.Inject));
     }
 
     private async Task<(CollectionEntity Collection, CardEntity Card)> SeedCard(string name = "Test Card")

@@ -141,13 +141,12 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
     // ---- Create --------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Create_puts_the_user_on_the_team_for_a_caller_holding_ViewExhibits()
+    public async Task Create_puts_the_user_on_the_team_for_a_caller_holding_EditExhibits()
     {
-        // Same case as Create_puts_the_caller_on_a_team_for_a_member_holding_only_ViewExhibit.
         var (_, team) = await SeedTeam();
         var user = TestData.User();
         await Seed(user);
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
             new { teamId = team.Id, userId = user.Id }, Ct));
@@ -156,27 +155,57 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         Assert.True(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == user.Id, Ct));
     }
 
-    /// <summary>A read-only exhibit membership is enough to put a user, the caller included, on a team.</summary>
     [Fact]
-    public async Task Create_puts_the_caller_on_a_team_for_a_member_holding_only_ViewExhibit()
-    {
-        var (exhibit, team) = await SeedTeam();
-        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
-
-        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
-            new { teamId = team.Id, userId = actor.Id }, Ct));
-
-        await using var db = NewContext();
-        Assert.True(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == actor.Id, Ct));
-    }
-
-    [Fact]
-    public async Task Create_is_forbidden_for_a_caller_holding_ViewExhibit_only_on_another_exhibit()
+    public async Task Create_puts_the_user_on_the_team_for_a_member_holding_EditExhibit()
     {
         var (exhibit, team) = await SeedTeam();
         var user = TestData.User();
         await Seed(user);
-        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.ViewExhibit).SeedAsync();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id, isObserver = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.True((await db.TeamUsers.SingleAsync(x => x.TeamId == team.Id && x.UserId == user.Id, Ct)).IsObserver);
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_only_ViewExhibits()
+    {
+        var (_, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.UserId == user.Id, Ct));
+    }
+
+    /// <summary>A read-only exhibit membership does not let an observer put themselves on a team.</summary>
+    [Fact]
+    public async Task Create_is_forbidden_for_a_member_holding_only_ViewExhibit_who_names_themselves()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var actor = await Actor().OnExhibit(exhibit, [ExhibitPermission.ViewExhibit]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = actor.Id, isObserver = true }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.TeamUsers.AnyAsync(x => x.TeamId == team.Id && x.UserId == actor.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Create_is_forbidden_for_a_caller_holding_EditExhibit_only_on_another_exhibit()
+    {
+        var (exhibit, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var actor = await Actor().OnNewExhibit(exhibit.CollectionId, ExhibitPermission.EditExhibit).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PostAsJsonAsync("api/teamusers",
             new { teamId = team.Id, userId = user.Id }, Ct));
@@ -195,6 +224,23 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
 
         await using var db = NewContext();
         Assert.False(await db.TeamUsers.AnyAsync(x => x.UserId == user.Id, Ct));
+    }
+
+    /// <summary>A nested user in the body is not saved: only the TeamUser link is, so no user or role can be created this way.</summary>
+    [Fact]
+    public async Task Create_ignores_a_nested_user_and_creates_no_user()
+    {
+        var (_, team) = await SeedTeam();
+        var user = TestData.User();
+        await Seed(user);
+        var smuggledId = Guid.NewGuid();
+
+        await AssertStatus(HttpStatusCode.Created, await RootClient.PostAsJsonAsync("api/teamusers",
+            new { teamId = team.Id, userId = user.Id, user = new { id = smuggledId, name = "Smuggled", roleId = SystemRoleEntityDefaults.AdministratorRoleId } }, Ct));
+
+        await using var db = NewContext();
+        Assert.False(await db.Users.AnyAsync(x => x.Id == smuggledId, Ct));
+        Assert.Null((await db.Users.SingleAsync(x => x.Id == user.Id, Ct)).RoleId);
     }
 
     /// <summary>A user already on a team of the exhibit is answered with a 500 naming that team.</summary>
@@ -437,6 +483,42 @@ public class TeamUserControllerTests(DatabaseFixture fixture, GalleryAppFactory 
         var (_, team) = await SeedTeam();
 
         await AssertProblem(HttpStatusCode.NotFound, await RootClient.DeleteAsync($"api/teams/{team.Id}/users/{Guid.NewGuid()}", Ct));
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>
+    /// One team user is read with its user and its team, and the team with its users. A team user has no
+    /// audit fields of its own, so those are answered with their defaults.
+    /// </summary>
+    [Fact]
+    public async Task Get_returns_the_team_user_with_its_user_and_its_team()
+    {
+        var (exhibit, team) = await SeedTeam("Nested Team");
+        var teamUser = await SeedUserOn(team, observer: true);
+
+        var got = await ReadAsync<TeamUser>(await RootClient.GetAsync($"api/teamusers/{teamUser.Id}", Ct));
+
+        Assert.Equal((teamUser.Id, teamUser.UserId, team.Id, true), (got.Id, got.UserId, got.TeamId, got.IsObserver));
+        Assert.Equal((teamUser.UserId, "Team Member"), (got.User.Id, got.User.Name));
+        Assert.Equal((team.Id, "Nested Team", (Guid?)exhibit.Id), (got.Team.Id, got.Team.Name, got.Team.ExhibitId));
+        Assert.Equal("Team Member", Assert.Single(got.Team.Users).Name);
+        Assert.Null(got.Team.Exhibit);
+        Assert.Equal((default(DateTime), Guid.Empty, (DateTime?)null, (Guid?)null), (got.DateCreated, got.CreatedBy, got.DateModified, got.ModifiedBy));
+    }
+
+    /// <summary>A team's team users are read with their user, and with the team the request loaded.</summary>
+    [Fact]
+    public async Task GetByTeam_returns_each_team_user_with_its_user_and_its_team()
+    {
+        var (_, team) = await SeedTeam("Listed Team");
+        var teamUser = await SeedUserOn(team);
+
+        var teamUsers = await ReadAsync<List<TeamUser>>(await RootClient.GetAsync($"api/teams/{team.Id}/teamusers", Ct));
+
+        var got = Assert.Single(teamUsers);
+        Assert.Equal((teamUser.UserId, "Team Member"), (got.User.Id, got.User.Name));
+        Assert.Equal(("Listed Team", "Team Member"), (got.Team.Name, Assert.Single(got.Team.Users).Name));
     }
 
     private async Task<(ExhibitEntity Exhibit, TeamEntity Team)> SeedTeam(string name = "Test Team")

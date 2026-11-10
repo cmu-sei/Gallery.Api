@@ -16,22 +16,20 @@ namespace Gallery.Api.Tests.Controllers;
 /// </summary>
 public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFactory factory) : ApiTestBase(fixture, factory)
 {
-    /// <summary>The list is refused to a caller holding ViewExhibits.</summary>
     [Fact]
-    public async Task GetAll_is_forbidden_for_a_caller_holding_ViewExhibits()
+    public async Task GetAll_is_forbidden_for_a_caller_holding_only_ViewGroups()
     {
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewGroups).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync("api/exhibitteams", Ct));
     }
 
     // Same case as GetAll_is_forbidden_for_a_caller_holding_ViewExhibits.
-    /// <summary>The list is served to a caller holding no view permission at all.</summary>
     [Fact]
-    public async Task GetAll_returns_every_link_to_a_caller_holding_only_ViewGroups()
+    public async Task GetAll_returns_every_link_to_a_caller_holding_ViewExhibits()
     {
         var (_, link) = await SeedLink();
-        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewGroups).SeedAsync();
+        var actor = await Actor().WithSystemPermissions(SystemPermission.ViewExhibits).SeedAsync();
 
         var links = await ReadAsync<List<ExhibitTeam>>(await Client(actor).GetAsync("api/exhibitteams", Ct));
 
@@ -45,12 +43,21 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
         await AssertStatus(HttpStatusCode.Unauthorized, await Client().GetAsync("api/exhibitteams", Ct));
     }
 
-    /// <summary>A link is refused even to a participant of the linked team.</summary>
+    /// <summary>The gate reads the link's stored team, so a reader of that team can read the link.</summary>
     [Fact]
-    public async Task Get_is_forbidden_for_a_participant_of_the_linked_team()
+    public async Task Get_returns_the_link_to_a_participant_of_the_linked_team()
     {
         var (team, link) = await SeedLink();
         var actor = await Actor().OnTeam(team).SeedAsync();
+
+        Assert.Equal(link.Id, (await ReadAsync<ExhibitTeam>(await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct))).Id);
+    }
+
+    [Fact]
+    public async Task Get_is_forbidden_for_a_participant_of_another_team()
+    {
+        var (team, link) = await SeedLink();
+        var actor = await Actor().OnNewTeam(team.ExhibitId.Value).SeedAsync();
 
         await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).GetAsync($"api/exhibitteams/{link.Id}", Ct));
     }
@@ -127,17 +134,35 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
     [Fact]
     public async Task Create_persists_the_link_for_a_member_holding_EditExhibit()
     {
+        var (_, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
+        var actor = await Actor().OnExhibit(other, [ExhibitPermission.EditExhibit]).SeedAsync();
+
+        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+            new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct));
+
+        await using var db = NewContext();
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == otherTeam.Id, Ct));
+    }
+
+    /// <summary>A team can be linked only to the exhibit it is in.</summary>
+    [Fact]
+    public async Task Create_answers_a_team_of_another_exhibit_with_not_found_and_saves_no_link()
+    {
         var (team, link) = await SeedLink();
         var exhibit = await Exhibit(link);
         var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
         await Seed(other);
         var actor = await Actor().OnExhibit(other, [ExhibitPermission.EditExhibit]).SeedAsync();
 
-        await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
+        await AssertProblem(HttpStatusCode.NotFound, await Client(actor).PostAsJsonAsync("api/exhibitteams",
             new { exhibitId = other.Id, teamId = team.Id }, Ct));
 
         await using var db = NewContext();
-        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == team.Id, Ct));
+        Assert.False(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id, Ct));
     }
 
     [Fact]
@@ -156,17 +181,18 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
     [Fact]
     public async Task Create_persists_the_link_for_a_caller_holding_EditExhibits()
     {
-        var (team, link) = await SeedLink();
+        var (_, link) = await SeedLink();
         var exhibit = await Exhibit(link);
         var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
-        await Seed(other);
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
         var actor = await Actor().WithSystemPermissions(SystemPermission.EditExhibits).SeedAsync();
 
         await AssertStatus(HttpStatusCode.Created, await Client(actor).PostAsJsonAsync("api/exhibitteams",
-            new { exhibitId = other.Id, teamId = team.Id }, Ct));
+            new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct));
 
         await using var db = NewContext();
-        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == team.Id, Ct));
+        Assert.True(await db.ExhibitTeams.AnyAsync(x => x.ExhibitId == other.Id && x.TeamId == otherTeam.Id, Ct));
     }
 
     [Fact]
@@ -274,6 +300,40 @@ public class ExhibitTeamControllerTests(DatabaseFixture fixture, GalleryAppFacto
 
         await using var db = NewContext();
         Assert.True(await db.ExhibitTeams.AnyAsync(x => x.Id == link.Id, Ct));
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A link is read with its ids and audit fields, and without the team or exhibit it names, which no read loads.</summary>
+    [Fact]
+    public async Task Get_returns_the_link_with_its_ids_and_no_team_or_exhibit()
+    {
+        var (team, link) = await SeedLink();
+        var stored = await ReadBack(db => db.ExhibitTeams.SingleAsync(x => x.Id == link.Id, Ct));
+
+        var got = await ReadAsync<ExhibitTeam>(await RootClient.GetAsync($"api/exhibitteams/{link.Id}", Ct));
+
+        Assert.Equal((link.Id, team.Id, link.ExhibitId), (got.Id, got.TeamId, got.ExhibitId));
+        Assert.Equal((stored.DateCreated, stored.CreatedBy), (got.DateCreated.ToUniversalTime(), got.CreatedBy));
+        Assert.Null(got.Team);
+        Assert.Null(got.Exhibit);
+    }
+
+    /// <summary>A created link keeps the body's exhibit and team.</summary>
+    [Fact]
+    public async Task Create_returns_the_link_with_the_body_s_exhibit_and_team()
+    {
+        var (_, link) = await SeedLink();
+        var exhibit = await Exhibit(link);
+        var other = TestData.Exhibit(exhibit.CollectionId, "Linked Too");
+        var otherTeam = TestData.Team(other.Id, "Other Team");
+        await Seed(other, otherTeam);
+
+        var response = await RootClient.PostAsJsonAsync("api/exhibitteams", new { exhibitId = other.Id, teamId = otherTeam.Id }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<ExhibitTeam>(response);
+        Assert.Equal((other.Id, otherTeam.Id), (created.ExhibitId, created.TeamId));
     }
 
     /// <summary>Seeds an exhibit, a team and the link between them; <paramref name="idOfTheTeam"/> gives the link the team's id.</summary>

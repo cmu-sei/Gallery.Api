@@ -28,7 +28,7 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         var roles = await ReadAsync<List<SystemRole>>(await Client(actor).GetAsync("api/system-roles", Ct));
 
-        Assert.Contains(roles, x => x.Id == TestData.Roles.Administrator && x.Immutable);
+        Assert.Contains(roles, x => x.Id == TestData.Roles.Administrator && x.Immutable && x.AllPermissions);
     }
 
     [Fact]
@@ -120,6 +120,23 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal([UndefinedPermission], (await db.SystemRoles.SingleAsync(x => x.Id == created.Id, Ct)).Permissions);
     }
 
+    /// <summary>A role created with all permissions and immutable is stored and returned with both flags set.</summary>
+    [Fact]
+    public async Task Create_stores_and_returns_AllPermissions_and_Immutable()
+    {
+        var response = await RootClient.PostAsJsonAsync("api/system-roles",
+            new { name = $"Flags {Guid.NewGuid():N}", allPermissions = true, immutable = true }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<SystemRole>(response);
+        Assert.True(created.AllPermissions);
+        Assert.True(created.Immutable);
+        await using var db = NewContext();
+        var stored = await db.SystemRoles.SingleAsync(x => x.Id == created.Id, Ct);
+        Assert.True(stored.AllPermissions);
+        Assert.True(stored.Immutable);
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -169,6 +186,22 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.False((await db.SystemRoles.SingleAsync(x => x.Id == TestData.Roles.Administrator, Ct)).AllPermissions);
     }
 
+    /// <summary>An update that makes a mutable role immutable is stored and returned.</summary>
+    [Fact]
+    public async Task Update_stores_and_returns_Immutable_set_on_a_mutable_role()
+    {
+        var role = TestData.SystemRole();
+        await Seed(role);
+
+        var response = await RootClient.PutAsJsonAsync($"api/system-roles/{role.Id}",
+            new { id = role.Id, name = role.Name, immutable = true }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.True((await ReadAsync<SystemRole>(response)).Immutable);
+        await using var db = NewContext();
+        Assert.True((await db.SystemRoles.SingleAsync(x => x.Id == role.Id, Ct)).Immutable);
+    }
+
     // Same case as Create_stores_and_returns_a_permission_value_no_member_names.
     [Fact]
     public async Task Update_stores_and_returns_a_permission_value_no_member_names()
@@ -184,6 +217,67 @@ public class SystemRoleControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.Equal([UndefinedPermission], (await ReadAsync<SystemRole>(response)).Permissions);
         await using var db = NewContext();
         Assert.Equal([UndefinedPermission], (await db.SystemRoles.SingleAsync(x => x.Id == role.Id, Ct)).Permissions);
+    }
+
+    // ---- Mapped members ------------------------------------------------------------------------
+
+    /// <summary>A role sent without permissions is stored and returned with an empty list, not null.</summary>
+    [Fact]
+    public async Task Create_without_permissions_stores_and_returns_an_empty_list()
+    {
+        var response = await RootClient.PostAsJsonAsync("api/system-roles", new { name = $"No permissions {Guid.NewGuid():N}" }, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var created = await ReadAsync<SystemRole>(response);
+        Assert.Equal([], created.Permissions);
+        await using var db = NewContext();
+        Assert.Equal([], (await db.SystemRoles.SingleAsync(x => x.Id == created.Id, Ct)).Permissions);
+    }
+
+    [Fact]
+    public async Task Get_returns_a_role_stored_without_permissions_with_an_empty_list()
+    {
+        var role = TestData.SystemRole();
+        role.Permissions = null;
+        await Seed(role);
+
+        var read = await ReadAsync<SystemRole>(await RootClient.GetAsync($"api/system-roles/{role.Id}", Ct));
+
+        Assert.Equal([], read.Permissions);
+    }
+
+    /// <summary>An update without permissions clears them, stored and returned as an empty list.</summary>
+    [Fact]
+    public async Task Update_without_permissions_stores_and_returns_an_empty_list()
+    {
+        var role = TestData.SystemRole(permissions: [SystemPermission.ViewUsers]);
+        await Seed(role);
+
+        var response = await RootClient.PutAsJsonAsync($"api/system-roles/{role.Id}", new { id = role.Id, name = role.Name }, Ct);
+
+        await AssertStatus(HttpStatusCode.OK, response);
+        Assert.Equal([], (await ReadAsync<SystemRole>(response)).Permissions);
+        await using var db = NewContext();
+        Assert.Equal([], (await db.SystemRoles.SingleAsync(x => x.Id == role.Id, Ct)).Permissions);
+    }
+
+    /// <summary>
+    /// An update writes the body's id onto the stored role as well. EF Core refuses to change a key, so a
+    /// body naming another id, or none, is answered with a 500 and changes nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_with_a_body_id_other_than_the_route_s_is_a_server_error(bool otherId)
+    {
+        var role = TestData.SystemRole("Keyed");
+        await Seed(role);
+        object body = otherId ? new { id = Guid.NewGuid(), name = "Rekeyed" } : new { name = "Rekeyed" };
+
+        await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.PutAsJsonAsync($"api/system-roles/{role.Id}", body, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Keyed", (await db.SystemRoles.SingleAsync(x => x.Id == role.Id, Ct)).Name);
     }
 
     // ---- Delete --------------------------------------------------------------------------------

@@ -13,14 +13,14 @@ namespace Gallery.Api.Infrastructure.Authorization
     public class CollectionPermissionRequirement : IAuthorizationRequirement
     {
         public CollectionPermission[] RequiredPermissions;
-        public Guid ExhibitId;
+        public Guid CollectionId;
 
         public CollectionPermissionRequirement(
             CollectionPermission[] requiredPermissions,
-            Guid projectId)
+            Guid collectionId)
         {
             RequiredPermissions = requiredPermissions;
-            ExhibitId = projectId;
+            CollectionId = collectionId;
         }
     }
 
@@ -43,7 +43,7 @@ namespace Gallery.Api.Infrastructure.Authorization
                 foreach (var claim in claims)
                 {
                     var claimValue = CollectionPermissionClaim.FromString(claim.Value);
-                    if (claimValue.CollectionId == requirement.ExhibitId)
+                    if (claimValue.CollectionId == requirement.CollectionId)
                     {
                         collectionPermissionsClaim = claimValue;
                         break;
@@ -54,11 +54,8 @@ namespace Gallery.Api.Infrastructure.Authorization
                 {
                     context.Fail();
                 }
-                else if (requirement.RequiredPermissions == null || requirement.RequiredPermissions.Length == 0)
-                {
-                    context.Succeed(requirement);
-                }
-                else if (requirement.RequiredPermissions.Any(x => collectionPermissionsClaim.Permissions.Contains(x)))
+                // an empty or missing list grants nothing, even to a caller with a claim for the scope
+                else if (requirement.RequiredPermissions != null && requirement.RequiredPermissions.Any(x => collectionPermissionsClaim.Permissions.Contains(x)))
                 {
                     context.Succeed(requirement);
                 }

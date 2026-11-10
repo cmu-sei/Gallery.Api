@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -17,24 +16,22 @@ using Gallery.Api.Hubs;
 using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Extensions;
 using Crucible.Common.EntityEvents.Events;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Infrastructure.EventHandlers
 {
     public class TeamHandler
     {
         protected readonly GalleryDbContext _db;
-        protected readonly IMapper _mapper;
         protected readonly ITeamService _TeamService;
         protected readonly IHubContext<MainHub> _mainHub;
 
         public TeamHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamService TeamService,
             IHubContext<MainHub> mainHub)
         {
             _db = db;
-            _mapper = mapper;
             _TeamService = TeamService;
             _mainHub = mainHub;
         }
@@ -56,7 +53,7 @@ namespace Gallery.Api.Infrastructure.EventHandlers
             CancellationToken cancellationToken)
         {
             var groupIds = await this.GetGroups(teamEntity, cancellationToken);
-            var team = _mapper.Map<ViewModels.Team>(teamEntity);
+            var team = teamEntity.ToTeam();
             var tasks = new List<Task>();
 
             foreach (var groupId in groupIds)
@@ -72,9 +69,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamCreatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamService teamService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, teamService, mainHub) { }
 
         public async Task Handle(EntityCreated<TeamEntity> notification, CancellationToken cancellationToken)
         {
@@ -86,9 +82,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamUpdatedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamService teamService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamService, mainHub) { }
+            IHubContext<MainHub> mainHub) : base(db, teamService, mainHub) { }
 
         public async Task Handle(EntityUpdated<TeamEntity> notification, CancellationToken cancellationToken)
         {
@@ -104,9 +99,8 @@ namespace Gallery.Api.Infrastructure.EventHandlers
     {
         public TeamDeletedSignalRHandler(
             GalleryDbContext db,
-            IMapper mapper,
             ITeamService teamService,
-            IHubContext<MainHub> mainHub) : base(db, mapper, teamService, mainHub)
+            IHubContext<MainHub> mainHub) : base(db, teamService, mainHub)
         {
         }
 

@@ -57,6 +57,20 @@ public class MainHubTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
         await harness.Groups.Received(1).AddToGroupAsync(HubHarness.ConnectionId, exhibit.Id.ToString(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>A caller holding ViewExhibits can watch any team, without being on it.</summary>
+    [Fact]
+    public async Task SwitchTeam_joins_the_new_team_and_its_exhibit_for_a_caller_holding_ViewExhibits()
+    {
+        var (exhibit, oldTeam, newTeam) = await SeedTeams();
+        var principal = new ClaimsPrincipalBuilder().WithSystemPermissions(SystemPermission.ViewExhibits).Build();
+        var (hub, harness) = Hub(principal);
+
+        await hub.SwitchTeam([oldTeam.Id, newTeam.Id]);
+
+        await harness.Groups.Received(1).AddToGroupAsync(HubHarness.ConnectionId, newTeam.Id.ToString(), Arg.Any<CancellationToken>());
+        await harness.Groups.Received(1).AddToGroupAsync(HubHarness.ConnectionId, exhibit.Id.ToString(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task SwitchTeam_joins_nothing_for_a_caller_holding_ViewTeam_only_on_another_team()
     {

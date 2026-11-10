@@ -12,7 +12,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -21,6 +20,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -42,18 +42,15 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IUserClaimsService _userClaimsService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
         public CollectionService(
             GalleryDbContext context,
             IUserClaimsService userClaimsService,
-            IPrincipal user,
-            IMapper mapper)
+            IPrincipal user)
         {
             _context = context;
             _userClaimsService = userClaimsService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetAsync(bool canViewAll, CancellationToken ct)
@@ -72,7 +69,7 @@ namespace Gallery.Api.Services
                     .ToListAsync(ct);
             }
 
-            return _mapper.Map<IEnumerable<Collection>>(collections);
+            return collections.Select(x => x.ToCollection()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetMineAsync(CancellationToken ct)
@@ -84,19 +81,19 @@ namespace Gallery.Api.Services
                 .Distinct()
                 .OrderBy(c => c.Name);
 
-            return _mapper.Map<IEnumerable<Collection>>(await collections.ToListAsync());
+            return (await collections.ToListAsync()).Select(x => x.ToCollection()).ToList();
         }
 
         public async Task<ViewModels.Collection> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Collections.SingleOrDefaultAsync(sm => sm.Id == id, ct);
 
-            return _mapper.Map<Collection>(item);
+            return item.ToCollection();
         }
 
         public async Task<ViewModels.Collection> CreateAsync(ViewModels.Collection collection, CancellationToken ct)
         {
-            var collectionEntity = _mapper.Map<CollectionEntity>(collection);
+            var collectionEntity = collection.ToEntity();
             var userId = _user.GetId();
             collectionEntity.Id = collectionEntity.Id != Guid.Empty ? collectionEntity.Id : Guid.NewGuid();
             collectionEntity.CreatedBy = userId;
@@ -128,59 +125,42 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(c => c.CollectionId == collectionId)
                 .ToListAsync(ct);
+            // a copy holds the template articles only, never an exhibit's own articles
             var articles = await _context.Articles
                 .AsNoTracking()
-                .Where(c => c.CollectionId == collectionId)
+                .Where(c => c.CollectionId == collectionId && c.ExhibitId == null)
                 .ToListAsync(ct);
-            var newCollectionEntity = await privateCollectionCopyAsync(collectionEntity, cards, articles, ct);
-            var collection = _mapper.Map<Collection>(newCollectionEntity);
+            var collectionImport = new CollectionImport
+            {
+                Collection = new CollectionImportFields { Id = collectionEntity.Id, Name = collectionEntity.Name, Description = collectionEntity.Description },
+                Cards = cards.Select(ImportBuilder.ToImport).ToList(),
+                Articles = articles.Select(ImportBuilder.ToImport).ToList()
+            };
+            var newCollectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
+            var collection = newCollectionEntity.ToCollection();
 
             return collection;
         }
 
-        private async Task<CollectionEntity> privateCollectionCopyAsync(
-            CollectionEntity collectionEntity,
-            List<CardEntity> cards,
-            List<ArticleEntity> articles,
-            CancellationToken ct)
+        private async Task<CollectionEntity> privateCollectionCopyAsync(CollectionImport collectionImport, CancellationToken ct)
         {
             var currentUserId = _user.GetId();
             var username = (await _context.Users.SingleOrDefaultAsync(u => u.Id == currentUserId)).Name;
-            var oldCollectionId = collectionEntity.Id;
             var newCollectionId = Guid.NewGuid();
-            var dateCreated = DateTime.UtcNow;
-            collectionEntity.Id = newCollectionId;
-            collectionEntity.DateCreated = dateCreated;
-            collectionEntity.CreatedBy = currentUserId;
-            collectionEntity.DateModified = collectionEntity.DateCreated;
-            collectionEntity.ModifiedBy = collectionEntity.CreatedBy;
-            collectionEntity.Name = collectionEntity.Name + " - " + username;
-            collectionEntity.Memberships = null;
+            var collectionEntity = new CollectionEntity
+            {
+                Id = newCollectionId,
+                Name = collectionImport.Collection.Name + " - " + username,
+                Description = collectionImport.Collection.Description,
+                CreatedBy = currentUserId
+            };
+            // a collection file has no exhibit, so only its template articles are kept
+            var (cards, articles, _) = ImportBuilder.BuildCollectionContent(
+                newCollectionId, collectionImport.Cards, collectionImport.Articles, null, null, new Dictionary<Guid, Guid>());
+
             await _context.Collections.AddAsync(collectionEntity, ct);
-            // copy cards
-            var newCardIds = new Dictionary<Guid, Guid>();
-            foreach (var cardEntity in cards)
-            {
-                newCardIds[cardEntity.Id] = Guid.NewGuid();
-                cardEntity.Id = newCardIds[cardEntity.Id];
-                cardEntity.CollectionId = collectionEntity.Id;
-                cardEntity.Collection = null;
-                cardEntity.DateCreated = collectionEntity.DateCreated;
-                cardEntity.CreatedBy = collectionEntity.CreatedBy;
-                 await _context.Cards.AddAsync(cardEntity, ct);
-            }
-            // copy articles
-            foreach (var articleEntity in articles)
-            {
-                articleEntity.Id = Guid.NewGuid();
-                articleEntity.CollectionId = newCollectionId;
-                articleEntity.Collection = null;
-                articleEntity.CardId = articleEntity.CardId == null ? null : newCardIds[(Guid)articleEntity.CardId];
-                articleEntity.Card = null;
-                articleEntity.DateCreated = collectionEntity.DateCreated;
-                articleEntity.CreatedBy = collectionEntity.CreatedBy;
-                await _context.Articles.AddAsync(articleEntity, ct);
-            }
+            await _context.Cards.AddRangeAsync(cards, ct);
+            await _context.Articles.AddRangeAsync(articles, ct);
             await _context.SaveChangesAsync(ct);
             var createOwnerMembership = new CollectionMembershipEntity() {
                 UserId = currentUserId,
@@ -212,10 +192,10 @@ namespace Gallery.Api.Services
                 .AsNoTracking()
                 .Where(c => c.CollectionId == collectionId)
                 .ToListAsync(ct);
-            //get the articles
+            // get the template articles; an exhibit's own articles are not part of the collection file
             var articles = await _context.Articles
                 .AsNoTracking()
-                .Where(c => c.CollectionId == collectionId)
+                .Where(c => c.CollectionId == collectionId && c.ExhibitId == null)
                 .ToListAsync(ct);
             // create the whole object
             var collectionFileObject = new CollectionFileFormat(){
@@ -253,22 +233,22 @@ namespace Gallery.Api.Services
             {
                 ReferenceHandler = ReferenceHandler.Preserve
             };
-            CollectionFileFormat collectionFileObject;
+            CollectionImport collectionImport;
             try
             {
-                collectionFileObject = JsonSerializer.Deserialize<CollectionFileFormat>(collectionJson, options);
+                collectionImport = JsonSerializer.Deserialize<CollectionImport>(collectionJson, options);
             }
             catch (JsonException)
             {
                 throw new BadRequestException("The uploaded file is not valid JSON.");
             }
-            if (collectionFileObject == null || collectionFileObject.Collection == null)
+            if (collectionImport == null || collectionImport.Collection == null)
                 throw new BadRequestException("The uploaded file is not a valid collection file.");
 
             // make a copy and add it to the database
-            var collectionEntity = await privateCollectionCopyAsync(collectionFileObject.Collection, collectionFileObject.Cards, collectionFileObject.Articles, ct);
+            var collectionEntity = await privateCollectionCopyAsync(collectionImport, ct);
 
-            return _mapper.Map<Collection>(collectionEntity);
+            return collectionEntity.ToCollection();
         }
 
         public async Task<ViewModels.Collection> UpdateAsync(Guid id, ViewModels.Collection collection, CancellationToken ct)
@@ -277,7 +257,7 @@ namespace Gallery.Api.Services
             if (collectionToUpdate == null)
                 throw new EntityNotFoundException<Collection>();
 
-            _mapper.Map(collection, collectionToUpdate);
+            collection.ApplyTo(collectionToUpdate);
             collectionToUpdate.ModifiedBy = _user.GetId();
 
             _context.Collections.Update(collectionToUpdate);

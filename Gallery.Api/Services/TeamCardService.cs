@@ -8,7 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -16,6 +15,7 @@ using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -26,8 +26,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct);
         Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
         Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct);
-        Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct);
-        Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct);
+        Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct);
+        Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCardEdit teamCard, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
         Task<bool> DeleteByIdsAsync(Guid teamId, Guid userId, CancellationToken ct);
     }
@@ -37,14 +37,12 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
-        public TeamCardService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user, IMapper mapper)
+        public TeamCardService(GalleryDbContext context, IAuthorizationService authorizationService, IPrincipal user)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetAsync(CancellationToken ct)
@@ -52,7 +50,7 @@ namespace Gallery.Api.Services
             var items = await _context.TeamCards
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct)
@@ -61,7 +59,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.Team.ExhibitId == exhibitId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
@@ -70,7 +68,7 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.TeamId == teamId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<IEnumerable<ViewModels.TeamCard>> GetByCardAsync(Guid cardId, CancellationToken ct)
@@ -79,20 +77,32 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.CardId == cardId)
                 .ToListAsync(ct);
 
-            return _mapper.Map<IEnumerable<TeamCard>>(items);
+            return items.Select(x => x.ToTeamCard()).ToList();
         }
 
         public async Task<ViewModels.TeamCard> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.TeamCards
                 .SingleOrDefaultAsync(o => o.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<TeamCard>();
 
-            return _mapper.Map<TeamCard>(item);
+            return item.ToTeamCard();
         }
 
-        public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCard teamCard, CancellationToken ct)
+        public async Task<ViewModels.TeamCard> CreateAsync(ViewModels.TeamCardCreate teamCard, CancellationToken ct)
         {
-            var teamCardEntity = _mapper.Map<TeamCardEntity>(teamCard);
+            // the card must be in the collection of the team's exhibit
+            var collectionId = await _context.Teams
+                .Where(t => t.Id == teamCard.TeamId)
+                .Select(t => (Guid?)t.Exhibit.CollectionId)
+                .SingleOrDefaultAsync(ct);
+            if (collectionId == null)
+                throw new EntityNotFoundException<Team>();
+            if (!await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == collectionId, ct))
+                throw new EntityNotFoundException<Card>();
+
+            var teamCardEntity = teamCard.ToEntity();
             teamCardEntity.Id = teamCardEntity.Id != Guid.Empty ? teamCardEntity.Id : Guid.NewGuid();
 
             _context.TeamCards.Add(teamCardEntity);
@@ -101,20 +111,28 @@ namespace Gallery.Api.Services
             return await GetAsync(teamCardEntity.Id, ct);
         }
 
-        public async Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCard teamCard, CancellationToken ct)
+        public async Task<ViewModels.TeamCard> UpdateAsync(Guid id, ViewModels.TeamCardEdit teamCard, CancellationToken ct)
         {
-            var teamCardToUpdate = await _context.TeamCards.SingleOrDefaultAsync(v => v.Id == id, ct);
+            var teamCardToUpdate = await _context.TeamCards
+                .Include(tc => tc.Team)
+                .ThenInclude(t => t.Exhibit)
+                .SingleOrDefaultAsync(v => v.Id == id, ct);
             if (teamCardToUpdate == null)
                 throw new EntityNotFoundException<TeamCard>();
 
-            _mapper.Map(teamCard, teamCardToUpdate);
+            // a TeamCard can move to another team or card only inside its own exhibit, so not at all without one
+            var exhibit = teamCardToUpdate.Team.Exhibit;
+            if (teamCard.TeamId != teamCardToUpdate.TeamId &&
+                (exhibit == null || !await _context.Teams.AnyAsync(t => t.Id == teamCard.TeamId && t.ExhibitId == exhibit.Id, ct)))
+                throw new EntityNotFoundException<Team>();
+            if (teamCard.CardId != teamCardToUpdate.CardId &&
+                (exhibit == null || !await _context.Cards.AnyAsync(c => c.Id == teamCard.CardId && c.CollectionId == exhibit.CollectionId, ct)))
+                throw new EntityNotFoundException<Card>();
 
-            _context.TeamCards.Update(teamCardToUpdate);
+            teamCard.ApplyTo(teamCardToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            teamCard = await GetAsync(teamCardToUpdate.Id, ct);
-
-            return teamCard;
+            return await GetAsync(teamCardToUpdate.Id, ct);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

@@ -26,11 +26,8 @@ namespace Gallery.Api.Infrastructure.Authorization
             {
                 context.Fail();
             }
-            else if (requirement.RequiredPermissions == null || requirement.RequiredPermissions.Length == 0)
-            {
-                context.Succeed(requirement);
-            }
-            else if (requirement.RequiredPermissions.Any(p => context.User.HasClaim(AuthorizationConstants.PermissionClaimType, p.ToString())))
+            // an empty or missing list grants nothing
+            else if (requirement.RequiredPermissions != null && requirement.RequiredPermissions.Any(p => context.User.HasClaim(AuthorizationConstants.PermissionClaimType, p.ToString())))
             {
                 context.Succeed(requirement);
             }

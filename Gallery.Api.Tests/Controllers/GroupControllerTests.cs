@@ -110,6 +110,37 @@ public class GroupControllerTests(DatabaseFixture fixture, GalleryAppFactory fac
             new { id = group.Id, name = "After" }, Ct));
     }
 
+    /// <summary>An update is answered with the group's id and new name.</summary>
+    [Fact]
+    public async Task Update_returns_the_updated_group()
+    {
+        var group = TestData.Group("Before");
+        await Seed(group);
+
+        var updated = await ReadAsync<Group>(await RootClient.PutAsJsonAsync($"api/groups/{group.Id}", new { id = group.Id, name = "After" }, Ct));
+
+        Assert.Equal((group.Id, "After"), (updated.Id, updated.Name));
+    }
+
+    /// <summary>
+    /// An update writes the body's id onto the stored group as well. EF Core refuses to change a key, so a
+    /// body naming another id, or none, is answered with a 500 and changes nothing.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_with_a_body_id_other_than_the_route_s_is_a_server_error(bool otherId)
+    {
+        var group = TestData.Group("Keyed");
+        await Seed(group);
+        object body = otherId ? new { id = Guid.NewGuid(), name = "Rekeyed" } : new { name = "Rekeyed" };
+
+        await AssertProblem(HttpStatusCode.InternalServerError, await RootClient.PutAsJsonAsync($"api/groups/{group.Id}", body, Ct));
+
+        await using var db = NewContext();
+        Assert.Equal("Keyed", (await db.Groups.SingleAsync(x => x.Id == group.Id, Ct)).Name);
+    }
+
     [Fact]
     public async Task Update_reports_an_unknown_group_as_not_found()
     {

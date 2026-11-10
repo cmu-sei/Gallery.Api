@@ -33,8 +33,13 @@ public interface IGalleryAuthorizationService
         CollectionPermission[] requiredCollectionPermissions,
         CancellationToken cancellationToken) where T : IAuthorizationType;
 
+    /// <summary>
+    /// A team-scoped check. A caller holding any of <paramref name="requiredSystemPermissions"/> passes for every
+    /// team, so an Administrator is not refused a team they are not on.
+    /// </summary>
     Task<bool> AuthorizeAsync<T>(
         Guid? resourceId,
+        SystemPermission[] requiredSystemPermissions,
         TeamPermission[] requiredTeamPermissions,
         CancellationToken cancellationToken) where T : IAuthorizationType;
 
@@ -110,13 +115,14 @@ public class AuthorizationService(
 
     public async Task<bool> AuthorizeAsync<T>(
         Guid? resourceId,
+        SystemPermission[] requiredSystemPermissions,
         TeamPermission[] requiredTeamPermissions,
         CancellationToken cancellationToken) where T : IAuthorizationType
     {
         var claimsPrincipal = identityResolver.GetClaimsPrincipal();
-        bool succeeded = false;
+        bool succeeded = await HasSystemPermission<IAuthorizationType>(requiredSystemPermissions);
 
-        if (resourceId.HasValue)
+        if (!succeeded && resourceId.HasValue)
         {
             var teamPermissionRequirement = new TeamPermissionRequirement(requiredTeamPermissions, resourceId.Value);
             var teamPermissionResult = await authService.AuthorizeAsync(claimsPrincipal, null, teamPermissionRequirement);
@@ -222,7 +228,6 @@ public class AuthorizationService(
         {
             var t when t == typeof(Collection) => resourceId,
             var t when t == typeof(Exhibit) => await GetCollectionIdFromExhibit(resourceId, cancellationToken),
-            var t when t == typeof(ExhibitMembership) => await GetCollectionIdFromCollectionMembership(resourceId, cancellationToken),
             _ => throw new NotImplementedException($"Handler for type {typeof(T).Name} is not implemented.")
         };
     }
@@ -238,14 +243,6 @@ public class AuthorizationService(
     private async Task<Guid> GetCollectionIdFromExhibit(Guid id, CancellationToken cancellationToken)
     {
         return (Guid)await dbContext.Exhibits
-            .Where(x => x.Id == id)
-            .Select(x => x.CollectionId)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    private async Task<Guid> GetCollectionIdFromCollectionMembership(Guid id, CancellationToken cancellationToken)
-    {
-        return await dbContext.CollectionMemberships
             .Where(x => x.Id == id)
             .Select(x => x.CollectionId)
             .FirstOrDefaultAsync(cancellationToken);

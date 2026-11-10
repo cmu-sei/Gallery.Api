@@ -41,7 +41,7 @@ public class ExhibitHandlerTests(DatabaseFixture fixture, GalleryAppFactory fact
         var broadcast = Assert.Single(Factory.Hub<MainHub>().ToGroup(exhibit.Id));
         Assert.Equal(MainHubMethods.ExhibitUpdated, broadcast.Method);
         Assert.Equal(2, Assert.IsType<Exhibit>(broadcast.Arguments[0]).CurrentMove);
-        Assert.Equal(["currentInject", "currentMove", "dateModified"], Assert.IsType<string[]>(broadcast.Arguments[1]).Order());
+        Assert.Equal(["currentInject", "currentMove", "dateModified", "modifiedBy"], Assert.IsType<string[]>(broadcast.Arguments[1]).Order());
     }
 
     /// <summary>

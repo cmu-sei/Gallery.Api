@@ -18,4 +18,25 @@ namespace Gallery.Api.ViewModels
         public ICollection<Article> Articles { get; set; }
     }
 
+    /// <summary>
+    /// The fields a Team's create and edit requests share. The Exhibit is not one of them: only
+    /// <see cref="TeamCreate"/> names it, so an edit cannot move a Team to another Exhibit.
+    /// </summary>
+    public abstract class TeamFields
+    {
+        public string Name { get; set; }
+        public string ShortName { get; set; }
+        public string Email { get; set; }
+    }
+
+    public class TeamCreate : TeamFields
+    {
+        /// <summary>The Id to create the Team with. A new one is made when it is empty.</summary>
+        public Guid Id { get; set; }
+        public Guid? ExhibitId { get; set; }
+    }
+
+    public class TeamEdit : TeamFields
+    {
+    }
 }

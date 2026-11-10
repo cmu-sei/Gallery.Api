@@ -8,8 +8,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Gallery.Api.Data;
@@ -19,6 +17,7 @@ using Gallery.Api.Infrastructure.Authorization;
 using Gallery.Api.Infrastructure.Exceptions;
 using Gallery.Api.Infrastructure.Extensions;
 using Gallery.Api.ViewModels;
+using Gallery.Api.Infrastructure.Mappings;
 
 namespace Gallery.Api.Services
 {
@@ -29,8 +28,8 @@ namespace Gallery.Api.Services
         Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByExhibitAsync(Guid exhibitId, CancellationToken ct);
         Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct);
-        Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct);
-        Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct);
+        Task<ViewModels.Card> CreateAsync(ViewModels.CardCreate card, CancellationToken ct);
+        Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.CardEdit card, CancellationToken ct);
         Task<bool> DeleteAsync(Guid id, CancellationToken ct);
     }
 
@@ -39,32 +38,31 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly ClaimsPrincipal _user;
-        private readonly IMapper _mapper;
 
         public CardService(
             GalleryDbContext context,
             IAuthorizationService authorizationService,
-            IPrincipal user,
-            IMapper mapper)
+            IPrincipal user)
         {
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
-            _mapper = mapper;
         }
 
         public async Task<IEnumerable<ViewModels.Card>> GetAsync(CancellationToken ct)
         {
             IQueryable<CardEntity> cards = _context.Cards;
 
-            return _mapper.Map<IEnumerable<Card>>(await cards.ToListAsync());
+            return (await cards.ToListAsync()).Select(x => x.ToCard()).ToList();
         }
 
         public async Task<ViewModels.Card> GetAsync(Guid id, CancellationToken ct)
         {
             var item = await _context.Cards.SingleOrDefaultAsync(sm => sm.Id == id, ct);
+            if (item == null)
+                throw new EntityNotFoundException<Card>();
 
-            return _mapper.Map<Card>(item);
+            return item.ToCard();
         }
 
         public async Task<IEnumerable<ViewModels.Card>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
@@ -73,7 +71,7 @@ namespace Gallery.Api.Services
                 .Where(c => c.CollectionId == collectionId)
                 .OrderBy(c => c.Move)
                 .ThenBy(c => c.Inject)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync(ct);
 
             return cards;
@@ -91,7 +89,7 @@ namespace Gallery.Api.Services
             var cards = await _context.Cards
                 .Where(c => c.CollectionId == exhibit.CollectionId)
                 .OrderBy(c => c.Inject)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync(ct);
 
             return cards;
@@ -99,43 +97,42 @@ namespace Gallery.Api.Services
 
         public async Task<IEnumerable<ViewModels.Card>> GetByExhibitTeamAsync(Guid exhibitId, Guid teamId, CancellationToken ct)
         {
-            var exhibit = await _context.Exhibits.FindAsync(exhibitId);
+            var exhibit = await _context.Exhibits.FindAsync([exhibitId], ct);
+            if (exhibit == null)
+                throw new EntityNotFoundException<Exhibit>();
             var cards = await _context.TeamCards
                 .Where(tc => tc.Card.CollectionId == exhibit.CollectionId && tc.TeamId == teamId)
                 .Include(tc => tc.Card)
                 .Select(tc => tc.Card)
-                .ProjectTo<ViewModels.Card>(_mapper.ConfigurationProvider)
+                .ProjectToCard()
                 .ToListAsync();
 
             return cards;
         }
 
-        public async Task<ViewModels.Card> CreateAsync(ViewModels.Card card, CancellationToken ct)
+        public async Task<ViewModels.Card> CreateAsync(ViewModels.CardCreate card, CancellationToken ct)
         {
-            var cardEntity = _mapper.Map<CardEntity>(card);
+            var cardEntity = card.ToEntity();
             cardEntity.Id = cardEntity.Id != Guid.Empty ? cardEntity.Id : Guid.NewGuid();
 
             _context.Cards.Add(cardEntity);
             await _context.SaveChangesAsync(ct);
-            card = await GetAsync(cardEntity.Id, ct);
 
-            return card;
+            return await GetAsync(cardEntity.Id, ct);
         }
 
-        public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.Card card, CancellationToken ct)
+        public async Task<ViewModels.Card> UpdateAsync(Guid id, ViewModels.CardEdit card, CancellationToken ct)
         {
             var cardToUpdate = await _context.Cards.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (cardToUpdate == null)
                 throw new EntityNotFoundException<Card>();
 
-            _mapper.Map(card, cardToUpdate);
+            card.ApplyTo(cardToUpdate);
 
             _context.Cards.Update(cardToUpdate);
             await _context.SaveChangesAsync(ct);
 
-            card = await GetAsync(cardToUpdate.Id, ct);
-
-            return card;
+            return await GetAsync(cardToUpdate.Id, ct);
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken ct)

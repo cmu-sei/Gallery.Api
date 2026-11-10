@@ -26,22 +26,36 @@ public class CardHandlerTests(DatabaseFixture fixture, GalleryAppFactory factory
         Assert.Null(broadcast.Arguments[1]);
     }
 
-    /// <summary>The participants of every exhibit of the card's collection hear about it in their own groups.</summary>
+    /// <summary>
+    /// A card's content goes to the participants of a team the card is assigned to and to the exhibit's observers,
+    /// not to a participant of a team that does not have the card.
+    /// </summary>
     [Fact]
-    public async Task Updating_a_card_sends_CardUpdated_to_the_participants_of_the_collection_s_exhibits()
+    public async Task Updating_a_card_sends_CardUpdated_to_the_participants_of_teams_the_card_is_assigned_to_only()
     {
         var collection = TestData.Collection();
         var exhibit = TestData.Exhibit(collection.Id);
         var team = TestData.Team(exhibit.Id);
+        var otherTeam = TestData.Team(exhibit.Id, "Other Team");
+        var observerTeam = TestData.Team(exhibit.Id, "Observers");
         var card = TestData.Card(collection.Id);
         var participant = TestData.User(name: "Participant");
-        await Seed(collection, exhibit, team, card, participant, TestData.TeamUser(team.Id, participant.Id));
+        var unassigned = TestData.User(name: "Unassigned");
+        var observer = TestData.User(name: "Observer");
+        await Seed(collection, exhibit, team, otherTeam, observerTeam, card, participant, unassigned, observer,
+            TestData.TeamUser(team.Id, participant.Id),
+            TestData.TeamUser(otherTeam.Id, unassigned.Id),
+            TestData.TeamUser(observerTeam.Id, observer.Id, observer: true),
+            TestData.TeamCard(team.Id, card.Id));
 
-        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}", new { id = card.Id, name = "Renamed Card", collectionId = collection.Id }, Ct));
+        await AssertStatus(HttpStatusCode.OK, await RootClient.PutAsJsonAsync($"api/cards/{card.Id}", new { name = "Renamed Card" }, Ct));
 
-        var broadcast = Assert.Single(Factory.Hub<MainHub>().ToGroup(participant.Id));
+        var hub = Factory.Hub<MainHub>();
+        var broadcast = Assert.Single(hub.ToGroup(participant.Id));
         Assert.Equal(MainHubMethods.CardUpdated, broadcast.Method);
         Assert.Contains("name", Assert.IsType<string[]>(broadcast.Arguments[1]));
+        Assert.Equal(MainHubMethods.CardUpdated, Assert.Single(hub.ToGroup(observer.Id)).Method);
+        Assert.Empty(hub.ToGroup(unassigned.Id));
     }
 
     [Fact]

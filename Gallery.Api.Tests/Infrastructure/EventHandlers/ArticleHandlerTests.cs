@@ -58,14 +58,30 @@ public class ArticleHandlerTests(DatabaseFixture fixture, GalleryAppFactory fact
         Assert.Equal(article.Id, broadcast.Argument);
     }
 
-    /// <summary>A collection article is sent to the exhibit admin group and not the collection admin group.</summary>
+    /// <summary>A template is collection content: it goes to the collection admin group, not the exhibit admin group.</summary>
     [Fact]
-    public async Task Creating_a_collection_article_sends_it_to_the_exhibit_admin_group()
+    public async Task Creating_a_collection_article_sends_it_to_the_collection_admin_group()
     {
         var collection = TestData.Collection();
         await Seed(collection);
 
         var created = await ReadAsync<Article>(await RootClient.PostAsJsonAsync("api/articles", NewArticle(collection.Id, "Admin Broadcast"), Ct));
+
+        var hub = Factory.Hub<MainHub>();
+        Assert.Contains(hub.ToGroup(MainHub.COLLECTION_GROUP), x => x.Arguments[0] is Article a && a.Id == created.Id);
+        Assert.DoesNotContain(hub.ToGroup(MainHub.EXHIBIT_GROUP), x => x.Arguments[0] is Article a && a.Id == created.Id);
+    }
+
+    /// <summary>An exhibit's article goes to the exhibit admin group, so a holder of only ViewCollections never receives it.</summary>
+    [Fact]
+    public async Task Creating_an_exhibit_article_sends_it_to_the_exhibit_admin_group_only()
+    {
+        var collection = TestData.Collection();
+        var exhibit = TestData.Exhibit(collection.Id);
+        await Seed(collection, exhibit);
+
+        var created = await ReadAsync<Article>(await RootClient.PostAsJsonAsync("api/articles",
+            new { name = "Exhibit Broadcast", collectionId = collection.Id, exhibitId = exhibit.Id, sourceType = "News", status = "Green", datePosted = TestData.DefaultDatePosted }, Ct));
 
         var hub = Factory.Hub<MainHub>();
         Assert.Contains(hub.ToGroup(MainHub.EXHIBIT_GROUP), x => x.Arguments[0] is Article a && a.Id == created.Id);
