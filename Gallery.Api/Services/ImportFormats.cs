@@ -168,7 +168,7 @@ namespace Gallery.Api.Services
                 // fix it. The url itself is left out: it can be a script.
                 if (!ArticleUrl.IsAllowed(article.Url))
                     throw new BadRequestException(
-                        $"Article \"{article.Name}\" ({article.Id}) has a url that is not an http or https url. " +
+                        $"Article \"{article.Name}\"{(article.Id == Guid.Empty ? "" : $" ({article.Id})")} has a url that is not an http or https url. " +
                         "Edit the article to fix or clear its url, then try again.");
 
                 var articleEntity = new ArticleEntity

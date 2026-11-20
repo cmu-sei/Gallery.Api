@@ -31,6 +31,19 @@ public class ImportBuilderTests
         Assert.DoesNotContain(url, refused.Message);
     }
 
+    /// <summary>A hand-written file's article can have no id, so the refusal names it without one.</summary>
+    [Fact]
+    public void BuildCollectionContent_names_an_article_with_no_id_without_one()
+    {
+        var refused = Assert.Throws<BadRequestException>(() => ImportBuilder.BuildCollectionContent(Guid.NewGuid(), [],
+            [new ArticleImport { Name = "Scripted", Url = "javascript:alert(1)" }],
+            null, null, []));
+
+        Assert.Equal(
+            "Article \"Scripted\" has a url that is not an http or https url. Edit the article to fix or clear its url, then try again.",
+            refused.Message);
+    }
+
     /// <summary>An article of another exhibit is left out before its url is looked at, so it cannot refuse the import.</summary>
     [Fact]
     public void BuildCollectionContent_leaves_out_another_exhibit_s_article_whatever_its_url()
