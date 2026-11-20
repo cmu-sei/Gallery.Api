@@ -7,7 +7,6 @@ using System.Linq;
 using Gallery.Api.Data.Enumerations;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace Gallery.Api.Services
 {
@@ -111,8 +110,8 @@ namespace Gallery.Api.Services
         /// New cards and articles for collection <paramref name="collectionId"/>. Template articles are kept.
         /// An article of exhibit <paramref name="fromExhibitId"/> is kept for <paramref name="toExhibitId"/>;
         /// an article of any other exhibit is left out. <paramref name="cardIdMap"/> starts with the cards that
-        /// already belong to the collection, if any, and gets the new ones. An article whose url is not an http or
-        /// https url (<see cref="ArticleUrl"/>) is kept without its url, and <paramref name="logger"/> is warned.
+        /// already belong to the collection, if any, and gets the new ones. An article kept whose url is not an http
+        /// or https url (<see cref="ArticleUrl"/>) refuses the whole import with a 400 that names it.
         /// </summary>
         public static (List<CardEntity> Cards, List<ArticleEntity> Articles, Dictionary<Guid, Guid> ArticleIdMap) BuildCollectionContent(
             Guid collectionId,
@@ -120,8 +119,7 @@ namespace Gallery.Api.Services
             IEnumerable<ArticleImport> articles,
             Guid? fromExhibitId,
             Guid? toExhibitId,
-            Dictionary<Guid, Guid> cardIdMap,
-            ILogger logger)
+            Dictionary<Guid, Guid> cardIdMap)
         {
             var cardEntities = new List<CardEntity>();
             foreach (var card in cards ?? [])
@@ -166,6 +164,13 @@ namespace Gallery.Api.Services
                         throw new BadRequestException($"Article {article.Name} names a card that is not in the file.");
                     cardId = mappedCardId;
                 }
+                // a copy is built from stored articles, which can predate the url check, so the reason says how to
+                // fix it. The url itself is left out: it can be a script.
+                if (!ArticleUrl.IsAllowed(article.Url))
+                    throw new BadRequestException(
+                        $"Article \"{article.Name}\" ({article.Id}) has a url that is not an http or https url. " +
+                        "Edit the article to fix or clear its url, then try again.");
+
                 var articleEntity = new ArticleEntity
                 {
                     Id = Guid.NewGuid(),
@@ -184,15 +189,6 @@ namespace Gallery.Api.Services
                     DatePosted = article.DatePosted,
                     OpenInNewTab = article.OpenInNewTab
                 };
-                // a copy is built from stored articles, which can predate the url check, so the url is dropped
-                // rather than the whole copy refused. The url itself is not logged: it can be a script.
-                if (!ArticleUrl.IsAllowed(article.Url))
-                {
-                    articleEntity.Url = null;
-                    logger.LogWarning(
-                        "Article {ArticleId} ({ArticleName}) was copied as {NewArticleId} without its url, which is not an http or https url.",
-                        article.Id, article.Name, articleEntity.Id);
-                }
                 if (article.Id != Guid.Empty)
                     articleIdMap[article.Id] = articleEntity.Id;
                 articleEntities.Add(articleEntity);

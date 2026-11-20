@@ -612,33 +612,32 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     }
 
     /// <summary>
-    /// An uploaded article whose url is not http or https is saved without its url, and the rest of the file is
-    /// imported as it is: the upload shares the copy's rule rather than an article create's 400.
+    /// An uploaded article whose url is not http or https refuses the upload, with a reason that names the article and
+    /// says how to fix it, and nothing is saved.
     /// </summary>
     [Theory]
     [InlineData("javascript:alert(document.domain)")]
     [InlineData("data:text/html,<script>alert(1)</script>")]
-    public async Task UploadJson_drops_an_article_url_that_is_not_http_or_https_and_imports_the_rest(string url)
+    public async Task UploadJson_answers_an_article_url_that_is_not_http_or_https_with_a_bad_request_and_saves_nothing(string url)
     {
-        var cardId = Guid.NewGuid();
+        var articleId = Guid.NewGuid();
         var file = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
         {
             Collection = new { Name = "Scripted" },
-            Cards = new[] { new { Id = cardId, Name = "Card" } },
+            Cards = new[] { new { Name = "Scripted Card" } },
             Articles = new object[]
             {
                 new { Name = "Allowed", Url = "https://news.example/a" },
-                new { Name = "Scripted Article", Summary = "Kept", CardId = cardId, Url = url, OpenInNewTab = true, Move = 2, Inject = 3 }
+                new { Id = articleId, Name = "Scripted Article", Url = url }
             }
         }));
 
-        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
 
-        var articles = await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).OrderBy(x => x.Name).ToListAsync(Ct));
-        var card = await ReadBack(db => db.Cards.SingleAsync(x => x.CollectionId == uploaded.Id, Ct));
-        Assert.Equal([("Allowed", "https://news.example/a"), ("Scripted Article", null)], articles.Select(x => (x.Name, x.Url)));
-        var dropped = articles[1];
-        Assert.Equal(("Kept", (Guid?)card.Id, true, 2, 3), (dropped.Summary, dropped.CardId, dropped.OpenInNewTab, dropped.Move, dropped.Inject));
+        Assert.Equal(RefusedUrl("Scripted Article", articleId), problem.Title);
+        Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Scripted"), Ct)));
+        Assert.False(await ReadBack(db => db.Cards.AnyAsync(x => x.Name == "Scripted Card", Ct)));
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Allowed", Ct)));
     }
 
     [Fact]
@@ -658,29 +657,24 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
     }
 
     /// <summary>
-    /// An article stored before urls were checked does not stop a copy: the copy is made, its article has no url and
-    /// keeps everything else, and the original is left as it is.
+    /// An article stored before urls were checked refuses a copy, with a reason that names it and says how to fix it.
+    /// Nothing is saved, and the original is left as it is.
     /// </summary>
     [Fact]
-    public async Task Copy_drops_a_stored_javascript_url_and_copies_the_rest()
+    public async Task Copy_answers_a_stored_javascript_url_with_a_bad_request_and_saves_nothing()
     {
         var collection = await SeedCollection("Legacy");
         var card = TestData.Card(collection.Id);
         var legacy = TestData.Article(collection.Id, card.Id, name: "Legacy Article");
         legacy.Url = "javascript:alert(1)";
-        legacy.Description = "Described";
-        var allowed = TestData.Article(collection.Id, card.Id, name: "Allowed Article");
-        allowed.Url = "https://news.example/a";
-        await Seed(card, legacy, allowed);
+        await Seed(card, legacy, TestData.Article(collection.Id, card.Id, name: "Allowed Article"));
 
-        var response = await RootClient.PostAsync($"api/collections/{collection.Id}/copy", null, Ct);
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync($"api/collections/{collection.Id}/copy", null, Ct));
 
-        await AssertStatus(HttpStatusCode.Created, response);
-        var copy = await ReadAsync<Collection>(response);
-        var copiedCard = await ReadBack(db => db.Cards.SingleAsync(x => x.CollectionId == copy.Id, Ct));
-        var copied = await ReadBack(db => db.Articles.Where(x => x.CollectionId == copy.Id).OrderBy(x => x.Name).ToListAsync(Ct));
-        Assert.Equal([("Allowed Article", "https://news.example/a"), ("Legacy Article", null)], copied.Select(x => (x.Name, x.Url)));
-        Assert.Equal(("Described", legacy.Summary, (Guid?)copiedCard.Id), (copied[1].Description, copied[1].Summary, copied[1].CardId));
+        Assert.Equal(RefusedUrl("Legacy Article", legacy.Id), problem.Title);
+        Assert.Equal(["Legacy"], await ReadBack(db => db.Collections.Select(x => x.Name).ToListAsync(Ct)));
+        Assert.Equal(1, await ReadBack(db => db.Cards.CountAsync(Ct)));
+        Assert.Equal(2, await ReadBack(db => db.Articles.CountAsync(Ct)));
         Assert.Equal("javascript:alert(1)", await ReadBack(db => db.Articles.Where(x => x.Id == legacy.Id).Select(x => x.Url).SingleAsync(Ct)));
     }
 
@@ -747,6 +741,9 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         return collection;
     }
+
+    private static string RefusedUrl(string name, Guid id) =>
+        $"Article \"{name}\" ({id}) has a url that is not an http or https url. Edit the article to fix or clear its url, then try again.";
 
     private static MultipartFormDataContent Upload(byte[] file)
     {

@@ -14,7 +14,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Authorization;
@@ -43,18 +42,15 @@ namespace Gallery.Api.Services
         private readonly GalleryDbContext _context;
         private readonly IUserClaimsService _userClaimsService;
         private readonly ClaimsPrincipal _user;
-        private readonly ILogger<CollectionService> _logger;
 
         public CollectionService(
             GalleryDbContext context,
             IUserClaimsService userClaimsService,
-            IPrincipal user,
-            ILogger<CollectionService> logger)
+            IPrincipal user)
         {
             _context = context;
             _userClaimsService = userClaimsService;
             _user = user as ClaimsPrincipal;
-            _logger = logger;
         }
 
         public async Task<IEnumerable<ViewModels.Collection>> GetAsync(bool canViewAll, CancellationToken ct)
@@ -160,7 +156,7 @@ namespace Gallery.Api.Services
             };
             // a collection file has no exhibit, so only its template articles are kept
             var (cards, articles, _) = ImportBuilder.BuildCollectionContent(
-                newCollectionId, collectionImport.Cards, collectionImport.Articles, null, null, new Dictionary<Guid, Guid>(), _logger);
+                newCollectionId, collectionImport.Cards, collectionImport.Articles, null, null, new Dictionary<Guid, Guid>());
 
             await _context.Collections.AddAsync(collectionEntity, ct);
             await _context.Cards.AddRangeAsync(cards, ct);

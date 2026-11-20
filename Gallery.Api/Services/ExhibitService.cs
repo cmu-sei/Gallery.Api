@@ -14,7 +14,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Gallery.Api.Data;
 using Gallery.Api.Data.Models;
 using Gallery.Api.Infrastructure.Exceptions;
@@ -51,7 +50,6 @@ namespace Gallery.Api.Services
         private readonly IUserArticleService _userArticleService;
         private readonly IUserClaimsService _userClaimsService;
         private readonly ISteamfitterService _steamfitterService;
-        private readonly ILogger<ExhibitService> _logger;
 
         public ExhibitService(
             GalleryDbContext context,
@@ -59,11 +57,9 @@ namespace Gallery.Api.Services
             IPrincipal user,
             IUserArticleService userArticleService,
             IUserClaimsService userClaimsService,
-            ISteamfitterService steamfitterService,
-            ILogger<ExhibitService> logger)
+            ISteamfitterService steamfitterService)
         {
             _steamfitterService = steamfitterService;
-            _logger = logger;
             _context = context;
             _authorizationService = authorizationService;
             _user = user as ClaimsPrincipal;
@@ -308,7 +304,7 @@ namespace Gallery.Api.Services
                     CreatedBy = currentUserId
                 };
                 (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
-                    collectionId, exhibitImport.Cards, fileArticles, fileExhibitId, newExhibitId, cardIdMap, _logger);
+                    collectionId, exhibitImport.Cards, fileArticles, fileExhibitId, newExhibitId, cardIdMap);
             }
             else
             {
@@ -317,7 +313,7 @@ namespace Gallery.Api.Services
                 foreach (var cardId in await _context.Cards.Where(c => c.CollectionId == collectionId).Select(c => c.Id).ToListAsync(ct))
                     cardIdMap[cardId] = cardId;
                 (cards, articles, articleIdMap) = ImportBuilder.BuildCollectionContent(
-                    collectionId, [], fileArticles.Where(a => a == null || a.ExhibitId == fileExhibitId), fileExhibitId, newExhibitId, cardIdMap, _logger);
+                    collectionId, [], fileArticles.Where(a => a == null || a.ExhibitId == fileExhibitId), fileExhibitId, newExhibitId, cardIdMap);
                 foreach (var articleId in await _context.Articles.Where(a => a.CollectionId == collectionId && a.ExhibitId == null).Select(a => a.Id).ToListAsync(ct))
                     articleIdMap[articleId] = articleId;
             }
