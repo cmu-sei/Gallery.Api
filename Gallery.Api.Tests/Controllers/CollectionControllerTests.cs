@@ -611,6 +611,79 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Card Id"), Ct)));
     }
 
+    /// <summary>
+    /// An uploaded article whose url is not http or https is saved without its url, and the rest of the file is
+    /// imported as it is: the upload shares the copy's rule rather than an article create's 400.
+    /// </summary>
+    [Theory]
+    [InlineData("javascript:alert(document.domain)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    public async Task UploadJson_drops_an_article_url_that_is_not_http_or_https_and_imports_the_rest(string url)
+    {
+        var cardId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            Collection = new { Name = "Scripted" },
+            Cards = new[] { new { Id = cardId, Name = "Card" } },
+            Articles = new object[]
+            {
+                new { Name = "Allowed", Url = "https://news.example/a" },
+                new { Name = "Scripted Article", Summary = "Kept", CardId = cardId, Url = url, OpenInNewTab = true, Move = 2, Inject = 3 }
+            }
+        }));
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        var articles = await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).OrderBy(x => x.Name).ToListAsync(Ct));
+        var card = await ReadBack(db => db.Cards.SingleAsync(x => x.CollectionId == uploaded.Id, Ct));
+        Assert.Equal([("Allowed", "https://news.example/a"), ("Scripted Article", null)], articles.Select(x => (x.Name, x.Url)));
+        var dropped = articles[1];
+        Assert.Equal(("Kept", (Guid?)card.Id, true, 2, 3), (dropped.Summary, dropped.CardId, dropped.OpenInNewTab, dropped.Move, dropped.Inject));
+    }
+
+    [Fact]
+    public async Task UploadJson_keeps_an_empty_or_https_article_url()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "Urls" },
+              "Articles": [ { "Name": "A", "Url": "https://news.example/a" }, { "Name": "B", "Url": "" }, { "Name": "C" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(["https://news.example/a", "", null],
+            await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).OrderBy(x => x.Name).Select(x => x.Url).ToListAsync(Ct)));
+    }
+
+    /// <summary>
+    /// An article stored before urls were checked does not stop a copy: the copy is made, its article has no url and
+    /// keeps everything else, and the original is left as it is.
+    /// </summary>
+    [Fact]
+    public async Task Copy_drops_a_stored_javascript_url_and_copies_the_rest()
+    {
+        var collection = await SeedCollection("Legacy");
+        var card = TestData.Card(collection.Id);
+        var legacy = TestData.Article(collection.Id, card.Id, name: "Legacy Article");
+        legacy.Url = "javascript:alert(1)";
+        legacy.Description = "Described";
+        var allowed = TestData.Article(collection.Id, card.Id, name: "Allowed Article");
+        allowed.Url = "https://news.example/a";
+        await Seed(card, legacy, allowed);
+
+        var response = await RootClient.PostAsync($"api/collections/{collection.Id}/copy", null, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var copy = await ReadAsync<Collection>(response);
+        var copiedCard = await ReadBack(db => db.Cards.SingleAsync(x => x.CollectionId == copy.Id, Ct));
+        var copied = await ReadBack(db => db.Articles.Where(x => x.CollectionId == copy.Id).OrderBy(x => x.Name).ToListAsync(Ct));
+        Assert.Equal([("Allowed Article", "https://news.example/a"), ("Legacy Article", null)], copied.Select(x => (x.Name, x.Url)));
+        Assert.Equal(("Described", legacy.Summary, (Guid?)copiedCard.Id), (copied[1].Description, copied[1].Summary, copied[1].CardId));
+        Assert.Equal("javascript:alert(1)", await ReadBack(db => db.Articles.Where(x => x.Id == legacy.Id).Select(x => x.Url).SingleAsync(Ct)));
+    }
+
     [Fact]
     public async Task UploadJson_answers_a_file_that_is_not_json_with_a_bad_request()
     {

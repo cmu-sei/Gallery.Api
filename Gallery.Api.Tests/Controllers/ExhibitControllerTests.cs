@@ -1305,6 +1305,68 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
     }
 
+    /// <summary>
+    /// An exhibit file's article whose url is not http or https, a template or the exhibit's own, is saved without its
+    /// url, and the rest of the file is imported as it is.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UploadJson_drops_an_article_url_that_is_not_http_or_https_and_imports_the_rest(bool exhibitsOwn)
+    {
+        var exhibitId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var articleId = Guid.NewGuid();
+        var articleExhibitId = exhibitsOwn ? $"\"{exhibitId}\"" : "null";
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Scripted" },
+              "Cards": [],
+              "Articles": [
+                { "Id": "{{articleId}}", "Name": "Scripted Article", "Summary": "Kept", "ExhibitId": {{articleExhibitId}}, "Url": "javascript:alert(document.domain)" },
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Allowed Article", "Url": "https://news.example/a" } ],
+              "Exhibit": { "Id": "{{exhibitId}}", "Name": "Scripted" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Blue" } ], "TeamCards": [],
+              "TeamArticles": [ { "TeamId": "{{teamId}}", "ArticleId": "{{articleId}}" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Exhibit>(await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        await using var db = NewContext();
+        var articles = await db.Articles.Where(x => x.CollectionId == uploaded.CollectionId).OrderBy(x => x.Name).ToListAsync(Ct);
+        Assert.Equal([("Allowed Article", "https://news.example/a"), ("Scripted Article", null)], articles.Select(x => (x.Name, x.Url)));
+        var dropped = articles[1];
+        Assert.Equal(("Kept", exhibitsOwn ? uploaded.Id : (Guid?)null), (dropped.Summary, dropped.ExhibitId));
+        Assert.Equal(dropped.Id, (await db.TeamArticles.SingleAsync(x => x.ExhibitId == uploaded.Id, Ct)).ArticleId);
+    }
+
+    /// <summary>
+    /// An exhibit article stored before urls were checked does not stop a copy: the copy is made, its copied article has
+    /// no url and keeps everything else, its team article points at it, and the original is left as it is.
+    /// </summary>
+    [Fact]
+    public async Task Copy_drops_a_stored_javascript_url_on_the_exhibit_s_own_article_and_copies_the_rest()
+    {
+        var exhibit = await SeedExhibit("Legacy");
+        var team = await SeedTeam(exhibit, "Copied Team");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Legacy Article");
+        own.Url = "javascript:alert(1)";
+        own.Description = "Described";
+        await Seed(own, TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+
+        var response = await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct);
+
+        await AssertStatus(HttpStatusCode.Created, response);
+        var copy = await ReadAsync<Exhibit>(response);
+        await using var db = NewContext();
+        var copied = await db.Articles.SingleAsync(x => x.ExhibitId == copy.Id, Ct);
+        Assert.Equal(("Legacy Article", "Described", own.Summary, (string)null), (copied.Name, copied.Description, copied.Summary, copied.Url));
+        Assert.Equal(["Copied Team"], await db.Teams.Where(x => x.ExhibitId == copy.Id).Select(x => x.Name).ToListAsync(Ct));
+        Assert.Equal(copied.Id, (await db.TeamArticles.SingleAsync(x => x.ExhibitId == copy.Id, Ct)).ArticleId);
+        Assert.Equal("javascript:alert(1)", (await db.Articles.SingleAsync(x => x.Id == own.Id, Ct)).Url);
+    }
+
     private async Task<ExhibitEntity> SeedExhibit(string name = "Test Exhibit", int move = 0, int inject = 0, Guid createdBy = default)
     {
         var collection = TestData.Collection();
