@@ -107,6 +107,7 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> CreateAsync(ViewModels.ArticleCreate articleCreate, CancellationToken ct)
         {
+            RequireAllowedUrl(articleCreate.Url);
             var articleEntity = articleCreate.ToEntity();
             if (articleCreate.ExhibitId != null)
             {
@@ -174,6 +175,7 @@ namespace Gallery.Api.Services
 
         public async Task<ViewModels.Article> UpdateAsync(Guid id, ViewModels.ArticleEdit articleEdit, CancellationToken ct)
         {
+            RequireAllowedUrl(articleEdit.Url);
             var articleToUpdate = await _context.Articles.SingleOrDefaultAsync(v => v.Id == id, ct);
             if (articleToUpdate == null)
                 throw new EntityNotFoundException<Article>();
@@ -270,6 +272,13 @@ namespace Gallery.Api.Services
                 .Where(tc => tc.TeamId == teamUser.TeamId && tc.CanPostArticles && distinctCardIds.Contains(tc.CardId))
                 .CountAsync(ct);
             return postableCardCount == distinctCardIds.Count;
+        }
+
+        /// <summary>Throws a 400 unless <paramref name="url"/> is empty or an http or https url (<see cref="ArticleUrl"/>).</summary>
+        private static void RequireAllowedUrl(string url)
+        {
+            if (!ArticleUrl.IsAllowed(url))
+                throw new BadRequestException("The article's url must be an http or https url.");
         }
 
         /// <summary>Throws a 404 unless <paramref name="cardId"/> is null or a card of <paramref name="collectionId"/>.</summary>

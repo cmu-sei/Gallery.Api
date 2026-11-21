@@ -611,6 +611,73 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
         Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Empty Card Id"), Ct)));
     }
 
+    /// <summary>
+    /// An uploaded article whose url is not http or https refuses the upload, with a reason that names the article and
+    /// says how to fix it, and nothing is saved.
+    /// </summary>
+    [Theory]
+    [InlineData("javascript:alert(document.domain)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    public async Task UploadJson_answers_an_article_url_that_is_not_http_or_https_with_a_bad_request_and_saves_nothing(string url)
+    {
+        var articleId = Guid.NewGuid();
+        var file = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            Collection = new { Name = "Scripted" },
+            Cards = new[] { new { Name = "Scripted Card" } },
+            Articles = new object[]
+            {
+                new { Name = "Allowed", Url = "https://news.example/a" },
+                new { Id = articleId, Name = "Scripted Article", Url = url }
+            }
+        }));
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(RefusedUrl("Scripted Article", articleId), problem.Title);
+        Assert.False(await ReadBack(db => db.Collections.AnyAsync(x => x.Name.StartsWith("Scripted"), Ct)));
+        Assert.False(await ReadBack(db => db.Cards.AnyAsync(x => x.Name == "Scripted Card", Ct)));
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Allowed", Ct)));
+    }
+
+    [Fact]
+    public async Task UploadJson_keeps_an_empty_or_https_article_url()
+    {
+        var file = Encoding.UTF8.GetBytes("""
+            {
+              "Collection": { "Name": "Urls" },
+              "Articles": [ { "Name": "A", "Url": "https://news.example/a" }, { "Name": "B", "Url": "" }, { "Name": "C" } ]
+            }
+            """);
+
+        var uploaded = await ReadAsync<Collection>(await RootClient.PostAsync("api/collections/json", Upload(file), Ct));
+
+        Assert.Equal(["https://news.example/a", "", null],
+            await ReadBack(db => db.Articles.Where(x => x.CollectionId == uploaded.Id).OrderBy(x => x.Name).Select(x => x.Url).ToListAsync(Ct)));
+    }
+
+    /// <summary>
+    /// An article stored before urls were checked refuses a copy, with a reason that names it and says how to fix it.
+    /// Nothing is saved, and the original is left as it is.
+    /// </summary>
+    [Fact]
+    public async Task Copy_answers_a_stored_javascript_url_with_a_bad_request_and_saves_nothing()
+    {
+        var collection = await SeedCollection("Legacy");
+        var card = TestData.Card(collection.Id);
+        var legacy = TestData.Article(collection.Id, card.Id, name: "Legacy Article");
+        legacy.Url = "javascript:alert(1)";
+        await Seed(card, legacy, TestData.Article(collection.Id, card.Id, name: "Allowed Article"));
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync($"api/collections/{collection.Id}/copy", null, Ct));
+
+        Assert.Equal(RefusedUrl("Legacy Article", legacy.Id), problem.Title);
+        Assert.Equal(["Legacy"], await ReadBack(db => db.Collections.Select(x => x.Name).ToListAsync(Ct)));
+        Assert.Equal(1, await ReadBack(db => db.Cards.CountAsync(Ct)));
+        Assert.Equal(2, await ReadBack(db => db.Articles.CountAsync(Ct)));
+        Assert.Equal("javascript:alert(1)", await ReadBack(db => db.Articles.Where(x => x.Id == legacy.Id).Select(x => x.Url).SingleAsync(Ct)));
+    }
+
     [Fact]
     public async Task UploadJson_answers_a_file_that_is_not_json_with_a_bad_request()
     {
@@ -674,6 +741,9 @@ public class CollectionControllerTests(DatabaseFixture fixture, GalleryAppFactor
 
         return collection;
     }
+
+    private static string RefusedUrl(string name, Guid id) =>
+        $"Article \"{name}\" ({id}) has a url that is not an http or https url. Edit the article to fix or clear its url, then try again.";
 
     private static MultipartFormDataContent Upload(byte[] file)
     {
