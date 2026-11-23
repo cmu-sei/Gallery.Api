@@ -485,6 +485,84 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
             NewArticle(collection.Id, null, name: "Cardless"), Ct));
     }
 
+    // ---- Url -----------------------------------------------------------------------------------
+
+    /// <summary>The UI loads an article's url in an iframe, so a url that is not http or https is refused before anything is stored.</summary>
+    [Theory]
+    [InlineData("javascript:alert(document.domain)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    [InlineData("/assets/page.html")]
+    public async Task Create_answers_a_url_that_is_not_http_or_https_with_a_bad_request_and_stores_nothing(string url)
+    {
+        var (collection, card, _) = await SeedArticle();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.EditCollection]).SeedAsync();
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, name: "Refused", url: url), Ct));
+
+        Assert.Equal("The article's url must be an http or https url.", problem.Title);
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Refused", Ct)));
+    }
+
+    /// <summary>A participant posting during an exhibit is held to the same rule.</summary>
+    [Fact]
+    public async Task Create_answers_a_participant_s_javascript_url_with_a_bad_request_and_delivers_nothing()
+    {
+        var (collection, _, _) = await SeedArticle();
+        var (exhibit, card, actor) = await SeedParticipantWhoCanPost(collection.Id);
+
+        await AssertProblem(HttpStatusCode.BadRequest, await Client(actor).PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, exhibit.Id, name: "Refused", url: "javascript:alert(1)"), Ct));
+
+        Assert.False(await ReadBack(db => db.Articles.AnyAsync(x => x.Name == "Refused", Ct)));
+        Assert.False(await ReadBack(db => db.UserArticles.AnyAsync(x => x.ExhibitId == exhibit.Id, Ct)));
+    }
+
+    /// <summary>A url is optional: an article can show its description instead.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("https://news.example/outage")]
+    [InlineData("http://news.example/outage")]
+    public async Task Create_stores_an_empty_or_http_or_https_url(string url)
+    {
+        var (collection, card, _) = await SeedArticle();
+
+        var created = await ReadAsync<Article>(await RootClient.PostAsJsonAsync("api/articles",
+            NewArticle(collection.Id, card.Id, url: url), Ct));
+
+        Assert.Equal(url, await ReadBack(db => db.Articles.Where(x => x.Id == created.Id).Select(x => x.Url).SingleAsync(Ct)));
+    }
+
+    [Fact]
+    public async Task Update_answers_a_url_that_is_not_http_or_https_with_a_bad_request_and_keeps_the_stored_article()
+    {
+        var (collection, card, article) = await SeedArticle();
+        await using (var db = NewContext())
+        {
+            (await db.Articles.SingleAsync(x => x.Id == article.Id, Ct)).Url = "https://news.example/a";
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, name: "Rewritten", url: "javascript:alert(1)"), Ct));
+
+        Assert.Equal("The article's url must be an http or https url.", problem.Title);
+        var stored = await ReadBack(db => db.Articles.SingleAsync(x => x.Id == article.Id, Ct));
+        Assert.Equal((article.Name, "https://news.example/a"), (stored.Name, stored.Url));
+    }
+
+    /// <summary>The url is checked after the gate, so a caller who cannot edit the article learns nothing from it.</summary>
+    [Fact]
+    public async Task Update_with_a_javascript_url_is_forbidden_for_a_caller_holding_only_ViewCollection()
+    {
+        var (collection, card, article) = await SeedArticle();
+        var actor = await Actor().OnCollection(collection, [CollectionPermission.ViewCollection]).SeedAsync();
+
+        await AssertProblem(HttpStatusCode.Forbidden, await Client(actor).PutAsJsonAsync($"api/articles/{article.Id}",
+            NewArticle(collection.Id, card.Id, id: article.Id, url: "javascript:alert(1)"), Ct));
+    }
+
     // ---- Update --------------------------------------------------------------------------------
 
     [Fact]
@@ -1329,7 +1407,7 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         return (exhibit, card, actor);
     }
 
-    private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article", object status = null) =>
+    private static object NewArticle(Guid collectionId, Guid? cardId, Guid? exhibitId = null, Guid? id = null, string name = "New Article", object status = null, string url = null) =>
         new
         {
             id = id ?? Guid.Empty,
@@ -1340,6 +1418,7 @@ public class ArticleControllerTests(DatabaseFixture fixture, GalleryAppFactory f
             exhibitId,
             sourceType = "News",
             status = status ?? "Green",
+            url,
             datePosted = TestData.DefaultDatePosted
         };
 }

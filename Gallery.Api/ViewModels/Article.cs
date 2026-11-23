@@ -43,6 +43,7 @@ namespace Gallery.Api.ViewModels
         public ItemStatus Status { get; set; }
         public SourceType SourceType { get; set; }
         public string SourceName { get; set; }
+        /// <summary>Empty, or an http or https url. Any other url is refused with a 400.</summary>
         public string Url { get; set; }
         public DateTime DatePosted { get; set; }
         public bool OpenInNewTab { get; set; }

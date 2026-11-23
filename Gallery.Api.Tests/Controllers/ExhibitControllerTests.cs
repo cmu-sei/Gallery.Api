@@ -1305,6 +1305,69 @@ public class ExhibitControllerTests(DatabaseFixture fixture, GalleryAppFactory f
         Assert.False(await db.TeamCards.AnyAsync(x => x.CardId == foreignCard.Id, Ct));
     }
 
+    /// <summary>
+    /// An exhibit file's article whose url is not http or https, a template or the exhibit's own, refuses the upload with
+    /// a reason that names the article and says how to fix it, and nothing is saved.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UploadJson_answers_an_article_url_that_is_not_http_or_https_with_a_bad_request_and_saves_nothing(bool exhibitsOwn)
+    {
+        var exhibitId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var articleId = Guid.NewGuid();
+        var articleExhibitId = exhibitsOwn ? $"\"{exhibitId}\"" : "null";
+        var file = Encoding.UTF8.GetBytes($$"""
+            {
+              "Collection": { "Id": "{{Guid.NewGuid()}}", "Name": "Scripted" },
+              "Cards": [],
+              "Articles": [
+                { "Id": "{{Guid.NewGuid()}}", "Name": "Allowed Article", "Url": "https://news.example/a" },
+                { "Id": "{{articleId}}", "Name": "Scripted Article", "ExhibitId": {{articleExhibitId}}, "Url": "javascript:alert(document.domain)" } ],
+              "Exhibit": { "Id": "{{exhibitId}}", "Name": "Scripted" },
+              "Teams": [ { "Id": "{{teamId}}", "Name": "Scripted Team" } ], "TeamCards": [],
+              "TeamArticles": [ { "TeamId": "{{teamId}}", "ArticleId": "{{articleId}}" } ]
+            }
+            """);
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync("api/exhibits/json", Upload(file), Ct));
+
+        Assert.Equal(RefusedUrl("Scripted Article", articleId), problem.Title);
+        await using var db = NewContext();
+        Assert.False(await db.Collections.AnyAsync(x => x.Name.StartsWith("Scripted"), Ct));
+        Assert.False(await db.Exhibits.AnyAsync(x => x.Name.StartsWith("Scripted"), Ct));
+        Assert.False(await db.Teams.AnyAsync(x => x.Name == "Scripted Team", Ct));
+        Assert.False(await db.Articles.AnyAsync(x => x.Name == "Allowed Article", Ct));
+    }
+
+    /// <summary>
+    /// An exhibit article stored before urls were checked refuses a copy, with a reason that names it and says how to
+    /// fix it. Nothing is saved, and the original is left as it is.
+    /// </summary>
+    [Fact]
+    public async Task Copy_answers_a_stored_javascript_url_on_the_exhibit_s_own_article_with_a_bad_request_and_saves_nothing()
+    {
+        var exhibit = await SeedExhibit("Legacy");
+        var team = await SeedTeam(exhibit, "Legacy Team");
+        var own = TestData.Article(exhibit.CollectionId, exhibitId: exhibit.Id, name: "Legacy Article");
+        own.Url = "javascript:alert(1)";
+        await Seed(own, TestData.TeamArticle(exhibit.Id, team.Id, own.Id));
+
+        var problem = await AssertProblem(HttpStatusCode.BadRequest, await RootClient.PostAsync($"api/exhibits/{exhibit.Id}/copy", null, Ct));
+
+        Assert.Equal(RefusedUrl("Legacy Article", own.Id), problem.Title);
+        await using var db = NewContext();
+        Assert.Equal(["Legacy"], await db.Exhibits.Select(x => x.Name).ToListAsync(Ct));
+        Assert.Equal(1, await db.Teams.CountAsync(Ct));
+        Assert.Equal(1, await db.Articles.CountAsync(Ct));
+        Assert.Equal(1, await db.TeamArticles.CountAsync(Ct));
+        Assert.Equal("javascript:alert(1)", (await db.Articles.SingleAsync(x => x.Id == own.Id, Ct)).Url);
+    }
+
+    private static string RefusedUrl(string name, Guid id) =>
+        $"Article \"{name}\" ({id}) has a url that is not an http or https url. Edit the article to fix or clear its url, then try again.";
+
     private async Task<ExhibitEntity> SeedExhibit(string name = "Test Exhibit", int move = 0, int inject = 0, Guid createdBy = default)
     {
         var collection = TestData.Collection();
